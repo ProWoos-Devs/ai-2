@@ -1,0 +1,34 @@
+tier: creator
+label: Creator
+requires:
+  ram_gib: 16
+  cores: 4
+session:
+  desktop: kde
+  login: sddm
+memory:
+  mechanism: zswap
+  allocator: zsmalloc
+kernel:
+  vm.swappiness: 60
+oom_guard: earlyoom
+services:
+  never: []
+runtime:
+  provider: llama.cpp
+  service: persistent
+  gpu_offload: auto
+models:
+  - {id: qwen3-8b, quant: Q4_K_M, ctx: 8192}
+rag:
+  vector_store: sqlite-vec
+  embedder: all-MiniLM-L6-v2
+capabilities:
+  chat: full
+  translation: full
+  ocr: full
+  doc_qa: full
+  voice: full
+  coding_assist: full
+  image_generation: pending-backend
+  video: none

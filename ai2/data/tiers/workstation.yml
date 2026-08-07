@@ -1,0 +1,6 @@
+tier: workstation
+label: Workstation
+requires:
+  ram_gib: 64
+  cores: 8
+config_from: creator

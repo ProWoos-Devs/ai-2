@@ -1,0 +1,19 @@
+# Workflow profile format, Phase 0 reference example.
+# A profile REQUESTS capabilities; the assigned tier GRANTS a subset; the
+# runtime executes what was granted. Per-tier blocks may only narrow, never
+# exceed, what the tier grants (CI will enforce this).
+id: translation
+description: Offline translation and OCR
+requests: [translation, ocr]
+tiers:
+  tiny:
+    packages: [argos-translate, tesseract]
+    models:
+      - {id: argos-en-es, file_mb: 120}
+    llama_server: {ctx: 1024}
+  light:
+    packages: [argos-translate, tesseract]
+    models:
+      - {id: argos-en-es, file_mb: 120}
+      - {id: qwen3-1.7b, quant: Q4_K_M, file_mb: 1280, ram_peak_mb: 2100}
+    llama_server: {ctx: 2048}

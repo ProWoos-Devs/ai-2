@@ -1,0 +1,33 @@
+tier: light
+label: Light
+requires:
+  ram_gib: 4
+  cores: 2
+session:
+  desktop: xfce
+  login: lightdm
+memory:
+  mechanism: zram
+  algorithm: zstd
+kernel:
+  vm.swappiness: 180
+  vm.page-cluster: 0
+oom_guard: earlyoom
+services:
+  never: [ModemManager, cupsd, avahi-daemon]
+runtime:
+  provider: llama.cpp
+  service: on-demand
+  idle_timeout_s: 600
+models:
+  - {id: qwen3-1.7b, quant: Q4_K_M, ctx: 2048}
+  - {id: gemma3-1b-qat, quant: Q4_0, ctx: 2048}
+capabilities:
+  chat: full
+  translation: full
+  ocr: full
+  doc_qa: full
+  voice: full
+  coding_assist: basic
+  image_generation: none
+  video: none

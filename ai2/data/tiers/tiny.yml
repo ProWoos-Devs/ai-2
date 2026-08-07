@@ -1,0 +1,35 @@
+tier: tiny
+label: Tiny
+requires:
+  ram_gib: 2
+  cores: 1
+session:
+  desktop: openbox
+  login: autologin
+memory:
+  mechanism: zram
+  algorithm: zstd
+  weak_cpu_algorithm: lz4
+kernel:
+  vm.swappiness: 180
+  vm.page-cluster: 0
+  vm.watermark_scale_factor: 125
+  vm.watermark_boost_factor: 0
+oom_guard: earlyoom
+services:
+  never: [ModemManager, cupsd, avahi-daemon, bluetoothd]
+runtime:
+  provider: llama.cpp
+  service: on-demand
+  idle_timeout_s: 300
+models:
+  - {id: qwen3-0.6b, quant: Q4_K_M, ctx: 1024}
+capabilities:
+  chat: basic
+  translation: full
+  ocr: full
+  doc_qa: basic
+  voice: full
+  coding_assist: basic
+  image_generation: none
+  video: none

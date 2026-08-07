@@ -1,0 +1,34 @@
+tier: standard
+label: Standard
+requires:
+  ram_gib: 8
+  cores: 2
+session:
+  desktop: xfce
+  login: lightdm
+memory:
+  mechanism: zswap
+  allocator: zsmalloc
+kernel:
+  vm.swappiness: 60
+oom_guard: earlyoom
+services:
+  never: []
+runtime:
+  provider: llama.cpp
+  service: persistent
+models:
+  - {id: smollm3-3b, quant: Q4_K_M, ctx: 4096}
+  - {id: phi4-mini, quant: Q4_K_M, ctx: 4096}
+rag:
+  vector_store: sqlite-vec
+  embedder: all-MiniLM-L6-v2
+capabilities:
+  chat: full
+  translation: full
+  ocr: full
+  doc_qa: full
+  voice: full
+  coding_assist: full
+  image_generation: none
+  video: none

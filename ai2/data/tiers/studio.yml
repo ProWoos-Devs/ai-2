@@ -1,0 +1,6 @@
+tier: studio
+label: Studio
+requires:
+  ram_gib: 32
+  cores: 4
+config_from: creator
