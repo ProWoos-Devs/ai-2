@@ -1,9 +1,10 @@
 """runit backend (Artix layout).
 
 Artix ships service directories in /etc/runit/sv and enables them by symlink
-into the active runsvdir. The exact persistent-enable path must be verified on
-a real Artix runit install before Phase 0 is called done; VERIFY_ON_ARTIX
-marks the assumption.
+into the active runsvdir. Verified on a real Artix runit install 2026-08-11
+(RMM-PC, the AI-2 test machine): the layout is /etc/runit/runsvdir/{current
+-> default, default, single}. We target `default` (the real runlevel dir) so
+services are enabled for normal boot regardless of what `current` points to.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from __future__ import annotations
 import os
 
 SV_DIR = "/etc/runit/sv"
-ENABLED_DIR = "/etc/runit/runsvdir/default"  # VERIFY_ON_ARTIX
+ENABLED_DIR = "/etc/runit/runsvdir/default"  # verified on real Artix 2026-08-11
 
 
 class RunitBackend:
