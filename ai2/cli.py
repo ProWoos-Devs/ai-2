@@ -6,7 +6,7 @@ import sys
 from dataclasses import asdict
 
 from . import __version__
-from .backends import get_service_backend
+from .backends import get_package_backend, get_service_backend
 from .detect import detect
 from .tiers import assign, load_tiers, resolve_config
 from .tuning import apply_plan, build_plan, render_plan
@@ -62,10 +62,11 @@ def cmd_init(args) -> int:
     config = resolve_config(tier, tiers)
     try:
         backend = get_service_backend(hw.init_system)
+        pkg_backend = get_package_backend()
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    plan = build_plan(hw, tier, config, backend)
+    plan = build_plan(hw, tier, config, backend, pkg_backend)
     print(f"Tier {tier.label} on {hw.init_system}, plan:")
     print(render_plan(plan))
     if not args.apply:

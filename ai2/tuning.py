@@ -15,6 +15,28 @@ from .tiers import Tier
 SYSCTL_PATH = "/etc/sysctl.d/90-ai2.conf"
 STATE_DIR = "/etc/ai2"
 
+# Concrete tooling for an abstract mechanism, keyed by service-backend name.
+# This is where the Debian/systemd variants slot in later (e.g. zram-generator).
+ZRAM_PROVIDERS = {
+    "runit": {
+        "packages": ["zramen", "zramen-runit"],
+        "service": "zramen",
+        "conf_path": "/etc/runit/sv/zramen/conf",
+    },
+}
+OOM_PROVIDERS = {
+    "runit": {"packages": ["earlyoom", "earlyoom-runit"], "service": "earlyoom"},
+}
+
+
+def _zramen_conf(algorithm: str, size_percent: int) -> str:
+    return (
+        "# Managed by AI-2. Manual edits will be overwritten.\n"
+        f"export ZRAM_COMP_ALGORITHM='{algorithm}'\n"
+        f"export ZRAM_SIZE={size_percent}\n"
+        "export ZRAM_PRIORITY=100\n"
+    )
+
 
 @dataclass
 class Action:
@@ -37,7 +59,7 @@ def _cmd_action(cmd: list[str], description: str) -> Action:
     return Action(description=description, run=run, commands=[cmd])
 
 
-def build_plan(hw: Hardware, tier: Tier, config: dict, backend) -> list[Action]:
+def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> list[Action]:
     actions: list[Action] = []
 
     kernel = config.get("kernel") or {}
@@ -51,13 +73,34 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend) -> list[Action]:
         actions.append(_cmd_action(["sysctl", "--load", SYSCTL_PATH], "reload sysctl settings"))
 
     memory = config.get("memory") or {}
-    if memory:
-        mechanism = memory.get("mechanism")
+    mechanism = memory.get("mechanism")
+    if mechanism == "zram":
         algorithm = memory.get("algorithm", "zstd")
-        content = "".join(f"{key} = {value}\n" for key, value in sorted(memory.items()))
+        size_percent = int(memory.get("size_percent", 100))
+        provider = ZRAM_PROVIDERS.get(backend.name)
+        if provider is None:
+            actions.append(Action(
+                description=f"no zram provider for backend '{backend.name}', skipping",
+                run=lambda: None,
+            ))
+        else:
+            actions.append(_cmd_action(
+                pkg_backend.install_cmd(provider["packages"]),
+                f"install zram tooling: {' '.join(provider['packages'])} ({pkg_backend.name})",
+            ))
+            actions.append(_write_file_action(
+                provider["conf_path"], _zramen_conf(algorithm, size_percent),
+                f"configure zram ({algorithm}, {size_percent}% of RAM) in {provider['conf_path']}",
+            ))
+            actions.append(_cmd_action(
+                backend.enable_cmd(provider["service"]),
+                f"enable zram swap service '{provider['service']}' ({backend.name})",
+            ))
+    elif mechanism:
         actions.append(_write_file_action(
-            os.path.join(STATE_DIR, "memory.conf"), content,
-            f"write {STATE_DIR}/memory.conf (mechanism {mechanism}, {algorithm})",
+            os.path.join(STATE_DIR, "memory.conf"),
+            f"mechanism = {mechanism}\n",
+            f"record memory mechanism '{mechanism}' (no provisioning implemented)",
         ))
 
     services = (config.get("services") or {}).get("never") or []
@@ -76,10 +119,15 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend) -> list[Action]:
 
     guard = config.get("oom_guard")
     if guard:
-        if backend.is_enabled(guard) is False or backend.is_enabled(guard) is None:
+        provider = OOM_PROVIDERS.get(backend.name)
+        if provider:
             actions.append(_cmd_action(
-                backend.enable_cmd(guard),
-                f"enable OOM guard {guard} ({backend.name}), requires package '{guard}'",
+                pkg_backend.install_cmd(provider["packages"]),
+                f"install OOM guard: {' '.join(provider['packages'])} ({pkg_backend.name})",
+            ))
+            actions.append(_cmd_action(
+                backend.enable_cmd(provider["service"]),
+                f"enable OOM guard service '{provider['service']}' ({backend.name})",
             ))
 
     runtime = config.get("runtime") or {}

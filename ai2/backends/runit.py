@@ -30,7 +30,8 @@ class RunitBackend:
         return os.path.islink(os.path.join(ENABLED_DIR, service))
 
     def enable_cmd(self, service: str) -> list[str]:
-        return ["ln", "-s", os.path.join(SV_DIR, service), ENABLED_DIR]
+        # -sfn makes re-enabling idempotent (runsvdir auto-starts within ~5s).
+        return ["ln", "-sfn", os.path.join(SV_DIR, service), os.path.join(ENABLED_DIR, service)]
 
     def disable_cmd(self, service: str) -> list[str]:
         return ["rm", os.path.join(ENABLED_DIR, service)]
