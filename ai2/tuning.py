@@ -72,6 +72,20 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
         ))
         actions.append(_cmd_action(["sysctl", "--load", SYSCTL_PATH], "reload sysctl settings"))
 
+    # An AI workstation must never input-idle-suspend. The desktop defines
+    # "idle" as no keyboard/mouse, NOT no CPU work, so a machine pegged running
+    # inference gets suspended mid-generation (verified on RMM-PC 2026-08-13,
+    # froze a benchmark repeatedly). Disable it at the login-manager level via
+    # an elogind drop-in, which is desktop-agnostic. The DE power manager
+    # (e.g. xfce4-power-manager inactivity-on-ac=0) should also be set by the
+    # session config, but this is the backstop that always applies.
+    actions.append(_write_file_action(
+        "/etc/elogind/logind.conf.d/10-ai2-no-suspend.conf",
+        "# Managed by AI-2. An AI workstation must not idle-suspend.\n"
+        "[Login]\nIdleAction=ignore\n",
+        "disable idle-suspend (elogind IdleAction=ignore drop-in)",
+    ))
+
     memory = config.get("memory") or {}
     mechanism = memory.get("mechanism")
     if mechanism == "zram":

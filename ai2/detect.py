@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 # installed amount because of reserved memory) up to the physical module size.
 NOMINAL_GIB_STEPS = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256]
 
-INTERESTING_FLAGS = ("avx", "avx2", "avx512f", "fma", "sse4_2")
+INTERESTING_FLAGS = ("avx", "avx2", "avx512f", "fma", "f16c", "sse4_1", "sse4_2")
 
 
 @dataclass
@@ -38,7 +38,20 @@ class Hardware:
 
     @property
     def cpu_variant(self) -> str:
-        return "avx2" if "avx2" in self.flags else "noavx"
+        """Which prebuilt CPU variant to install. THREE tiers, not two.
+
+        Verified on real hardware 2026-08-13: a 2011 AMD Llano (A4-3305M) has
+        only SSE2/SSE4a, no SSE4.1 and no AVX. A stock or merely no-AVX
+        llama.cpp still emits SSE4.1 (e.g. pinsrq) even in plain C++ and
+        SIGILLs on such a CPU. So pre-SSE4.1 machines need a pure SSE2
+        'baseline' build; 'noavx' (SSE4.1/4.2, no AVX2) is a distinct middle
+        tier; 'avx2' is modern hardware.
+        """
+        if "avx2" in self.flags:
+            return "avx2"
+        if "sse4_1" in self.flags:
+            return "noavx"
+        return "baseline"
 
 
 def parse_cpuinfo(text: str) -> tuple[str, set[str]]:
