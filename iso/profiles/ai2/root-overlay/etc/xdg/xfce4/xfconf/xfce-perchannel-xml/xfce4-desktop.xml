@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AI-2 default desktop wallpaper. Per-monitor keys are created by
+     xfce4-desktop on first login from these defaults. -->
+<channel name="xfce4-desktop" version="1.0">
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitor0" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/ai2/ai2-wallpaper.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+        <property name="image-path" type="string" value="/usr/share/backgrounds/ai2/ai2-wallpaper.png"/>
+        <property name="image-style" type="int" value="5"/>
+      </property>
+    </property>
+  </property>
+</channel>

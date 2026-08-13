@@ -1,0 +1,91 @@
+# AI-2 ISO profile (Light-tier desktop: XFCE on runit).
+# Based on the artools xfce profile; AI-2 additions are marked.
+
+live-session:
+  user: artix
+  password: artix
+  autologin: true
+  use-xlibre: false
+  services:
+    - acpid
+    - bluetoothd
+    - cronie
+    - cupsd
+    - metalog
+    - connmand
+    - lightdm
+  user-services:
+    - dbus
+    - pipewire
+    - pipewire-pulse
+    - wireplumber
+rootfs:
+  packages:
+    - atril
+    - connman-gtk
+    - epiphany
+    - gnome-keyring
+    - leafpad
+    - lightdm-gtk-greeter
+    - pavucontrol
+    - xfce4
+    - xfce4-goodies
+    # AI-2 additions
+    - python
+    - python-yaml
+    - zramen
+    - earlyoom
+  packages-init:
+    dinit:
+      - pipewire-dinit
+      - pipewire-pulse-dinit
+      - wireplumber-dinit
+      - dinit-user-spawn
+      - lightdm-dinit
+      - metalog-dinit
+      - networkmanager-dinit
+      - cups-dinit
+    openrc:
+      - pipewire-openrc
+      - pipewire-pulse-openrc
+      - wireplumber-openrc
+      - lightdm-openrc
+      - metalog-openrc
+      - networkmanager-openrc
+      - cups-openrc
+    runit:
+      - lightdm-runit
+      - metalog-runit
+      - networkmanager-runit
+      - cups-runit
+      # AI-2 additions
+      - zramen-runit
+      - earlyoom-runit
+    s6:
+      - lightdm-s6
+      - metalog-s6
+      - networkmanager-s6
+      - cups-s6
+livefs:
+  packages:
+    - amd-ucode
+    - artix-docs
+    - artix-grub-live
+    - broadcom-wl
+    - calamares-extensions
+    - gparted
+    - hexchat
+    - intel-ucode
+    - mkinitcpio-nfs-utils
+    - nbd
+    - squashfs-tools
+    - virtualbox-guest-utils
+  packages-init:
+    dinit:
+      - artix-live-dinit
+    openrc:
+      - artix-live-openrc
+    runit:
+      - artix-live-runit
+    s6:
+      - artix-live-s6

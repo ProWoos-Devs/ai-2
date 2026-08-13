@@ -1,0 +1,8 @@
+NAME="AI-2"
+PRETTY_NAME="AI-2 (based on Artix Linux)"
+ID=ai2
+ID_LIKE="artix arch"
+VERSION_ID="0.1"
+BUILD_ID=rolling
+ANSI_COLOR="38;2;53;208;127"
+LOGO=ai2
