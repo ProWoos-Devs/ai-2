@@ -12,7 +12,9 @@ live-session:
     - cronie
     - cupsd
     - metalog
-    - connmand
+    # AI-2: NetworkManager, not connmand (xfce profile enables connmand but
+    # never installs the connman daemon; networkmanager-runit is installed)
+    - NetworkManager
     - lightdm
   user-services:
     - dbus
@@ -22,7 +24,8 @@ live-session:
 rootfs:
   packages:
     - atril
-    - connman-gtk
+    # AI-2: nm-applet instead of connman-gtk (see services note above)
+    - network-manager-applet
     - epiphany
     - gnome-keyring
     - leafpad
