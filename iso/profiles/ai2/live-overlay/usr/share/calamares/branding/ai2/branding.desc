@@ -1,0 +1,46 @@
+# AI-2 Calamares branding. Modeled on the stock Artix component;
+# palette and wording per 000/design/ai2-logo-concepts.txt.
+---
+componentName:  ai2
+
+welcomeStyleCalamares:   false
+welcomeExpandingLogo:   true
+
+windowExpanding:    normal
+windowSize: 1100px,700px
+windowPlacement: center
+
+sidebar: widget
+navigation: widget
+
+strings:
+    productName:         AI-2
+    shortProductName:    AI-2
+    version:             rolling
+    shortVersion:        rolling
+    versionedName:       AI-2 (rolling)
+    shortVersionedName:  AI-2
+    bootloaderEntryName: AI-2
+    productUrl:          ""
+    supportUrl:          ""
+    knownIssuesUrl:      ""
+    releaseNotesUrl:     ""
+
+images:
+    productBanner:       "ai2-banner.png"
+    productLogo:         "ai2-icon.svg"
+    productIcon:         "ai2-icon.svg"
+
+style:
+    SidebarBackground:        "#0B0F0D"
+    SidebarText:              "#B8F5D0"
+    SidebarTextCurrent:       "#0B0F0D"
+    SidebarBackgroundCurrent: "#35D07F"
+
+slideshow:               "show.qml"
+slideshowAPI: 1
+
+uploadServer :
+    type :    "fiche"
+    url :     "http://termbin.com:9999"
+    sizeLimit : -1

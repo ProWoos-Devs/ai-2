@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="AI-2 icon">
+  <!-- App icon / sticker / menu: the wordmark AI-2 in a square rounded green tile.
+       Text sized to the width; the tile is padded top/bottom to stay square. -->
+  <rect width="64" height="64" rx="15" fill="#0B0F0D"/>
+  <rect x="4.5" y="4.5" width="55" height="55" rx="11.5" fill="none" stroke="#35D07F" stroke-width="3.5"/>
+  <text x="32" y="40.5" text-anchor="middle"
+        font-family="'DejaVu Sans Mono','JetBrains Mono','Menlo',monospace"
+        font-size="23" font-weight="700" letter-spacing="-1.5" fill="#35D07F">AI-2</text>
+</svg>
