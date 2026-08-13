@@ -5,7 +5,7 @@ import json
 import sys
 from dataclasses import asdict
 
-from . import __version__
+from . import __version__, branding
 from .backends import get_package_backend, get_service_backend
 from .benchmark import parse_llama_bench, summarize
 from .detect import detect
@@ -17,11 +17,18 @@ from .tuning import apply_plan, build_plan, render_plan
 SCORE_PATH = "/etc/ai2/score.json"
 
 
+def cmd_logo(args) -> int:
+    print(branding.full())
+    return 0
+
+
 def cmd_detect(args) -> int:
     hw = detect()
     if args.json:
         print(json.dumps(asdict(hw) | {"cpu_variant": hw.cpu_variant}, default=list, indent=2))
         return 0
+    print(branding.compact())
+    print()
     print(f"CPU      {hw.cpu_model}")
     print(f"         {hw.logical_cores} logical cores, "
           f"{', '.join(sorted(hw.flags)) or 'no SIMD flags detected'} ({hw.cpu_variant} build)")
@@ -221,6 +228,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_rec = sub.add_parser("recommend", help="recommend a local model from the stored AI Score")
     p_rec.set_defaults(func=cmd_recommend)
+
+    p_logo = sub.add_parser("logo", help="print the AI-2 logo (full lockup)")
+    p_logo.set_defaults(func=cmd_logo)
 
     args = parser.parse_args(argv)
     return args.func(args)
