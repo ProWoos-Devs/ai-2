@@ -1,0 +1,49 @@
+# The universe of local models AI-2 knows about, smallest first.
+# ram_peak_mb is the measured/estimated peak during load+inference (always
+# above file_mb; load spikes and the KV cache add to it). The benchmark's AI
+# Score gates which of these a given machine is steered to.
+models:
+  - id: qwen2.5-0.5b
+    label: Qwen2.5 0.5B Instruct
+    params_b: 0.5
+    quant: Q4_K_M
+    file_mb: 380
+    ram_peak_mb: 900
+    repo: bartowski/Qwen2.5-0.5B-Instruct-GGUF
+    file: Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
+
+  - id: qwen3-1.7b
+    label: Qwen3 1.7B
+    params_b: 1.7
+    quant: Q4_K_M
+    file_mb: 1280
+    ram_peak_mb: 2200
+    repo: Qwen/Qwen3-1.7B-GGUF
+    file: Qwen3-1.7B-Q4_K_M.gguf
+
+  - id: gemma3-1b
+    label: Gemma 3 1B (QAT)
+    params_b: 1.0
+    quant: Q4_0
+    file_mb: 1000
+    ram_peak_mb: 1700
+    repo: google/gemma-3-1b-it-qat-q4_0-gguf
+    file: gemma-3-1b-it-q4_0.gguf
+
+  - id: smollm3-3b
+    label: SmolLM3 3B
+    params_b: 3.0
+    quant: Q4_K_M
+    file_mb: 1900
+    ram_peak_mb: 3400
+    repo: bartowski/SmolLM3-3B-GGUF
+    file: SmolLM3-3B-Q4_K_M.gguf
+
+  - id: qwen2.5-7b
+    label: Qwen2.5 7B Instruct
+    params_b: 7.0
+    quant: Q4_K_M
+    file_mb: 4700
+    ram_peak_mb: 6800
+    repo: bartowski/Qwen2.5-7B-Instruct-GGUF
+    file: Qwen2.5-7B-Instruct-Q4_K_M.gguf

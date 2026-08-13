@@ -9,6 +9,7 @@ from . import __version__
 from .backends import get_package_backend, get_service_backend
 from .benchmark import parse_llama_bench, summarize
 from .detect import detect
+from .models import load_catalog, recommend
 from .runtime import find_runtime, find_test_model, run_llama_bench
 from .tiers import assign, load_tiers, resolve_config
 from .tuning import apply_plan, build_plan, render_plan
@@ -95,6 +96,50 @@ def _write_score(data: dict) -> None:
         pass  # not root; still print the result, just don't persist
 
 
+def _bench_params_b(model_path: str, catalog: list) -> float:
+    """Best-effort: which catalog model was benchmarked, to scale estimates."""
+    import os
+    name = os.path.basename(model_path).lower()
+    for m in catalog:
+        if m.get("file", "").lower() == name:
+            return m["params_b"]
+    for m in catalog:
+        if m["id"].replace("-", "").replace(".", "") in name.replace("-", "").replace(".", ""):
+            return m["params_b"]
+    return 0.5  # assume the standard 0.5B test model
+
+
+def _print_recommendation(rec: dict) -> None:
+    local = rec["local"]
+    if local:
+        print(f"\nRecommended local model: {local['label']} "
+              f"({local['params_b']}B {local['quant']})")
+    else:
+        print("\nNo local model is a good fit for this machine.")
+    if rec["remote_suggested"]:
+        print("  For anything larger, use remote inference, this machine can hold it "
+              "but can't run it fast enough locally.")
+
+
+def cmd_recommend(args) -> int:
+    hw = detect()
+    try:
+        with open(SCORE_PATH) as fh:
+            score = json.load(fh)
+    except (OSError, ValueError):
+        print(f"error: no AI Score yet. Run 'ai-2 benchmark' first "
+              f"(expected at {SCORE_PATH}).", file=sys.stderr)
+        return 1
+    catalog = load_catalog()
+    params_b = score.get("bench_params_b", 0.5)
+    rec = recommend(hw.ram_mib, score.get("tg_tps", 0.0), params_b, catalog)
+    print(f"AI Score {score.get('ai_score')} / 100, "
+          f"{score.get('tg_tps')} tok/s on a {params_b}B model, {hw.ram_nominal_gib} GB RAM")
+    print(f"Reason   {rec['reason']}")
+    _print_recommendation(rec)
+    return 0
+
+
 def cmd_benchmark(args) -> int:
     hw = detect()
     runtime_dir = find_runtime(hw.cpu_variant)
@@ -120,7 +165,15 @@ def cmd_benchmark(args) -> int:
         print("error: could not parse llama-bench output", file=sys.stderr)
         return 1
     max_vram = max((g.vram_mb or 0 for g in hw.gpus), default=0)
-    data = summarize(result, max_vram, hw.ram_nominal_gib) | {"cpu_variant": hw.cpu_variant}
+    catalog = load_catalog()
+    params_b = _bench_params_b(model, catalog)
+    rec = recommend(hw.ram_mib, result.tg_tps, params_b, catalog)
+    data = summarize(result, max_vram, hw.ram_nominal_gib) | {
+        "cpu_variant": hw.cpu_variant,
+        "bench_params_b": params_b,
+        "recommended_model": rec["local"]["id"] if rec["local"] else None,
+        "remote_suggested": rec["remote_suggested"],
+    }
     if args.json:
         print(json.dumps(data, indent=2))
     else:
@@ -135,6 +188,7 @@ def cmd_benchmark(args) -> int:
         for key, label in stars.items():
             n = data["capabilities"][key]
             print(f"  {'★' * n}{'☆' * (5 - n)}  {label}")
+        _print_recommendation(rec)
     _write_score(data)
     return 0
 
@@ -164,6 +218,9 @@ def main(argv: list[str] | None = None) -> int:
     p_bench = sub.add_parser("benchmark", help="measure real inference speed and compute the AI Score")
     p_bench.add_argument("--json", action="store_true")
     p_bench.set_defaults(func=cmd_benchmark)
+
+    p_rec = sub.add_parser("recommend", help="recommend a local model from the stored AI Score")
+    p_rec.set_defaults(func=cmd_recommend)
 
     args = parser.parse_args(argv)
     return args.func(args)

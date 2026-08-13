@@ -19,4 +19,4 @@ AI-2 = "ai2.cli:main"
 include = ["ai2*"]
 
 [tool.setuptools.package-data]
-ai2 = ["data/tiers/*.yml"]
+ai2 = ["data/tiers/*.yml", "data/*.yml"]
