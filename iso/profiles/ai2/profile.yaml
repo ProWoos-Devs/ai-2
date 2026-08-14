@@ -2,8 +2,8 @@
 # Based on the artools xfce profile; AI-2 additions are marked.
 
 live-session:
-  user: artix
-  password: artix
+  user: ai-2
+  password: ai-2
   autologin: true
   use-xlibre: false
   services:
