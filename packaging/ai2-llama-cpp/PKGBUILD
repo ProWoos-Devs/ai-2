@@ -24,8 +24,8 @@ pkgdesc="llama.cpp CPU inference runtime for AI-2"
 arch=('x86_64')
 url="https://github.com/ggml-org/llama.cpp"
 license=('MIT')
-makedepends=('cmake' 'git' 'binutils')
-depends=('gcc-libs' 'glibc')
+makedepends=('cmake' 'git' 'binutils' 'patchelf')
+depends=('gcc-libs' 'glibc' 'openssl')
 options=('!lto' '!debug')
 source=("llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=$_tag"
         'isa-check.sh')
@@ -44,8 +44,7 @@ _common=(
   -DLLAMA_BUILD_EXAMPLES=OFF
   -DLLAMA_BUILD_TOOLS=ON
   -DLLAMA_BUILD_SERVER=ON
-  -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON
-  -DCMAKE_INSTALL_RPATH='$ORIGIN'
+  -DCMAKE_SKIP_RPATH=ON
 )
 
 _cmake_variant() {
@@ -86,10 +85,28 @@ _package_variant() {
   local variant=$1
   local dest="$pkgdir/usr/lib/ai2/runtimes/llama.cpp-$variant"
   install -d "$dest"
-  # Executables, their -impl libraries, and the shared libs, flat.
-  install -m755 "build-$variant"/bin/llama-bench "build-$variant"/bin/llama-cli \
-                "build-$variant"/bin/llama-server "$dest/"
-  cp -a "build-$variant"/bin/*.so* "$dest/"
+  # Executables, their -impl libraries, and the core shared libs, flat.
+  # (Other tools' -impl libs are built too; not shipped, dead weight.)
+  local t f
+  for t in llama-bench llama-cli llama-server; do
+    install -m755 "build-$variant/bin/$t" "$dest/"
+    install -m755 "build-$variant/bin/lib$t-impl.so" "$dest/"
+  done
+  cp -a "build-$variant"/bin/lib{ggml,llama,mtmd}*.so* "$dest/"
+  # the glob also brings the other tools' -impl libs; keep only ours
+  for f in "$dest"/libllama-*-impl.so; do
+    case "$(basename "$f")" in
+      libllama-bench-impl.so|libllama-cli-impl.so|libllama-server-impl.so) ;;
+      *) rm -f "$f" ;;
+    esac
+  done
+  # Flat layout, so every ELF resolves siblings via $ORIGIN and nothing else.
+  # cmake's own rpath handling produced "$ORIGIN:" (trailing empty entry =
+  # cwd, insecure); set it explicitly instead.
+  for f in "$dest"/*; do
+    [ -L "$f" ] && continue
+    patchelf --set-rpath '$ORIGIN' "$f"
+  done
   install -Dm644 llama.cpp/LICENSE "$pkgdir/usr/share/licenses/ai2-llama-cpp-$variant/LICENSE"
 }
 
