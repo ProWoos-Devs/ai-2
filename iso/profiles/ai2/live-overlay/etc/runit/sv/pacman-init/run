@@ -1,0 +1,7 @@
+#!/bin/sh
+# AI-2: like artix-live's pacman-init, but `--populate` with no argument loads
+# every shipped keyring (artix + ai2) so the live session trusts [ai2].
+mount -t tmpfs -o size=10M,mode=0755 tmpfs /etc/pacman.d/gnupg
+pacman-key --init 1>&2
+pacman-key --populate 1>&2
+exec chpst -b pacman-init pause
