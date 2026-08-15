@@ -1,0 +1,109 @@
+# Maintainer: Rafael Minuesa <rafael.minuesa@gmail.com>
+# llama.cpp CPU runtimes for AI-2, three ISA variants from one pinned source.
+# Named ai2-llama-cpp-* to stay clear of Arch extra's llama-cpp package.
+#
+#   baseline  -march=x86-64, pure SSE2 (+popcnt), no SSE4.x/AVX. Pre-2011 and
+#             Llano/K10-class CPUs (proven on the A4-3305M, 2026-08-13).
+#   noavx     SSE4.1/4.2, no AVX. Core 2 late / Nehalem / early Bulldozer.
+#   avx2      AVX2+FMA+F16C, everything Haswell (2013) and later.
+#
+# GGML_NATIVE=OFF everywhere; the flags below ARE the contract, and check()
+# disassembles every binary against the variant's ISA (see isa-check.sh)
+# because ggml assumes SSE4.2 and a stray pinsrq SIGILLs a baseline machine.
+#
+# Each variant installs flat into /usr/lib/ai2/runtimes/llama.cpp-<variant>/
+# (executables + shared libs side by side, $ORIGIN rpath), which is what
+# ai2/runtime.py looks up. Nothing lands in /usr/bin.
+
+pkgbase=ai2-llama-cpp
+pkgname=(ai2-llama-cpp-baseline ai2-llama-cpp-noavx ai2-llama-cpp-avx2)
+_tag=b10398
+pkgver=${_tag#b}
+pkgrel=1
+pkgdesc="llama.cpp CPU inference runtime for AI-2"
+arch=('x86_64')
+url="https://github.com/ggml-org/llama.cpp"
+license=('MIT')
+makedepends=('cmake' 'git' 'binutils')
+depends=('gcc-libs' 'glibc')
+options=('!lto' '!debug')
+source=("llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=$_tag"
+        'isa-check.sh')
+sha256sums=('SKIP' 'SKIP')
+
+_common=(
+  -DCMAKE_BUILD_TYPE=Release
+  -DBUILD_SHARED_LIBS=ON
+  -DGGML_NATIVE=OFF
+  -DGGML_OPENMP=ON
+  -DGGML_BLAS=OFF
+  -DGGML_VULKAN=OFF
+  -DGGML_CUDA=OFF
+  -DLLAMA_CURL=OFF
+  -DLLAMA_BUILD_TESTS=OFF
+  -DLLAMA_BUILD_EXAMPLES=OFF
+  -DLLAMA_BUILD_TOOLS=ON
+  -DLLAMA_BUILD_SERVER=ON
+  -DCMAKE_BUILD_RPATH_USE_ORIGIN=ON
+  -DCMAKE_INSTALL_RPATH='$ORIGIN'
+)
+
+_cmake_variant() {
+  local variant=$1; shift
+  # makepkg's default CFLAGS carry -march=x86-64 -mtune=generic already; set
+  # ours explicitly so the contract does not depend on makepkg.conf.
+  cmake -S llama.cpp -B "build-$variant" "${_common[@]}" "$@" \
+    -DCMAKE_C_FLAGS="$CFLAGS ${_flags}" -DCMAKE_CXX_FLAGS="$CXXFLAGS ${_flags}"
+  cmake --build "build-$variant" -j"$(nproc)"
+}
+
+build() {
+  # Baseline: exactly the configuration proven on RMM-PC.
+  _flags='-march=x86-64 -mtune=generic -mpopcnt' \
+  _cmake_variant baseline \
+    -DGGML_SSE42=OFF -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF \
+    -DGGML_AVX512=OFF -DGGML_AVX_VNNI=OFF
+
+  _flags='-march=x86-64 -mtune=generic -mpopcnt -msse4.1 -msse4.2' \
+  _cmake_variant noavx \
+    -DGGML_SSE42=ON -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF \
+    -DGGML_AVX512=OFF -DGGML_AVX_VNNI=OFF
+
+  _flags='-march=x86-64-v3 -mtune=generic' \
+  _cmake_variant avx2 \
+    -DGGML_SSE42=ON -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON \
+    -DGGML_AVX512=OFF -DGGML_AVX_VNNI=OFF
+}
+
+check() {
+  local v
+  for v in baseline noavx avx2; do
+    bash isa-check.sh "$v" "build-$v/bin"
+  done
+}
+
+_package_variant() {
+  local variant=$1
+  local dest="$pkgdir/usr/lib/ai2/runtimes/llama.cpp-$variant"
+  install -d "$dest"
+  # Executables, their -impl libraries, and the shared libs, flat.
+  install -m755 "build-$variant"/bin/llama-bench "build-$variant"/bin/llama-cli \
+                "build-$variant"/bin/llama-server "$dest/"
+  cp -a "build-$variant"/bin/*.so* "$dest/"
+  install -Dm644 llama.cpp/LICENSE "$pkgdir/usr/share/licenses/ai2-llama-cpp-$variant/LICENSE"
+}
+
+package_ai2-llama-cpp-baseline() {
+  pkgdesc+=" (baseline: SSE2 only, for pre-SSE4.1 CPUs)"
+  _package_variant baseline
+}
+
+package_ai2-llama-cpp-noavx() {
+  pkgdesc+=" (noavx: SSE4.2, no AVX)"
+  _package_variant noavx
+}
+
+package_ai2-llama-cpp-avx2() {
+  pkgdesc+=" (avx2: AVX2+FMA+F16C, Haswell and later)"
+  _package_variant avx2
+}

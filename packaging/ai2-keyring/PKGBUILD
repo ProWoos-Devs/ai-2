@@ -1,0 +1,20 @@
+# Maintainer: Rafael Minuesa <rafael.minuesa@gmail.com>
+# AI-2 package signing key for pacman. Same layout and install hooks as
+# artix-keyring: pacman-key --populate reads /usr/share/pacman/keyrings/ai2*.
+
+pkgname=ai2-keyring
+pkgver=20260815
+pkgrel=1
+pkgdesc="AI-2 PGP keyring for pacman (package signing key F1889E37B4E5FEC8)"
+arch=('any')
+url="https://github.com/ProWoos-Devs/AI-2"
+license=('GPL-3.0-or-later')
+install=ai2-keyring.install
+source=('ai2.gpg' 'ai2-trusted' 'ai2-revoked')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+  install -Dm644 ai2.gpg     "$pkgdir/usr/share/pacman/keyrings/ai2.gpg"
+  install -Dm644 ai2-trusted "$pkgdir/usr/share/pacman/keyrings/ai2-trusted"
+  install -Dm644 ai2-revoked "$pkgdir/usr/share/pacman/keyrings/ai2-revoked"
+}

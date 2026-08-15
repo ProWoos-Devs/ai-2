@@ -1,0 +1,47 @@
+# Maintainer: Rafael Minuesa <rafael.minuesa@gmail.com>
+# The AI-2 configurator tool. Ships the ai2 Python package at /usr/lib/ai2
+# (same layout the ISO root-overlay uses, independent of site-packages) with
+# the /usr/bin/ai-2 wrapper and the AI-2 alias.
+#
+# Source tarball is produced from the git tree by ../build-packages.sh
+# (git archive of www/ai-2), so a package always maps to a commit.
+
+pkgname=ai-2
+pkgver=0.0.1
+pkgrel=1
+pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
+arch=('any')
+url="https://github.com/ProWoos-Devs/AI-2"
+license=('MIT')
+depends=('python' 'python-yaml')
+checkdepends=('python-pytest')
+optdepends=('pciutils: GPU detection via lspci'
+            'zramen: compressed swap, installed by ai-2 init --apply on low-RAM tiers'
+            'earlyoom: userspace OOM killer, installed by ai-2 init --apply on low-RAM tiers'
+            'ai2-llama-cpp-baseline: CPU inference runtime for pre-SSE4.1 CPUs'
+            'ai2-llama-cpp-noavx: CPU inference runtime for SSE4.x CPUs without AVX2'
+            'ai2-llama-cpp-avx2: CPU inference runtime for AVX2 CPUs')
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+check() {
+  cd "$pkgname-$pkgver"
+  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  install -d "$pkgdir/usr/lib/ai2"
+  cp -a ai2 "$pkgdir/usr/lib/ai2/ai2"
+  find "$pkgdir/usr/lib/ai2" -name __pycache__ -type d -exec rm -rf {} +
+  python -m compileall -q "$pkgdir/usr/lib/ai2"
+
+  install -Dm755 iso/profiles/ai2/root-overlay/usr/bin/ai-2 "$pkgdir/usr/bin/ai-2"
+  ln -s ai-2 "$pkgdir/usr/bin/AI-2"
+
+  install -Dm644 branding/motd "$pkgdir/usr/share/ai2/motd"
+  install -Dm644 branding/lightdm-gtk-greeter.conf "$pkgdir/usr/share/ai2/lightdm-gtk-greeter.conf"
+
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
