@@ -17,10 +17,19 @@ rm -rf "$DST/live-overlay"
 cp -aL /root/artools-workspace/iso-profiles/common/live-overlay "$DST/live-overlay"
 cp -a "$SRC/iso/profiles/ai2/live-overlay/." "$DST/live-overlay/"
 
-# Ship the ai2 Python package at /usr/lib/ai2 (wrapper in root-overlay/usr/bin/ai-2)
-mkdir -p "$DST/root-overlay/usr/lib/ai2"
-cp -a "$SRC/ai2" "$DST/root-overlay/usr/lib/ai2/ai2"
-find "$DST/root-overlay/usr/lib/ai2" -name __pycache__ -type d -exec rm -rf {} +
-chmod 755 "$DST/root-overlay/usr/bin/ai-2" "$DST/root-overlay/usr/bin/artix-service"
+chmod 755 "$DST/root-overlay/usr/bin/artix-service"
+
+# The ai-2 tool + llama.cpp runtimes come from the signed [ai2] repo now
+# (profile.yaml lists them). buildiso must be run with -w so this pacman.conf,
+# with [ai2], is copied into the rootfs and therefore into installed systems.
+mkdir -p "$HOME/.config/artools/pacman.conf.d"
+cp "$SRC/iso/pacman.conf.d/iso-x86_64.conf" "$HOME/.config/artools/pacman.conf.d/iso-x86_64.conf"
+
+# basestrap copies the build host's pacman keyring into the rootfs, so the
+# AI-2 signing key must be trusted here (idempotent).
+if ! pacman-key --list-keys F1889E37B4E5FEC8 >/dev/null 2>&1; then
+  pacman-key --add "$SRC/packaging/ai2-keyring/ai2-package-signing.asc"
+  pacman-key --lsign-key F1889E37B4E5FEC8
+fi
 
 echo "Staged $(find "$DST" -type f | wc -l) files into $DST"

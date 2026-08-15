@@ -37,7 +37,7 @@ package() {
   find "$pkgdir/usr/lib/ai2" -name __pycache__ -type d -exec rm -rf {} +
   python -m compileall -q -d /usr/lib/ai2 "$pkgdir/usr/lib/ai2"
 
-  install -Dm755 iso/profiles/ai2/root-overlay/usr/bin/ai-2 "$pkgdir/usr/bin/ai-2"
+  install -Dm755 packaging/ai-2/ai-2-wrapper.sh "$pkgdir/usr/bin/ai-2"
   ln -s ai-2 "$pkgdir/usr/bin/AI-2"
 
   install -Dm644 branding/motd "$pkgdir/usr/share/ai2/motd"

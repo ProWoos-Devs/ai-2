@@ -33,7 +33,13 @@ rootfs:
     - pavucontrol
     - xfce4
     - xfce4-goodies
-    # AI-2 additions
+    # AI-2 additions (ai-2 + runtimes from the signed [ai2] repo, see
+    # ../../pacman.conf.d/iso-x86_64.conf; buildiso needs -w)
+    - ai2-keyring
+    - ai-2
+    - ai2-llama-cpp-baseline
+    - ai2-llama-cpp-noavx
+    - ai2-llama-cpp-avx2
     - python
     - python-yaml
     - zramen
