@@ -35,7 +35,7 @@ package() {
   install -d "$pkgdir/usr/lib/ai2"
   cp -a ai2 "$pkgdir/usr/lib/ai2/ai2"
   find "$pkgdir/usr/lib/ai2" -name __pycache__ -type d -exec rm -rf {} +
-  python -m compileall -q "$pkgdir/usr/lib/ai2"
+  python -m compileall -q -d /usr/lib/ai2 "$pkgdir/usr/lib/ai2"
 
   install -Dm755 iso/profiles/ai2/root-overlay/usr/bin/ai-2 "$pkgdir/usr/bin/ai-2"
   ln -s ai-2 "$pkgdir/usr/bin/AI-2"
