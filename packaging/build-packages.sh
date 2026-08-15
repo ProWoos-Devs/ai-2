@@ -13,6 +13,8 @@ REPO=/ai2-repo
 PKG_SRC=$REPO/www/ai-2/packaging
 OUT=$PKG_SRC/out
 WORK=/home/builder/pkgbuild
+# Persistent source cache: the llama.cpp bare clone is ~2 GB, keep it across runs.
+SRCDEST=/home/builder/srcdest
 export MAKEFLAGS="-j$(nproc)"
 
 pkgs=("$@")
@@ -23,7 +25,7 @@ if [ "$(id -u)" -eq 0 ]; then
   exec sudo -u builder -E MAKEFLAGS="$MAKEFLAGS" bash "$0" "${pkgs[@]}"
 fi
 
-mkdir -p "$OUT" "$WORK"
+mkdir -p "$OUT" "$WORK" "$SRCDEST"
 
 # The ai-2 tool tarball comes from git, so a package always maps to a commit.
 # The repo is mounted read-only in spirit: git archive reads HEAD, and a dirty
@@ -51,7 +53,7 @@ for p in "${pkgs[@]}"; do
   [ "$p" = ai-2 ] && make_ai2_tarball
   # -s installs makedepends via sudo pacman; -f overwrites a stale package;
   # -C cleans an old srcdir so a changed source is never reused by accident.
-  PKGDEST="$OUT" makepkg -s -f -C --noconfirm
+  PKGDEST="$OUT" SRCDEST="$SRCDEST" makepkg -s -f -C --noconfirm
   echo "--- namcap ---"
   namcap PKGBUILD || true
   for f in "$OUT/$p"*.pkg.tar.zst; do namcap "$f" || true; done
