@@ -1,4 +1,6 @@
 #!/bin/bash
+# Modified copy of artix-service from Artix Linux (package "base", GPL);
+# this file stays under Artix's license, see LICENSES.md in the AI-2 tree.
 # AI-2: fixed copy of Artix's artix-service. The stock runit enable/disable
 # acts on /run/runit/service, which does not exist inside the Calamares
 # target chroot (fresh tmpfs /run), so every service enable during install
