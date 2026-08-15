@@ -5,6 +5,7 @@
 #
 #   sign-and-publish.sh            sign out/*.pkg.tar.zst, update db, upload
 #   sign-and-publish.sh --no-push  sign + update the local repo only
+#   (with nothing in out/ it just re-publishes the current repo state)
 #
 # Layout (gitignored): packaging/repo/x86_64/ is the authoritative local copy
 # of the published repo (packages, .sig files, ai2.db, ai2.files). GitHub
@@ -28,7 +29,8 @@ mkdir -p "$REPO"
 shopt -s nullglob
 new=("$OUT"/*.pkg.tar.zst)
 if [ ${#new[@]} -eq 0 ]; then
-  echo "nothing in $OUT to publish" >&2; exit 1
+  echo "nothing new in $OUT; re-publishing current repo state"
+  [ -f "$REPO/$DB" ] || { echo "no repo db yet" >&2; exit 1; }
 fi
 
 # 1. Move new packages into the repo dir and detach-sign each one.
@@ -42,7 +44,9 @@ done
 
 # 2. Update the database (verifies the package signatures, signs the db).
 cd "$REPO"
-repo-add --verify --sign --key "$KEY" --remove "$DB" "${new[@]/#*\//}"
+if [ ${#new[@]} -gt 0 ]; then
+  repo-add --verify --sign --key "$KEY" --remove "$DB" "${new[@]/#*\//}"
+fi
 
 # 3. Drop package files no longer referenced by the db (repo-add --remove
 #    deletes superseded versions itself; this catches strays).
@@ -50,10 +54,12 @@ for p in *.pkg.tar.zst; do
   tar -tf "$DB" 2>/dev/null | grep -q "^${p%-*-*.pkg.tar.zst}-" || echo "warning: $p not in db"
 done
 
-# GitHub release assets cannot be symlinks; pacman fetches ai2.db / ai2.files
-# by those names, so publish real copies alongside the .tar.gz originals.
-cp -f "$DB" ai2.db;               cp -f "$DB.sig" ai2.db.sig
-cp -f ai2.files.tar.gz ai2.files; cp -f ai2.files.tar.gz.sig ai2.files.sig
+# repo-add leaves ai2.db / ai2.files (+ .sig) as symlinks to the .tar.gz
+# files. GitHub release assets cannot be symlinks and pacman fetches exactly
+# those names, so replace them with real copies.
+rm -f ai2.db ai2.db.sig ai2.files ai2.files.sig
+cp "$DB" ai2.db;               cp "$DB.sig" ai2.db.sig
+cp ai2.files.tar.gz ai2.files; cp ai2.files.tar.gz.sig ai2.files.sig
 
 echo; echo "Repo state in $REPO:"; ls -la
 
