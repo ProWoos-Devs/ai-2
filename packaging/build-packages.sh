@@ -20,7 +20,6 @@ pkgs=("$@")
 
 if [ "$(id -u)" -eq 0 ]; then
   # makepkg refuses root; re-exec as builder (created in the image).
-  mkdir -p "$OUT"
   exec sudo -u builder -E MAKEFLAGS="$MAKEFLAGS" bash "$0" "${pkgs[@]}"
 fi
 
