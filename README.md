@@ -41,6 +41,10 @@ ai-2 init            # dry run, print the tuning plan for this machine
 ai-2 init --apply    # apply it (root): zram, earlyoom, sysctl, no idle suspend during inference
 ai-2 benchmark       # run llama.cpp on a fixed workload, compute the 0-100 AI Score and capability stars
 ai-2 recommend       # which local model fits this machine, and when to go remote
+ai-2 runtime install # install the llama.cpp package for this CPU class (--apply, root)
+ai-2 model pull      # download the recommended model (or: ai-2 model pull <id>)
+ai-2 serve           # llama-server on demand with the recommended model, OpenAI-compatible
+                     # API on http://127.0.0.1:8080, exits after 10 idle minutes
 ai-2 logo            # the mark, in the size the terminal allows
 ```
 
@@ -69,7 +73,7 @@ Everything is declarative. Tier definitions live in `ai2/data/tiers/*.yml`, the 
 
 ## Status
 
-Foundation done and validated on real hardware. Signed package repository live. ISO boots and installs (BIOS/MBR verified on the 2011 laptop and in QEMU). Next, `ai-2` installs its own runtime variant and downloads the recommended model, llama-server on demand, `ai-2 doctor`, first-boot wizard.
+Foundation done and validated on real hardware. Signed package repository live. ISO boots and installs (BIOS/MBR verified on the 2011 laptop and in QEMU). The loop closes: `ai-2 init --apply` installs the right runtime package, `ai-2 model pull` fetches the recommended model, `ai-2 serve` runs it on demand (verified end to end on the 2011 laptop). Next, `ai-2 doctor`, first-boot wizard, workflow profiles.
 
 ## License
 

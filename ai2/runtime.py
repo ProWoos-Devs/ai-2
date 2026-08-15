@@ -64,3 +64,115 @@ def run_llama_bench(runtime_dir: str, model: str, threads: int,
         raise RuntimeError(f"llama-bench failed (exit {proc.returncode}): "
                            f"{proc.stderr.strip()[:300]}")
     return proc.stdout
+
+
+# ---------------------------------------------------------------------------
+# Closing the loop: install the runtime, fetch the model, serve on demand.
+
+# One package per CPU class in the signed [ai2] repo (see packaging/).
+RUNTIME_PACKAGES = {
+    "baseline": "ai2-llama-cpp-baseline",
+    "noavx": "ai2-llama-cpp-noavx",
+    "avx2": "ai2-llama-cpp-avx2",
+}
+
+
+def runtime_package(variant: str) -> str | None:
+    return RUNTIME_PACKAGES.get(variant)
+
+
+def model_dir() -> str:
+    """Where models live: the system dir when writable (root), else the user's."""
+    env = os.environ.get("AI2_MODEL_DIR")
+    if env:
+        return env
+    if os.access("/var/lib/ai2", os.W_OK) or os.geteuid() == 0:
+        return "/var/lib/ai2/models"
+    return os.path.expanduser("~/.local/share/ai2/models")
+
+
+def find_model_file(filename: str) -> str | None:
+    for d in _MODEL_DIRS + [model_dir()]:
+        if d and os.path.isfile(os.path.join(d, filename)):
+            return os.path.join(d, filename)
+    return None
+
+
+def hf_url(model: dict) -> str:
+    return f"https://huggingface.co/{model['repo']}/resolve/main/{model['file']}"
+
+
+def download_model(model: dict, dest_dir: str | None = None,
+                   progress=None) -> str:
+    """Download a catalog model (Hugging Face) into dest_dir, verifying the
+    byte count against Content-Length. Downloads to a .part file first, so an
+    interrupted transfer never leaves a truncated .gguf behind. Returns the
+    final path; if the file already exists it is left alone."""
+    import urllib.request
+
+    dest_dir = dest_dir or model_dir()
+    os.makedirs(dest_dir, exist_ok=True)
+    final = os.path.join(dest_dir, model["file"])
+    if os.path.isfile(final):
+        return final
+    part = final + ".part"
+    req = urllib.request.Request(hf_url(model), headers={"User-Agent": "ai-2"})
+    with urllib.request.urlopen(req, timeout=60) as resp, open(part, "wb") as out:
+        total = int(resp.headers.get("Content-Length") or 0)
+        done = 0
+        while True:
+            chunk = resp.read(1 << 20)
+            if not chunk:
+                break
+            out.write(chunk)
+            done += len(chunk)
+            if progress:
+                progress(done, total)
+    size = os.path.getsize(part)
+    if total and size != total:
+        os.remove(part)
+        raise RuntimeError(f"download incomplete: got {size} of {total} bytes")
+    os.replace(part, final)
+    return final
+
+
+def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
+          host: str = "127.0.0.1", port: int = 8080,
+          idle_timeout_s: int | None = 600) -> int:
+    """Run llama-server in the foreground and stop it after idle_timeout_s
+    seconds without any request in flight (the tier's `service: on-demand`
+    semantics). Returns the server's exit code."""
+    import json
+    import time
+    import urllib.request
+
+    env = dict(os.environ, LD_LIBRARY_PATH=runtime_dir)
+    cmd = [os.path.join(runtime_dir, "llama-server"), "-m", model_path,
+           "-t", str(threads), "-c", str(ctx), "--host", host, "--port", str(port),
+           "--slots"]
+    proc = subprocess.Popen(cmd, env=env)
+    last_busy = time.monotonic()
+    try:
+        while True:
+            try:
+                rc = proc.wait(timeout=5)
+                return rc
+            except subprocess.TimeoutExpired:
+                pass
+            if idle_timeout_s is None:
+                continue
+            try:
+                with urllib.request.urlopen(f"http://{host}:{port}/slots", timeout=2) as r:
+                    slots = json.load(r)
+                if any(s.get("is_processing") for s in slots):
+                    last_busy = time.monotonic()
+            except Exception:
+                # not up yet or a transient error; do not count it as idle time
+                last_busy = time.monotonic()
+                continue
+            if time.monotonic() - last_busy >= idle_timeout_s:
+                proc.terminate()
+                return proc.wait(timeout=30)
+    except KeyboardInterrupt:
+        proc.terminate()
+        return proc.wait(timeout=30)

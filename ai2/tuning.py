@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .detect import Hardware
+from .runtime import runtime_package
 from .tiers import Tier
 
 SYSCTL_PATH = "/etc/sysctl.d/90-ai2.conf"
@@ -145,6 +146,16 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
             ))
 
     runtime = config.get("runtime") or {}
+    if runtime.get("provider") == "llama.cpp":
+        # The CPU-variant runtime package from the signed [ai2] repo. Installing
+        # the wrong variant is worse than none (SIGILL), so this follows
+        # hw.cpu_variant, never the tier.
+        pkg = runtime_package(hw.cpu_variant)
+        if pkg and pkg_backend.is_installed(pkg) is False:
+            actions.append(_cmd_action(
+                pkg_backend.install_cmd([pkg]),
+                f"install llama.cpp runtime for this CPU: {pkg} ({pkg_backend.name})",
+            ))
     if runtime:
         content = "".join(f"{key} = {value}\n" for key, value in sorted(runtime.items()))
         actions.append(_write_file_action(

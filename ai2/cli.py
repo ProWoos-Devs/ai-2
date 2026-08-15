@@ -10,7 +10,8 @@ from .backends import get_package_backend, get_service_backend
 from .benchmark import parse_llama_bench, summarize
 from .detect import detect
 from .models import load_catalog, recommend
-from .runtime import find_runtime, find_test_model, run_llama_bench
+from .runtime import (download_model, find_model_file, find_runtime, find_test_model,
+                      model_dir, run_llama_bench, runtime_package, serve)
 from .tiers import assign, load_tiers, resolve_config
 from .tuning import apply_plan, build_plan, render_plan
 
@@ -200,6 +201,125 @@ def cmd_benchmark(args) -> int:
     return 0
 
 
+def _load_score() -> dict | None:
+    try:
+        with open(SCORE_PATH) as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _recommended_model(hw) -> dict | None:
+    """The catalog entry the stored AI Score points at, or None."""
+    score = _load_score()
+    if not score:
+        return None
+    catalog = load_catalog()
+    rec = recommend(hw.ram_mib, score.get("tg_tps", 0.0), score.get("bench_params_b", 0.5), catalog)
+    return rec["local"]
+
+
+def _catalog_entry(model_id: str) -> dict | None:
+    return next((m for m in load_catalog() if m["id"] == model_id), None)
+
+
+def cmd_runtime_install(args) -> int:
+    hw = detect()
+    pkg = runtime_package(hw.cpu_variant)
+    if pkg is None:
+        print(f"error: no runtime package for CPU variant '{hw.cpu_variant}'", file=sys.stderr)
+        return 1
+    try:
+        pkg_backend = get_package_backend()
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    if pkg_backend.is_installed(pkg):
+        print(f"{pkg} already installed (runtime at {find_runtime(hw.cpu_variant)})")
+        return 0
+    cmd = pkg_backend.install_cmd([pkg])
+    print(f"CPU variant {hw.cpu_variant}, installing {pkg}: {' '.join(cmd)}")
+    if not args.apply:
+        print("Dry run. Re-run with --apply as root to install.")
+        return 0
+    import subprocess
+    try:
+        subprocess.run(cmd, check=True)
+    except (subprocess.CalledProcessError, PermissionError, FileNotFoundError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Installed. Runtime at {find_runtime(hw.cpu_variant)}")
+    return 0
+
+
+def cmd_model_pull(args) -> int:
+    hw = detect()
+    if args.model:
+        model = _catalog_entry(args.model)
+        if model is None:
+            print(f"error: '{args.model}' is not in the catalog "
+                  f"(ids: {', '.join(m['id'] for m in load_catalog())})", file=sys.stderr)
+            return 1
+    else:
+        model = _recommended_model(hw)
+        if model is None:
+            print("error: no recommendation yet. Run 'ai-2 benchmark' first, or name a "
+                  "model: ai-2 model pull <id>", file=sys.stderr)
+            return 1
+    existing = find_model_file(model["file"])
+    if existing:
+        print(f"{model['label']} already present at {existing}")
+        return 0
+    dest = model_dir()
+    print(f"Downloading {model['label']} ({model['file_mb']} MB) to {dest}/ ...")
+
+    def progress(done, total):
+        pct = f"{done * 100 // total:3d}%" if total else ""
+        print(f"\r  {done // (1 << 20):5d} MB {pct}", end="", flush=True)
+
+    try:
+        path = download_model(model, dest, progress=progress)
+    except Exception as exc:
+        print(f"\nerror: download failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"\nSaved {path}")
+    return 0
+
+
+def cmd_serve(args) -> int:
+    hw = detect()
+    runtime_dir = find_runtime(hw.cpu_variant)
+    if runtime_dir is None:
+        print(f"error: no llama.cpp runtime for '{hw.cpu_variant}'. Run 'ai-2 runtime install'.",
+              file=sys.stderr)
+        return 1
+    if args.model:
+        model = _catalog_entry(args.model)
+        if model is None:
+            print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
+            return 1
+    else:
+        model = _recommended_model(hw)
+        if model is None:
+            print("error: no recommendation yet. Run 'ai-2 benchmark' first, or name a "
+                  "model: ai-2 serve --model <id>", file=sys.stderr)
+            return 1
+    path = find_model_file(model["file"])
+    if path is None:
+        print(f"error: {model['file']} not downloaded. Run 'ai-2 model pull {model['id']}'.",
+              file=sys.stderr)
+        return 1
+    threads = max(1, hw.logical_cores)
+    idle = None if args.idle_timeout == 0 else args.idle_timeout
+    print(f"Serving {model['label']} with the {hw.cpu_variant} runtime, {threads} threads, "
+          f"ctx {args.ctx}, on http://{args.host}:{args.port}/ "
+          f"(OpenAI-compatible /v1/chat/completions)")
+    if idle:
+        print(f"On demand: exits after {idle} s without requests. Ctrl-C stops it.")
+    return serve(runtime_dir, path, threads, ctx=args.ctx, host=args.host,
+                 port=args.port, idle_timeout_s=idle)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ai-2",
@@ -228,6 +348,27 @@ def main(argv: list[str] | None = None) -> int:
 
     p_rec = sub.add_parser("recommend", help="recommend a local model from the stored AI Score")
     p_rec.set_defaults(func=cmd_recommend)
+
+    p_rt = sub.add_parser("runtime", help="manage the llama.cpp runtime for this CPU")
+    rt_sub = p_rt.add_subparsers(dest="runtime_cmd", required=True)
+    p_rt_i = rt_sub.add_parser("install", help="install the runtime package for this CPU class")
+    p_rt_i.add_argument("--apply", action="store_true", help="really install (root)")
+    p_rt_i.set_defaults(func=cmd_runtime_install)
+
+    p_model = sub.add_parser("model", help="manage local models")
+    m_sub = p_model.add_subparsers(dest="model_cmd", required=True)
+    p_m_pull = m_sub.add_parser("pull", help="download the recommended model (or a named one)")
+    p_m_pull.add_argument("model", nargs="?", help="catalog id, e.g. qwen2.5-0.5b")
+    p_m_pull.set_defaults(func=cmd_model_pull)
+
+    p_serve = sub.add_parser("serve", help="run llama-server on demand with the recommended model")
+    p_serve.add_argument("--model", help="catalog id (default: the recommended model)")
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=8080)
+    p_serve.add_argument("--ctx", type=int, default=2048)
+    p_serve.add_argument("--idle-timeout", type=int, default=600,
+                         help="stop after this many idle seconds (0 = keep running)")
+    p_serve.set_defaults(func=cmd_serve)
 
     p_logo = sub.add_parser("logo", help="print the AI-2 logo (full lockup)")
     p_logo.set_defaults(func=cmd_logo)
