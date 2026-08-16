@@ -1,0 +1,8 @@
+#!/bin/sh
+# AI-2: start the installer straight away with the OFFLINE Calamares
+# configuration. No "select installer configuration" chooser (Rafael,
+# 2026-08-16: online is experimental, always go with offline). Same two steps
+# Artix's calamares-config-switcher does after its dialog; the live polkit
+# rules make both pkexec calls silent.
+pkexec ln -snf /etc/calamares-offline /etc/calamares
+exec pkexec calamares "$@"
