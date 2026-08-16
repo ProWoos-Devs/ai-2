@@ -1,0 +1,52 @@
+#!/bin/sh
+# AI-2: modified copy of Artix's desktop-items (artix-live-base, GPL). Adds
+# the START-HERE.txt guide to the live desktop and drops the one-line
+# README.txt (its content is in START-HERE).
+
+BINDIR=${BINDIR:-/usr/bin}
+DATADIR=${DATADIR:-/usr/share}
+
+# Ensure the user directories are created, some DEs (MATE)
+# create them after autostart scripts are run
+xdg-user-dirs-update --force
+
+xdg=$(xdg-user-dir DESKTOP)
+src="${DATADIR}"/applications
+
+# if [ -f $src/org.kde.konversation.desktop ]; then
+#     install -m644 $src/org.kde.konversation.desktop \
+#     $xdg/org.kde.konversation.desktop
+# fi
+
+# if [ -f "${BINDIR}"/calamares ]; then
+#     installer='calamares.desktop'
+#     cp $src/$installer "$xdg/$installer"
+# fi
+
+
+# Use cp instead of symlinks because ugly arrows or no proper icons
+if [ -f "${BINDIR}"/calamares-config-switcher ]; then
+    launcher='calamares-config-switcher.desktop'
+    cp "$src/$launcher" "$xdg/$launcher"
+    # Cinnamon needs this
+    chmod +x "$xdg/$launcher"
+fi
+
+docs="${DATADIR}"/doc/artix
+
+for f in {Configuration,Troubleshooting}.pdf; do
+    cp $docs/$f "$xdg"/$f
+done
+
+if [ -d /run/openrc ]; then
+    cp $docs/OpenRC.pdf "$xdg"/OpenRC.pdf
+elif [ -d /run/runit ]; then
+    cp $docs/Runit.pdf "$xdg"/Runit.pdf
+elif [ -d /run/dinit ]; then
+    cp $docs/Dinit.pdf "$xdg"/Dinit.pdf
+else
+    cp $docs/S6.pdf "$xdg"/S6.pdf
+fi
+
+# AI-2 guide for beginners (installed system keeps it in /usr/share/doc/ai2)
+cp /usr/share/doc/ai2/START-HERE.txt "$xdg"/START-HERE.txt

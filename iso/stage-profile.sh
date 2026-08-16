@@ -17,7 +17,7 @@ rm -rf "$DST/live-overlay"
 cp -aL /root/artools-workspace/iso-profiles/common/live-overlay "$DST/live-overlay"
 cp -a "$SRC/iso/profiles/ai2/live-overlay/." "$DST/live-overlay/"
 
-chmod 755 "$DST/root-overlay/usr/bin/artix-service" "$DST/live-overlay/usr/bin/ai2-install"
+chmod 755 "$DST/root-overlay/usr/bin/artix-service" "$DST/live-overlay/usr/bin/ai2-install" "$DST/live-overlay/usr/bin/desktop-items"
 
 # The ai-2 tool + llama.cpp runtimes come from the signed [ai2] repo now
 # (profile.yaml lists them). buildiso must be run with -w so this pacman.conf,

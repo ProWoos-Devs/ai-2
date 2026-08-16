@@ -12,11 +12,11 @@ import sys
 
 # Phosphor green #35D07F, the brand color, as a 24-bit ANSI escape.
 _GREEN = "\033[38;2;53;208;127m"
-_DIM = "\033[38;2;107;122;114m"   # slate, for the attribution line
+_DIM = "\033[38;2;107;122;114m"   # slate (muted text)
 _RESET = "\033[0m"
 
-# No tagline since 2026-08-16 (Rafael): the mark stands alone.
-ATTRIBUTION = "Based on Artix Linux"
+# No tagline and no attribution line since 2026-08-16 (Rafael): the mark
+# stands alone, so the FULL lockup is the COMPACT box.
 
 INLINE = "> AI-2 █"          # > AI-2 █
 
@@ -58,7 +58,4 @@ def compact(color: bool | None = None) -> str:
 
 
 def full(color: bool | None = None) -> str:
-    use_color = _want_color(color)
-    mark = _paint(_COMPACT, use_color)
-    attr = f"{_DIM}{ATTRIBUTION}{_RESET}" if use_color else ATTRIBUTION
-    return f"{mark}\n {attr}"
+    return compact(color)

@@ -39,13 +39,6 @@ Presentation
                     font.bold: true
                     color: "#35D07F"
                 }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Based on Artix Linux"
-                    font.family: "monospace"
-                    font.pixelSize: 16
-                    color: "#6B7A72"
-                }
             }
         }
     }
