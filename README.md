@@ -2,7 +2,7 @@
 
 **Give your computer an AI brain.**
 
-AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support. It never says "your computer is too weak." It detects the hardware, assigns a capability tier, tunes the system for it, measures what the machine can really do, and recommends models that genuinely fit, locally where possible, remotely by explicit choice.
+AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support. It never says "this computer cannot run AI." It detects the hardware, assigns a capability tier, tunes the system for it, measures what the machine can really do, and recommends models that genuinely fit, locally where possible, remotely by explicit choice.
 
 Reference platform is Artix Linux with runit. The oldest validated target is a 2011 laptop (AMD A4-3305M, no SSE4.1, 4 GB RAM, spinning disk) that runs a 0.5B model at about 2 tokens per second from a package built for exactly that CPU class.
 
