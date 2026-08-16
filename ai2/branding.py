@@ -15,7 +15,7 @@ _GREEN = "\033[38;2;53;208;127m"
 _DIM = "\033[38;2;107;122;114m"   # slate, for the attribution line
 _RESET = "\033[0m"
 
-TAGLINE = "your old PC gets a new AI brain"
+# No tagline since 2026-08-16 (Rafael): the mark stands alone.
 ATTRIBUTION = "Based on Artix Linux"
 
 INLINE = "> AI-2 █"          # > AI-2 █
@@ -60,6 +60,5 @@ def compact(color: bool | None = None) -> str:
 def full(color: bool | None = None) -> str:
     use_color = _want_color(color)
     mark = _paint(_COMPACT, use_color)
-    tag = f"{_DIM}{TAGLINE}{_RESET}" if use_color else TAGLINE
     attr = f"{_DIM}{ATTRIBUTION}{_RESET}" if use_color else ATTRIBUTION
-    return f"{mark}\n {tag}\n {attr}"
+    return f"{mark}\n {attr}"

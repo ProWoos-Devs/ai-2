@@ -12,10 +12,10 @@ def test_color_adds_escapes():
     assert "\033[" in branding.compact(color=True)
 
 
-def test_full_lockup_has_tagline_and_attribution():
+def test_full_lockup_has_attribution_and_no_tagline():
     full = branding.full(color=False)
-    assert branding.TAGLINE in full
     assert branding.ATTRIBUTION in full
+    assert "brain" not in full          # tagline dropped 2026-08-16
     assert "> AI-2" in full
 
 

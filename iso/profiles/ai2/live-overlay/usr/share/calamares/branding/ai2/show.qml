@@ -41,13 +41,6 @@ Presentation
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "your old PC gets a new AI brain"
-                    font.family: "monospace"
-                    font.pixelSize: 24
-                    color: "#B8F5D0"
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
                     text: "Based on Artix Linux"
                     font.family: "monospace"
                     font.pixelSize: 16
