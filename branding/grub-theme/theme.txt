@@ -31,6 +31,17 @@ terminal-box: "menu_*.png"
 }
 
 + label {
+    id = "__timeout__"
+    left = 0
+    top = 80%
+    width = 100%
+    align = "center"
+    font = "DejaVu Sans Mono Regular 20"
+    color = "#B8F5D0"
+    text = "AI-2 starts in %d seconds. Press any key to stop the countdown."
+}
+
++ label {
     left = 0
     top = 86%
     width = 100%
