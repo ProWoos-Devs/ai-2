@@ -30,10 +30,9 @@ magick "$tmp/hl.png" -crop 16x${H}+0+0  +repage "${PNG_RGBA[@]}" "$OUT/highlight
 magick "$tmp/hl.png" -crop 1x${H}+24+0  +repage "${PNG_RGBA[@]}" "$OUT/highlight_c.png"
 magick "$tmp/hl.png" -crop 16x${H}+32+0 +repage "${PNG_RGBA[@]}" "$OUT/highlight_e.png"
 
-# menu panel behind the items: translucent near-black (alpha 0x59 = 35%),
-# 9-slice with 12 px rounded borders. Dark enough for the text, light enough
-# for the neon mark to show through.
-magick -size 48x48 xc:none -fill '#0B0F0D59' -draw "roundrectangle 0,0 47,47 10,10" "$tmp/panel.png"
+# menu panel behind the items: translucent near-black (alpha 0xB3 = 70%),
+# 9-slice with 12 px rounded borders; the mark sits above it, not behind.
+magick -size 48x48 xc:none -fill '#0B0F0DB3' -draw "roundrectangle 0,0 47,47 10,10" "$tmp/panel.png"
 for spec in "nw 0 0 12 12" "n 12 0 1 12" "ne 36 0 12 12" "w 0 12 12 1" "c 12 12 1 1" "e 36 12 12 1" "sw 0 36 12 12" "s 12 36 1 12" "se 36 36 12 12"; do
   set -- $spec
   magick "$tmp/panel.png" -crop ${4}x${5}+${2}+${3} +repage "${PNG_RGBA[@]}" "$OUT/menu_$1.png"

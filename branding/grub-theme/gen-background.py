@@ -6,17 +6,19 @@ stands alone.
 
   gen-background.py OUT.svg [dim] [y_center] [font_px]
 
-dim       overall brightness of the mark, 0-1 (default 0.45: "way less bright"
-          than the Artix neon so the menu text stays readable)
-y_center  vertical center of the mark in the 1024x768 canvas (default 384)
-font_px   font size in px (default 175, mark spans ~85% of the width)
+dim       overall brightness of the mark, 0-1 (default 0.55, well below the
+          Artix neon)
+y_center  vertical center of the mark in the 1024x768 canvas (default 125:
+          the mark sits ABOVE the menu panel, fully visible, chosen by Rafael
+          2026-08-16 over the ghosted-behind-the-menu variant)
+font_px   font size in px (default 140)
 """
 import sys
 
 out = sys.argv[1]
-dim = float(sys.argv[2]) if len(sys.argv) > 2 else 0.45
-yc = int(sys.argv[3]) if len(sys.argv) > 3 else 384
-fs = int(sys.argv[4]) if len(sys.argv) > 4 else 175
+dim = float(sys.argv[2]) if len(sys.argv) > 2 else 0.55
+yc = int(sys.argv[3]) if len(sys.argv) > 3 else 125
+fs = int(sys.argv[4]) if len(sys.argv) > 4 else 140
 W, H = 1024, 768                       # GRUB_GFXMODE used by Artix/AI-2 (ISO + installed)
 cw = fs * 0.602                        # DejaVu Sans Mono advance width
 text = "> AI-2 "
