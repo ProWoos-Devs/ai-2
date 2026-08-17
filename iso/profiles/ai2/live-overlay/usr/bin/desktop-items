@@ -24,14 +24,6 @@ src="${DATADIR}"/applications
 # fi
 
 
-# Use cp instead of symlinks because ugly arrows or no proper icons
-if [ -f "${BINDIR}"/calamares-config-switcher ]; then
-    launcher='calamares-config-switcher.desktop'
-    cp "$src/$launcher" "$xdg/$launcher"
-    # Cinnamon needs this
-    chmod +x "$xdg/$launcher"
-fi
-
 docs="${DATADIR}"/doc/artix
 
 for f in {Configuration,Troubleshooting}.pdf; do
@@ -46,6 +38,17 @@ elif [ -d /run/dinit ]; then
     cp $docs/Dinit.pdf "$xdg"/Dinit.pdf
 else
     cp $docs/S6.pdf "$xdg"/S6.pdf
+fi
+
+# AI-2: xfdesktop shows these icons in REVERSE order of creation, so the
+# installer launcher and then the START-HERE guide are copied LAST: the
+# desktop reads Home, File System, START-HERE, Install AI-2, then the PDFs.
+# Use cp instead of symlinks because ugly arrows or no proper icons
+if [ -f "${BINDIR}"/ai2-install ]; then
+    launcher='calamares-config-switcher.desktop'
+    cp "$src/$launcher" "$xdg/$launcher"
+    # Cinnamon needs this
+    chmod +x "$xdg/$launcher"
 fi
 
 # AI-2 guide for beginners (installed system keeps it in /usr/share/doc/ai2)
