@@ -7,6 +7,9 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ### ai-2 (tool)
 - `ai-2 logo` prints the bare boxed mark; the tagline and the "Based on Artix Linux" line are gone from the tool, the MOTD and every shipped asset (2026-08-16). Not yet in a built package (0.2.0-1 was built before this change).
 
+## ISO 20260817 (2026-08-17), tag `iso-20260817`
+- Live desktop: the "Install AI-2" icon sits right under START-HERE, before the Artix PDFs.
+
 ## ISO 20260816 (2026-08-16), tag `iso-20260816`
 - AI-2 GRUB boot menu: boxed `> AI-2` logo above a translucent panel, phosphor palette, DejaVu Sans Mono 20 items with Unifont fallback, dark-on-green selection, key hints. Theme sources in `branding/grub-theme/`, overlaid on `themes/artix` so the ISO and installed systems share it.
 - One boot entry, "Start AI-2", listed first and preselected; auto-starts after 10 s with a visible countdown; prints "Starting AI-2 ..." while the kernel and initramfs load from the stick; boot-menu help rewritten for beginners.
