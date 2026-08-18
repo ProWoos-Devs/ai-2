@@ -17,6 +17,22 @@ rm -rf "$DST/live-overlay"
 cp -aL /root/artools-workspace/iso-profiles/common/live-overlay "$DST/live-overlay"
 cp -a "$SRC/iso/profiles/ai2/live-overlay/." "$DST/live-overlay/"
 
+# Compose root-overlay: the stock xfce profile symlinks these into artools'
+# common overlays and our copied profile lost the links (found 2026-08-18 when
+# an installed system had no Windows entry and no GRUB theme):
+#   common/root-overlay/etc/default/grub  -> GRUB_THEME artix (= our AI-2 theme
+#                                            files), GRUB_DISABLE_OS_PROBER=false,
+#                                            GRUB_GFXMODE 1024x768 (Calamares'
+#                                            grubcfg keeps an existing file's
+#                                            values, so this is what installs get)
+#   common/gtk/root-overlay/usr           -> GTK2 defaults (Artix-dark, Roboto)
+# NOT taken: common hosts/issue/pacman.conf (ours or the package's are right).
+COMMON=/root/artools-workspace/iso-profiles/common
+mkdir -p "$DST/root-overlay/etc/default"
+cp -aL "$COMMON/root-overlay/etc/default/." "$DST/root-overlay/etc/default/"
+cp -aL "$COMMON/gtk/root-overlay/usr/." "$DST/root-overlay/usr/"
+cp -a "$SRC/iso/profiles/ai2/root-overlay/." "$DST/root-overlay/"
+
 chmod 755 "$DST/root-overlay/usr/bin/artix-service" "$DST/live-overlay/usr/bin/ai2-install" "$DST/live-overlay/usr/bin/desktop-items"
 
 # The ai-2 tool + llama.cpp runtimes come from the signed [ai2] repo now
