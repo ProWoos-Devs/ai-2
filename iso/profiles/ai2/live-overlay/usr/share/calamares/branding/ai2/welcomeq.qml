@@ -96,11 +96,21 @@ Page
                 onClicked: Qt.openUrlExternally("file:///usr/share/doc/ai2/START-HERE.txt")
             }
 
-            Requirements {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: column.width
-                visible: !config.requirementsModel.satisfiedRequirements
-            }
+        }
+
+        // The requirements list (only when something is unmet). Calamares'
+        // Requirements item anchors.fill its parent, so it gets its own box
+        // BELOW the language chooser instead of a slot in the column above.
+        Item {
+            id: requirementsArea
+            anchors.top: column.bottom
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.topMargin: -40
+            visible: !config.requirementsModel.satisfiedRequirements
+
+            Requirements {}
         }
     }
 }
