@@ -59,6 +59,13 @@ INSTALLING AI-2 ON THIS COMPUTER
      "Install alongside" keeps an existing system (for example Windows) and
                     lets you shrink it to make room; you get a boot menu.
      "Manual"       for people who know their partitions.
+   How to recognize your partitions in that page: the bar shows every
+   partition of the chosen disk with a name, a size and a filesystem type.
+   Windows lives on NTFS partitions ("Windows 7", "Windows 10" or just
+   "sda2" when Windows gave it no name); a Linux system already installed
+   shows under its own name ("Artix Linux", "AI-2"); "ext4" is a Linux
+   filesystem. When in doubt, the size tells them apart. AI-2 labels its
+   own partition "AI-2" when it installs.
 6. Users: your name, a login name, a password (also used for admin tasks).
 7. Summary: read it, this is the last moment to go back.
 8. Install: takes a few minutes on a modern machine, longer on an old one.

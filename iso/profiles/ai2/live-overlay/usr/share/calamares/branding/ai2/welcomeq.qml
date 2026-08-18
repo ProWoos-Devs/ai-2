@@ -89,6 +89,13 @@ Page
                 text: qsTr("<p>The next pages ask a few questions (location, keyboard, disk, your user) and then install %1 on this computer.</p><p>Nothing is written to your disks until you confirm the summary and the installation starts.</p>").arg(Branding.string(Branding.ProductName))
             }
 
+            Button {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Read the guide (START HERE)")
+                icon.name: "help-contents"
+                onClicked: Qt.openUrlExternally("file:///usr/share/doc/ai2/START-HERE.txt")
+            }
+
             Requirements {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: column.width
