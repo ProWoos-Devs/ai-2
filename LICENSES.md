@@ -8,6 +8,8 @@ AI-2 is released under the MIT License (see `LICENSE`). Two pieces of this tree 
 
 - `iso/profiles/ai2/live-overlay/usr/bin/desktop-items` is a modified copy of the live-desktop script from Artix's `artix-live-base` package (https://gitea.artixlinux.org/artix/artix-live), GPL. The AI-2 modification (copies START-HERE.txt to the live desktop) is offered under the same license.
 
+- `iso/profiles/ai2/live-overlay/usr/share/calamares/branding/ai2/welcomeq.qml` is derived from Calamares' `src/modules/welcomeq/welcomeq.qml` (https://codeberg.org/Calamares/calamares, GPL-3.0-or-later, Adriaan de Groot / Anke Boersma). The AI-2 changes (language choice first with a label, plain wording) are offered under the same license.
+
 - `iso/profiles/ai2/` started as a copy of the `xfce` profile from Artix's artools `iso-profiles` (https://gitea.artixlinux.org/artix/iso-profiles), BSD 2-Clause License, Copyright (c) 2017, Cromnix GNU/Linux. That notice is retained here as the license requires; the AI-2 additions to the profile are MIT like the rest of the project.
 
 - `iso/profiles/ai2/root-overlay/usr/share/grub/themes/artix/dejavu-sans-mono-*.pf2` are GRUB font files rendered from DejaVu Sans Mono (https://dejavu-fonts.github.io), which is distributed under the Bitstream Vera Fonts license with the Arev/DejaVu additions in the public domain. The rest of the AI-2 GRUB theme in that directory (background, pixmaps, icons, theme.txt, sources in `branding/grub-theme/`) is MIT; the generic glyph icons come from Artix's `artix-grub-theme` package at build time and are not part of this tree.

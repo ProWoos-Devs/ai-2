@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Xfce Screensaver
+Exec=xfce4-screensaver
+OnlyShowIn=XFCE;
+NoDisplay=true
+# AI-2 live session: no screen lock while people read START-HERE or install
+Hidden=true

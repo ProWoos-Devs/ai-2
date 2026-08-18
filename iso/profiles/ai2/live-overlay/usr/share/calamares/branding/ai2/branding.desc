@@ -18,7 +18,7 @@ strings:
     shortProductName:    AI-2
     version:             rolling
     shortVersion:        rolling
-    versionedName:       AI-2 (rolling)
+    versionedName:       AI-2
     shortVersionedName:  AI-2
     bootloaderEntryName: AI-2
     productUrl:          ""
@@ -28,7 +28,8 @@ strings:
 
 images:
     productBanner:       "ai2-banner.png"
-    productLogo:         "ai2-icon.svg"
+    productLogo:         "ai2-logo-sidebar.svg"
+    productWelcome:      "ai2-banner.png"
     productIcon:         "ai2-icon.svg"
 
 style:

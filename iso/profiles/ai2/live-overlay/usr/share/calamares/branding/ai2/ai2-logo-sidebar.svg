@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -14 92 92" width="92" height="92" role="img" aria-label="AI-2">
+  <!-- Calamares sidebar logo: the AI-2 tile with breathing room on all sides
+       (Calamares stretches productLogo to the sidebar width). -->
+  <rect width="64" height="64" rx="15" fill="#0B0F0D"/>
+  <rect x="4.5" y="4.5" width="55" height="55" rx="11.5" fill="none" stroke="#35D07F" stroke-width="3.5"/>
+  <text x="32" y="40.5" text-anchor="middle"
+        font-family="'DejaVu Sans Mono','JetBrains Mono','Menlo',monospace"
+        font-size="23" font-weight="700" letter-spacing="-1.5" fill="#35D07F">AI-2</text>
+</svg>
