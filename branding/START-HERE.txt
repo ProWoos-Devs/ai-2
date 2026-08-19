@@ -87,7 +87,10 @@ minutes, three questions. If you close it, run it again any time with:
 
 Then talk to the AI: Applications > AI-2 Chat (or  ai-2 chat  in a
 terminal). It starts the local AI and opens the chat page in the browser;
-the AI stops by itself when you have not used it for a while.
+the AI stops by itself when you have not used it for a while. The address
+bar says "Not Secure" because the page is served by your own computer at
+127.0.0.1; nothing leaves the machine, there is nothing to secure. If the
+page shows an error the first time, reload it.
 
 The same steps by hand, in a terminal (Applications > Terminal Emulator):
 
