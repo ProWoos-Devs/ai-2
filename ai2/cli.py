@@ -391,7 +391,8 @@ def main(argv: list[str] | None = None) -> int:
     p_chat = sub.add_parser("chat", help="start the local AI (if needed) and open the chat page in the browser")
     p_chat.add_argument("--model", help="catalog id (default: the recommended model)")
     p_chat.add_argument("--port", type=int, default=8080)
-    p_chat.add_argument("--idle-timeout", type=int, default=600)
+    p_chat.add_argument("--idle-timeout", type=int, default=1800,
+                        help="stop the AI after this many idle seconds (default 30 min; a chat page left open does not count as use)")
     p_chat.add_argument("--wait", type=int, default=180, help="seconds to wait for the server to come up")
     p_chat.add_argument("--no-browser", action="store_true", help="do not open the browser, just print the address")
     p_chat.set_defaults(func=cmd_chat)
