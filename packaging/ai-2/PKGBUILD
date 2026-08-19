@@ -13,7 +13,7 @@ pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstati
 arch=('any')
 url="https://github.com/ProWoos-Devs/AI-2"
 license=('MIT')
-depends=('python' 'python-yaml' 'xdg-utils')
+depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme')
 checkdepends=('python-pytest')
 optdepends=('pciutils: GPU detection via lspci'
             'zramen: compressed swap, installed by ai-2 init --apply on low-RAM tiers'
