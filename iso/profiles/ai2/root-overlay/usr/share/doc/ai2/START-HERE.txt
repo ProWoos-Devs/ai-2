@@ -77,7 +77,19 @@ you created.
 
 FIRST STEPS AFTER INSTALLING
 
-Open a terminal (Applications > Terminal Emulator) and run:
+At your first login a window titled "AI-2 setup" opens by itself and walks
+you through it: it scans the computer, tunes the system for it (asks for
+your password once), measures what the machine can really do (the AI Score,
+0 to 100), recommends a model that fits and offers to download it. A few
+minutes, three questions. If you close it, run it again any time with:
+
+  ai-2 wizard
+
+Then talk to the AI: Applications > AI-2 Chat (or  ai-2 chat  in a
+terminal). It starts the local AI and opens the chat page in the browser;
+the AI stops by itself when you have not used it for a while.
+
+The same steps by hand, in a terminal (Applications > Terminal Emulator):
 
   ai-2 detect          what AI-2 sees: CPU (and which engine build it
                        needs), RAM, GPU, disk, init system
@@ -87,11 +99,11 @@ Open a terminal (Applications > Terminal Emulator) and run:
                        out-of-memory protection, no idle suspend, and the
                        engine build for this CPU)
   ai-2 benchmark       measure real inference speed and compute the AI Score
-                       (0-100) of this machine
   ai-2 recommend       the local models that fit this machine's score
   ai-2 model pull      download the recommended model
-  ai-2 serve           start the local AI server on demand; it stops by
-                       itself when idle
+  ai-2 chat            start the local AI and open the chat page
+  ai-2 serve           the same AI as a service for programs (OpenAI-style
+                       API at http://127.0.0.1:8080/), stops when idle
 
 Every command has --help.
 

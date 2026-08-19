@@ -105,3 +105,46 @@ def summarize(result: BenchResult, max_vram_mb: int, ram_gib: int) -> dict:
         "threads": result.threads,
         "capabilities": stars,
     }
+
+
+STAR_LABELS = {"chat": "Chat", "translation": "Translation", "coding": "Programming",
+               "ocr": "OCR", "doc_qa": "Document Q&A", "voice": "Voice",
+               "image_generation": "Image generation", "video": "Video"}
+
+
+def bench_params_b(model_path: str, catalog: list) -> float:
+    """Best-effort: which catalog model was benchmarked, to scale estimates."""
+    import os
+    name = os.path.basename(model_path).lower()
+    for m in catalog:
+        if m.get("file", "").lower() == name:
+            return m["params_b"]
+    for m in catalog:
+        if m["id"].replace("-", "").replace(".", "") in name.replace("-", "").replace(".", ""):
+            return m["params_b"]
+    return 0.5  # assume the standard 0.5B test model
+
+
+def measure(hw, model_path: str, runtime_dir: str, threads: int | None = None) -> tuple[dict, dict]:
+    """Run llama-bench on model_path with the given runtime and turn the result
+    into the AI Score record (what `ai-2 benchmark` prints and persists) plus
+    the model recommendation. Raises RuntimeError when the bench fails."""
+    from .models import load_catalog, recommend
+    from .runtime import run_llama_bench
+
+    threads = threads or max(1, hw.logical_cores)
+    out = run_llama_bench(runtime_dir, model_path, threads)
+    result = parse_llama_bench(out)
+    if result is None:
+        raise RuntimeError("could not parse llama-bench output")
+    max_vram = max((g.vram_mb or 0 for g in hw.gpus), default=0)
+    catalog = load_catalog()
+    params_b = bench_params_b(model_path, catalog)
+    rec = recommend(hw.ram_mib, result.tg_tps, params_b, catalog)
+    data = summarize(result, max_vram, hw.ram_nominal_gib) | {
+        "cpu_variant": hw.cpu_variant,
+        "bench_params_b": params_b,
+        "recommended_model": rec["local"]["id"] if rec["local"] else None,
+        "remote_suggested": rec["remote_suggested"],
+    }
+    return data, rec

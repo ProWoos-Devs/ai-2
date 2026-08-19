@@ -7,15 +7,16 @@ from dataclasses import asdict
 
 from . import __version__, branding
 from .backends import get_package_backend, get_service_backend
-from .benchmark import parse_llama_bench, summarize
+from .benchmark import STAR_LABELS, measure
 from .detect import detect
 from .models import load_catalog, recommend
 from .runtime import (download_model, find_model_file, find_runtime, find_test_model,
                       model_dir, run_llama_bench, runtime_package, serve)
+from .state import load_score, write_score
 from .tiers import assign, load_tiers, resolve_config
 from .tuning import apply_plan, build_plan, render_plan
 
-SCORE_PATH = "/etc/ai2/score.json"
+SCORE_PATH = "/etc/ai2/score.json"   # system location; see state.py for the user fallback
 
 
 def cmd_logo(args) -> int:
@@ -95,26 +96,7 @@ def cmd_init(args) -> int:
 
 
 def _write_score(data: dict) -> None:
-    import os
-    try:
-        os.makedirs(os.path.dirname(SCORE_PATH), exist_ok=True)
-        with open(SCORE_PATH, "w") as fh:
-            json.dump(data, fh, indent=2)
-    except PermissionError:
-        pass  # not root; still print the result, just don't persist
-
-
-def _bench_params_b(model_path: str, catalog: list) -> float:
-    """Best-effort: which catalog model was benchmarked, to scale estimates."""
-    import os
-    name = os.path.basename(model_path).lower()
-    for m in catalog:
-        if m.get("file", "").lower() == name:
-            return m["params_b"]
-    for m in catalog:
-        if m["id"].replace("-", "").replace(".", "") in name.replace("-", "").replace(".", ""):
-            return m["params_b"]
-    return 0.5  # assume the standard 0.5B test model
+    write_score(data)   # system-wide when root, else per user
 
 
 def _print_recommendation(rec: dict) -> None:
@@ -131,12 +113,9 @@ def _print_recommendation(rec: dict) -> None:
 
 def cmd_recommend(args) -> int:
     hw = detect()
-    try:
-        with open(SCORE_PATH) as fh:
-            score = json.load(fh)
-    except (OSError, ValueError):
-        print(f"error: no AI Score yet. Run 'ai-2 benchmark' first "
-              f"(expected at {SCORE_PATH}).", file=sys.stderr)
+    score = load_score()
+    if score is None:
+        print("error: no AI Score yet. Run 'ai-2 benchmark' first.", file=sys.stderr)
         return 1
     catalog = load_catalog()
     params_b = score.get("bench_params_b", 0.5)
@@ -164,24 +143,10 @@ def cmd_benchmark(args) -> int:
     print(f"Benchmarking with {hw.cpu_variant} runtime, {threads} threads, "
           f"model {model.split('/')[-1]} ... (this can take a minute)")
     try:
-        out = run_llama_bench(runtime_dir, model, threads)
+        data, rec = measure(hw, model, runtime_dir, threads)
     except Exception as exc:
         print(f"error: benchmark failed: {exc}", file=sys.stderr)
         return 1
-    result = parse_llama_bench(out)
-    if result is None:
-        print("error: could not parse llama-bench output", file=sys.stderr)
-        return 1
-    max_vram = max((g.vram_mb or 0 for g in hw.gpus), default=0)
-    catalog = load_catalog()
-    params_b = _bench_params_b(model, catalog)
-    rec = recommend(hw.ram_mib, result.tg_tps, params_b, catalog)
-    data = summarize(result, max_vram, hw.ram_nominal_gib) | {
-        "cpu_variant": hw.cpu_variant,
-        "bench_params_b": params_b,
-        "recommended_model": rec["local"]["id"] if rec["local"] else None,
-        "remote_suggested": rec["remote_suggested"],
-    }
     if args.json:
         print(json.dumps(data, indent=2))
     else:
@@ -189,11 +154,8 @@ def cmd_benchmark(args) -> int:
         bar = "#" * (data["ai_score"] // 10) + "." * (10 - data["ai_score"] // 10)
         print(f"           [{bar}]  {data['tg_tps']} tok/s generation, "
               f"{data['pp_tps']} tok/s prompt")
-        stars = {"chat": "Chat", "translation": "Translation", "coding": "Programming",
-                 "ocr": "OCR", "doc_qa": "Document Q&A", "voice": "Voice",
-                 "image_generation": "Image generation", "video": "Video"}
         print("\nRecommended for:")
-        for key, label in stars.items():
+        for key, label in STAR_LABELS.items():
             n = data["capabilities"][key]
             print(f"  {'★' * n}{'☆' * (5 - n)}  {label}")
         _print_recommendation(rec)
@@ -202,11 +164,7 @@ def cmd_benchmark(args) -> int:
 
 
 def _load_score() -> dict | None:
-    try:
-        with open(SCORE_PATH) as fh:
-            return json.load(fh)
-    except (OSError, ValueError):
-        return None
+    return load_score()
 
 
 def _recommended_model(hw) -> dict | None:
@@ -320,6 +278,66 @@ def cmd_serve(args) -> int:
                  port=args.port, idle_timeout_s=idle)
 
 
+def _server_ready(url: str, timeout: float = 2.0) -> bool:
+    import urllib.request
+    try:
+        with urllib.request.urlopen(url.rstrip("/") + "/health", timeout=timeout) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def cmd_chat(args) -> int:
+    """Make sure the local AI server runs (start it on demand, detached) and
+    open the chat page in the browser. The server stops itself when idle."""
+    import os
+    import subprocess
+    import time
+    hw = detect()
+    url = f"http://127.0.0.1:{args.port}/"
+    if not _server_ready(url):
+        runtime_dir = find_runtime(hw.cpu_variant)
+        model = _catalog_entry(args.model) if args.model else _recommended_model(hw)
+        if runtime_dir is None or model is None or find_model_file(model["file"]) is None:
+            print("AI-2 is not set up on this computer yet. Run:  ai-2 wizard", file=sys.stderr)
+            return 1
+        state_dir = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "ai2")
+        os.makedirs(state_dir, exist_ok=True)
+        log = open(os.path.join(state_dir, "serve.log"), "ab")
+        cmd = [sys.executable, "-m", "ai2.cli", "serve", "--port", str(args.port),
+               "--idle-timeout", str(args.idle_timeout)] + (["--model", model["id"]] if args.model else [])
+        subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                         start_new_session=True,
+                         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        print(f"Starting the AI ({model['label']}) ... this takes a moment on a slow disk", end="", flush=True)
+        deadline = time.monotonic() + args.wait
+        while time.monotonic() < deadline and not _server_ready(url):
+            time.sleep(2)
+            print(".", end="", flush=True)
+        print()
+        if not _server_ready(url):
+            print(f"error: the server did not come up within {args.wait} s "
+                  f"(see {os.path.join(state_dir, 'serve.log')})", file=sys.stderr)
+            return 1
+    print(f"Chat with the AI at {url}  (it stops by itself after {args.idle_timeout} s without use)")
+    if not args.no_browser:
+        try:
+            subprocess.Popen(["xdg-open", url], stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        except FileNotFoundError:
+            print("Open that address in your browser.")
+    return 0
+
+
+def cmd_wizard(args) -> int:
+    from .wizard import Wizard
+    try:
+        return Wizard(yes=args.yes).go()
+    except KeyboardInterrupt:
+        print("\nStopped. Run  ai-2 wizard  any time to continue.")
+        return 130
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ai-2",
@@ -370,7 +388,19 @@ def main(argv: list[str] | None = None) -> int:
                          help="stop after this many idle seconds (0 = keep running)")
     p_serve.set_defaults(func=cmd_serve)
 
-    p_logo = sub.add_parser("logo", help="print the AI-2 logo (full lockup)")
+    p_chat = sub.add_parser("chat", help="start the local AI (if needed) and open the chat page in the browser")
+    p_chat.add_argument("--model", help="catalog id (default: the recommended model)")
+    p_chat.add_argument("--port", type=int, default=8080)
+    p_chat.add_argument("--idle-timeout", type=int, default=600)
+    p_chat.add_argument("--wait", type=int, default=180, help="seconds to wait for the server to come up")
+    p_chat.add_argument("--no-browser", action="store_true", help="do not open the browser, just print the address")
+    p_chat.set_defaults(func=cmd_chat)
+
+    p_wiz = sub.add_parser("wizard", help="guided setup: scan, tune, measure, pick and download a model")
+    p_wiz.add_argument("--yes", action="store_true", help="unattended: take the default answer everywhere")
+    p_wiz.set_defaults(func=cmd_wizard)
+
+    p_logo = sub.add_parser("logo", help="print the AI-2 logo")
     p_logo.set_defaults(func=cmd_logo)
 
     args = parser.parse_args(argv)

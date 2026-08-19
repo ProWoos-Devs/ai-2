@@ -7,20 +7,21 @@
 # (git archive of www/ai-2), so a package always maps to a commit.
 
 pkgname=ai-2
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
 url="https://github.com/ProWoos-Devs/AI-2"
 license=('MIT')
-depends=('python' 'python-yaml')
+depends=('python' 'python-yaml' 'xdg-utils')
 checkdepends=('python-pytest')
 optdepends=('pciutils: GPU detection via lspci'
             'zramen: compressed swap, installed by ai-2 init --apply on low-RAM tiers'
             'earlyoom: userspace OOM killer, installed by ai-2 init --apply on low-RAM tiers'
             'ai2-llama-cpp-baseline: CPU inference runtime for pre-SSE4.1 CPUs'
             'ai2-llama-cpp-noavx: CPU inference runtime for SSE4.x CPUs without AVX2'
-            'ai2-llama-cpp-avx2: CPU inference runtime for AVX2 CPUs')
+            'ai2-llama-cpp-avx2: CPU inference runtime for AVX2 CPUs'
+            'xfce4-terminal: terminal window for the first-login setup wizard')
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')
 
@@ -39,6 +40,13 @@ package() {
 
   install -Dm755 packaging/ai-2/ai-2-wrapper.sh "$pkgdir/usr/bin/ai-2"
   ln -s ai-2 "$pkgdir/usr/bin/AI-2"
+
+  # first-login wizard + chat launcher + icon
+  install -Dm755 branding/ai2-first-boot "$pkgdir/usr/bin/ai2-first-boot"
+  install -Dm644 branding/desktop/ai2-setup.desktop "$pkgdir/etc/xdg/autostart/ai2-setup.desktop"
+  install -Dm644 branding/desktop/ai2-chat.desktop "$pkgdir/usr/share/applications/ai2-chat.desktop"
+  install -Dm644 branding/ai2-icon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/ai2.svg"
+  install -Dm644 branding/START-HERE.txt "$pkgdir/usr/share/doc/ai2/START-HERE.txt"
 
   install -Dm644 branding/motd "$pkgdir/usr/share/ai2/motd"
   install -Dm644 branding/lightdm-gtk-greeter.conf "$pkgdir/usr/share/ai2/lightdm-gtk-greeter.conf"

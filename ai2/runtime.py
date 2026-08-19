@@ -33,6 +33,7 @@ def find_runtime(variant: str) -> str | None:
 _MODEL_DIRS = [
     os.environ.get("AI2_MODEL_DIR", ""),
     "/var/lib/ai2/models",
+    os.path.expanduser("~/.local/share/ai2/models"),   # where `ai-2 model pull` puts them as a user
     os.path.expanduser("~/models"),
 ]
 

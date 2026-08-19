@@ -5,11 +5,19 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ## [Unreleased]
 
 ### ISO (next build)
+- Installed systems: the `ai-2` package now ships the first-login setup wizard autostart, the "AI-2 Chat" menu entry, the AI-2 icon and START-HERE.txt (the live session hides the autostart).
 - FIX: installed systems get Artix's `/etc/default/grub` again (GRUB theme, `os-prober` enabled so Windows shows in the boot menu, 1024x768 mode). Our profile had lost the stock symlink into artools' common overlay; the 20260816/17 ISOs install a text-mode GRUB without other operating systems. Workaround on an affected install: enable `GRUB_DISABLE_OS_PROBER=false` and the theme in `/etc/default/grub`, then `grub-mkconfig -o /boot/grub/grub.cfg`.
 - Installer: QML welcome page (language choice first, labeled; "Read the guide" button), padded sidebar logo, root filesystem labeled "AI-2", live session never locks or blanks the screen, START-HERE explains how to recognize partitions.
 
-### ai-2 (tool)
-- `ai-2 logo` prints the bare boxed mark; the tagline and the "Based on Artix Linux" line are gone from the tool, the MOTD and every shipped asset (2026-08-16). Not yet in a built package (0.2.0-1 was built before this change).
+## [0.3.0] - 2026-08-19
+### Added
+- `ai-2 wizard`: the guided first-run setup (scan, tune with one password prompt, install the engine, get a first model, measure the AI Score, recommend and download the fitting model, explain how to use it). Runs by itself in a terminal window at the first login of an installed system (`ai2-first-boot`, marker `~/.config/ai2/setup-done`), and any time by hand. Unattended with `--yes`.
+- `ai-2 chat`: starts the local AI server on demand (detached, stops when idle) and opens the chat page in the browser; "AI-2 Chat" desktop entry.
+- The AI Score is persisted per user (`~/.config/ai2/score.json`) when not root, so `recommend`, `model pull`, `serve` and `chat` work without sudo.
+### Changed
+- `ai-2 logo` prints the bare boxed mark; the tagline and the "Based on Artix Linux" line are gone from the tool, the MOTD and every shipped asset.
+- Models downloaded as a user (`~/.local/share/ai2/models`) are found by the benchmark.
+- Package depends on xdg-utils; optdepends xfce4-terminal; ships icon, desktop entries, START-HERE.
 
 ## ISO 20260817 (2026-08-17), tag `iso-20260817`
 - Live desktop: the "Install AI-2" icon sits right under START-HERE, before the Artix PDFs.

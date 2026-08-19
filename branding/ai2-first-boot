@@ -1,0 +1,14 @@
+#!/bin/sh
+# AI-2: at login, open the guided setup in a terminal window until it has
+# been completed once for this user (marker: ~/.config/ai2/setup-done, written
+# by `ai-2 wizard`; delete it to get the wizard back at login).
+marker="${XDG_CONFIG_HOME:-$HOME/.config}/ai2/setup-done"
+[ -e "$marker" ] && exit 0
+sleep 8   # let the desktop settle first
+if command -v xfce4-terminal >/dev/null 2>&1; then
+    exec xfce4-terminal --title="AI-2 setup" --geometry=100x38 --hide-menubar -x ai-2 wizard
+elif command -v x-terminal-emulator >/dev/null 2>&1; then
+    exec x-terminal-emulator -e ai-2 wizard
+else
+    exec xterm -T "AI-2 setup" -geometry 100x38 -e ai-2 wizard
+fi

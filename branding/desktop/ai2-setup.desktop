@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=AI-2 setup
+Comment=First-login guided setup of AI-2 (scan, tune, measure, pick a model)
+Exec=ai2-first-boot
+Icon=ai2
+Terminal=false
+NoDisplay=true
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-Phase=Applications

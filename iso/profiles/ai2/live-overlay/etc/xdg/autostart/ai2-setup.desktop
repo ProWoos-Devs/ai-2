@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=AI-2 setup
+Exec=ai2-first-boot
+NoDisplay=true
+# AI-2 live session: the first-login wizard is for installed systems
+Hidden=true

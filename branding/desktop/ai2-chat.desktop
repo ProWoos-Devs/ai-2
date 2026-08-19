@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=AI-2 Chat
+GenericName=Local AI assistant
+Comment=Talk to the AI that runs on this computer (starts it if needed)
+Exec=ai-2 chat
+Icon=ai2
+Terminal=true
+Categories=Utility;Office;
+Keywords=AI;chat;assistant;LLM;
