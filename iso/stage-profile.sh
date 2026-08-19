@@ -33,7 +33,7 @@ cp -aL "$COMMON/root-overlay/etc/default/." "$DST/root-overlay/etc/default/"
 cp -aL "$COMMON/gtk/root-overlay/usr/." "$DST/root-overlay/usr/"
 cp -a "$SRC/iso/profiles/ai2/root-overlay/." "$DST/root-overlay/"
 
-chmod 755 "$DST/root-overlay/usr/bin/artix-service" "$DST/live-overlay/usr/bin/ai2-install" "$DST/live-overlay/usr/bin/desktop-items"
+chmod 755 "$DST/root-overlay/usr/bin/artix-service" "$DST/live-overlay/usr/bin/ai2-install" "$DST/live-overlay/usr/bin/desktop-items" "$DST/live-overlay/usr/share/ai2/label-root.sh"
 
 # The ai-2 tool + llama.cpp runtimes come from the signed [ai2] repo now
 # (profile.yaml lists them). buildiso must be run with -w so this pacman.conf,
