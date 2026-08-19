@@ -27,19 +27,30 @@ push=1
 
 mkdir -p "$REPO"
 shopt -s nullglob
+# New = whatever is in out/, plus any package already in the repo dir that has
+# no valid signature (a previous run that died at the gpg prompt leaves exactly
+# that behind; 2026-08-19).
 new=("$OUT"/*.pkg.tar.zst)
+for p in "$REPO"/*.pkg.tar.zst; do
+  if [ ! -f "$p.sig" ] || ! gpg --verify "$p.sig" "$p" >/dev/null 2>&1; then
+    echo "unsigned in repo dir, will sign: $(basename "$p")"
+    new+=("$p")
+  fi
+done
 if [ ${#new[@]} -eq 0 ]; then
   echo "nothing new in $OUT; re-publishing current repo state"
   [ -f "$REPO/$DB" ] || { echo "no repo db yet" >&2; exit 1; }
 fi
 
-# 1. Move new packages into the repo dir and detach-sign each one.
+# 1. Copy new packages into the repo dir and detach-sign each one; the copy
+#    in out/ is removed only once the signature verifies.
 for f in "${new[@]}"; do
   b=$(basename "$f")
-  mv -f "$f" "$REPO/$b"
+  [ "$f" = "$REPO/$b" ] || cp -f "$f" "$REPO/$b"
   rm -f "$REPO/$b.sig"
   gpg --batch --yes --detach-sign --use-agent -u "$KEY" "$REPO/$b"
   gpg --verify "$REPO/$b.sig" "$REPO/$b" 2>/dev/null && echo "signed  $b"
+  [ "$f" = "$REPO/$b" ] || rm -f "$f"
 done
 
 # 2. Update the database (verifies the package signatures, signs the db).
