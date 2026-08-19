@@ -4,7 +4,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
-### ISO (next build)
+### ISO 20260819 (details)
 - Installed systems: the `ai-2` package (0.3.0) now ships the first-login setup wizard autostart, the "AI-2 Chat" menu entry, the AI-2 icon and START-HERE.txt (the live session hides the autostart); the overlays no longer carry START-HERE/icon. XFCE default browser set to Epiphany (the one installed) so AI-2 Chat opens the chat page directly. ai-2 0.3.0 was published to the [ai2] repo 2026-08-19 22:01.
 - FIX: installed systems get Artix's `/etc/default/grub` again (GRUB theme, `os-prober` enabled so Windows shows in the boot menu, 1024x768 mode). Our profile had lost the stock symlink into artools' common overlay; the 20260816/17 ISOs install a text-mode GRUB without other operating systems. Workaround on an affected install: enable `GRUB_DISABLE_OS_PROBER=false` and the theme in `/etc/default/grub`, then `grub-mkconfig -o /boot/grub/grub.cfg`.
 - Installer: QML welcome page (language choice first, labeled; "Read the guide" button), padded sidebar logo, root filesystem labeled "AI-2", live session never locks or blanks the screen, START-HERE explains how to recognize partitions.
@@ -18,6 +18,9 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 - `ai-2 logo` prints the bare boxed mark; the tagline and the "Based on Artix Linux" line are gone from the tool, the MOTD and every shipped asset.
 - Models downloaded as a user (`~/.local/share/ai2/models`) are found by the benchmark.
 - Package depends on xdg-utils; optdepends xfce4-terminal; ships icon, desktop entries, START-HERE.
+
+## ISO 20260819 (2026-08-19), tag `iso-20260819`
+Everything listed under "ISO (next build)" above, built and verified by a complete QEMU install plus first login: themed GRUB with the "AI-2 Linux" entry and `os-prober` on, root filesystem labeled "AI-2", first-login wizard opens by itself, tuning applies with one password. Ships `ai-2` 0.3.0. Found and fixed on the way: Calamares 3.4's shellprocess rejects `$vars` in commands and no longer substitutes `@@ROOT@@` (use `${ROOT}`); xfce4-power-manager's inactivity value 14 means 14 minutes (0 = never), the live session used to suspend after 14 idle minutes.
 
 ## ISO 20260817 (2026-08-17), tag `iso-20260817`
 - Live desktop: the "Install AI-2" icon sits right under START-HERE, before the Artix PDFs.
