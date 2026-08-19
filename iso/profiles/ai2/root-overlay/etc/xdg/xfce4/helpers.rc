@@ -1,0 +1,12 @@
+#
+# Default helpers.rc for Xfce's Preferred Applications (AI-2)
+#
+# AI-2: the browser that is actually installed (the stock file says firefox,
+# which is not, so xdg-open asked "Choose Preferred Application" the first
+# time AI-2 Chat opened the chat page). Users can still change it in
+# Settings > Default Applications.
+
+WebBrowser=epiphany
+MailReader=thunderbird
+TerminalEmulator=xfce4-terminal
+FileManager=thunar

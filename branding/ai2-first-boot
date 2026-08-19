@@ -5,10 +5,12 @@
 marker="${XDG_CONFIG_HOME:-$HOME/.config}/ai2/setup-done"
 [ -e "$marker" ] && exit 0
 sleep 8   # let the desktop settle first
+# Keep the window open at the end so the last step (how to use the AI) can be read.
+run="ai-2 wizard; printf '\n\nPress Enter to close this window. '; read _"
 if command -v xfce4-terminal >/dev/null 2>&1; then
-    exec xfce4-terminal --title="AI-2 setup" --geometry=100x38 --hide-menubar -x ai-2 wizard
+    exec xfce4-terminal --title="AI-2 setup" --geometry=100x38 --hide-menubar -x sh -c "$run"
 elif command -v x-terminal-emulator >/dev/null 2>&1; then
-    exec x-terminal-emulator -e ai-2 wizard
+    exec x-terminal-emulator -e sh -c "$run"
 else
-    exec xterm -T "AI-2 setup" -geometry 100x38 -e ai-2 wizard
+    exec xterm -T "AI-2 setup" -geometry 100x38 -e sh -c "$run"
 fi
