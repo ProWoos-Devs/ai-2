@@ -60,6 +60,13 @@ def _cmd_action(cmd: list[str], description: str) -> Action:
     return Action(description=description, run=run, commands=[cmd])
 
 
+def _missing(pkg_backend, pkgs: list[str]) -> list[str]:
+    """Packages not known to be installed (unknown counts as missing), so an
+    ISO install, which already carries zramen/earlyoom/the runtime, needs no
+    package database and no network to apply its tuning."""
+    return [p for p in pkgs if pkg_backend.is_installed(p) is not True]
+
+
 def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> list[Action]:
     actions: list[Action] = []
 
@@ -99,10 +106,12 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
                 run=lambda: None,
             ))
         else:
-            actions.append(_cmd_action(
-                pkg_backend.install_cmd(provider["packages"]),
-                f"install zram tooling: {' '.join(provider['packages'])} ({pkg_backend.name})",
-            ))
+            missing = _missing(pkg_backend, provider["packages"])
+            if missing:
+                actions.append(_cmd_action(
+                    pkg_backend.install_cmd(missing),
+                    f"install zram tooling: {' '.join(missing)} ({pkg_backend.name})",
+                ))
             actions.append(_write_file_action(
                 provider["conf_path"], _zramen_conf(algorithm, size_percent),
                 f"configure zram ({algorithm}, {size_percent}% of RAM) in {provider['conf_path']}",
@@ -136,10 +145,12 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
     if guard:
         provider = OOM_PROVIDERS.get(backend.name)
         if provider:
-            actions.append(_cmd_action(
-                pkg_backend.install_cmd(provider["packages"]),
-                f"install OOM guard: {' '.join(provider['packages'])} ({pkg_backend.name})",
-            ))
+            missing = _missing(pkg_backend, provider["packages"])
+            if missing:
+                actions.append(_cmd_action(
+                    pkg_backend.install_cmd(missing),
+                    f"install OOM guard: {' '.join(missing)} ({pkg_backend.name})",
+                ))
             actions.append(_cmd_action(
                 backend.enable_cmd(provider["service"]),
                 f"enable OOM guard service '{provider['service']}' ({backend.name})",

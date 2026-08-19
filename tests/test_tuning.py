@@ -69,3 +69,18 @@ def test_disabled_services_not_touched():
 def test_unknown_service_reported_not_executed():
     text = render_plan(tiny_plan(FakeBackend(unknown={"ModemManager"})))
     assert "ModemManager not found" in text
+
+
+class InstalledPkgBackend(FakePkgBackend):
+    def is_installed(self, pkg):
+        return True
+
+
+def test_no_install_actions_when_tooling_already_installed():
+    # An ISO install already carries zramen/earlyoom: the plan must not need a
+    # package database or the network to apply.
+    plan = tiny_plan(FakeBackend(), InstalledPkgBackend())
+    descriptions = " ".join(a.description for a in plan)
+    assert "install zram tooling" not in descriptions
+    assert "install OOM guard" not in descriptions
+    assert "configure zram" in descriptions and "enable OOM guard service" in descriptions
