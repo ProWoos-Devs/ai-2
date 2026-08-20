@@ -9,6 +9,13 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 - FIX: installed systems get Artix's `/etc/default/grub` again (GRUB theme, `os-prober` enabled so Windows shows in the boot menu, 1024x768 mode). Our profile had lost the stock symlink into artools' common overlay; the 20260816/17 ISOs install a text-mode GRUB without other operating systems. Workaround on an affected install: enable `GRUB_DISABLE_OS_PROBER=false` and the theme in `/etc/default/grub`, then `grub-mkconfig -o /boot/grub/grub.cfg`.
 - Installer: QML welcome page (language choice first, labeled; "Read the guide" button), padded sidebar logo, root filesystem labeled "AI-2", live session never locks or blanks the screen, START-HERE explains how to recognize partitions.
 
+## ISO 20260821 (2026-08-21), tag `iso-20260821`
+Same lean system as 20260820 (ai-2 0.3.1), installer only. 1,989,390,336 bytes. Verified by a complete QEMU install and first login (GRUB theme, greeter, wizard autostart, Mousepad wraps START-HERE on the installed system). First ISO published as a GitHub Release on the public repo https://github.com/ProWoos-Devs/ai-2.
+### Fixed
+- Welcome page no longer shows "This computer does not satisfy the minimum requirements" while the disk scan is still running (seen on a real HDD). Calamares fills the requirements list module by module and the QML page had no "check finished" state; it now shows "Checking this computer (disks, memory, network)…" with Calamares' progress line until the partition module has reported (2 minute fallback).
+### Changed
+- Install slideshow: seven slides, 8 s each (logo, honest about your hardware, first steps with the wizard and `ai-2 chat`, your data stays here, lean by design, based on Artix Linux, your feedback with the issues page and the project page).
+
 ## [0.3.1] - 2026-08-20
 ### Changed
 - START-HERE: "Lean by design" section (the ISO ships only the desktop, a browser, a text editor and the AI engine; how to add a PDF viewer, printing, a media player, an office suite), Artix help points at wiki.artixlinux.org (the PDF guides left the live desktop).
