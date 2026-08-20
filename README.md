@@ -73,8 +73,12 @@ Everything is declarative. Tier definitions live in `ai2/data/tiers/*.yml`, the 
 
 ## Status
 
-Foundation done and validated on real hardware. Signed package repository live. ISO boots and installs (BIOS/MBR verified on the 2011 laptop and in QEMU). The loop closes: `ai-2 init --apply` installs the right runtime package, `ai-2 model pull` fetches the recommended model, `ai-2 serve` runs it on demand (verified end to end on the 2011 laptop). Next, `ai-2 doctor`, first-boot wizard, workflow profiles.
+Early, usable, tested on one old laptop and in QEMU. The ISO (lean by design, 1.85 GB) boots and installs (BIOS/MBR verified on the 2011 laptop and in QEMU), a setup wizard runs at the first login, `ai-2 chat` opens a local chat page. Next, `ai-2 doctor`, workflow profiles, a Plymouth splash. Bugs and ideas: https://github.com/ProWoos-Devs/ai-2/issues
 
 ## License
 
 MIT, see `LICENSE`. Two small pieces derived from Artix Linux keep their own terms, see `LICENSES.md`.
+
+## About
+
+AI-2 is made by Rafael Minuesa (ProWoos, https://prowoos.com), built with Claude Code. MIT licensed; Artix Linux, llama.cpp and the models keep their own licenses (see `LICENSES.md`). Project page: https://prowoos.com/software-development/linux/ai-2/
