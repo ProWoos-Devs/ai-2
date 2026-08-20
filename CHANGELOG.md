@@ -9,6 +9,17 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 - FIX: installed systems get Artix's `/etc/default/grub` again (GRUB theme, `os-prober` enabled so Windows shows in the boot menu, 1024x768 mode). Our profile had lost the stock symlink into artools' common overlay; the 20260816/17 ISOs install a text-mode GRUB without other operating systems. Workaround on an affected install: enable `GRUB_DISABLE_OS_PROBER=false` and the theme in `/etc/default/grub`, then `grub-mkconfig -o /boot/grub/grub.cfg`.
 - Installer: QML welcome page (language choice first, labeled; "Read the guide" button), padded sidebar logo, root filesystem labeled "AI-2", live session never locks or blanks the screen, START-HERE explains how to recognize partitions.
 
+## ISO 20260820 (2026-08-20), tag `iso-20260820`
+Lean by design. The ISO had grown past GitHub's 2 GiB release-asset limit (20260819: 2,173,290,496 bytes); this build is 1,989,390,336 bytes (1.85 GiB) with the same AI-2 content. The installed system drops from 655 to 556 packages (3.29 to 2.71 GB uncompressed); the initramfs from 161 to 51 MB. Live boot, START-HERE and the installer launch verified in QEMU; no full install run this time (the install path is unchanged).
+### Removed (all installable later with pacman; START-HERE has a "Lean by design" section saying so)
+- `linux-headers` (282 MB, no compiler ships anyway). artools needs it to read the kernel version when building the initramfs, so it is installed only into the throwaway bootfs layer (`packages-boot` in our `iso/profiles/common/common.yaml`, a trimmed copy of artools' list that `stage-profile.sh` puts in the workspace).
+- `linux-firmware-nvidia` (104 MB): the split firmware packages replace the meta package; radeon, amdgpu, intel, atheros, realtek, broadcom, marvell, mediatek, qcom, cirrus and "other" stay.
+- `atril` with `webkit2gtk-4.1` and `mathjax2` (175 MB), `cups` and `ghostscript` (58 MB, cupsd service gone), `vim`/`vi`, `leafpad` and gtk2, `zsh`, `texinfo`, `powertop`, `inxi`, `xfce4-goodies` (kept: mousepad, notifyd, pulseaudio plugin, screenshooter, taskmanager).
+- Live session: `hexchat`, `virtualbox-guest-utils`, `artix-docs` (the PDF guides had no viewer left; START-HERE links wiki.artixlinux.org).
+### Changed
+- Mousepad is the text editor; it opens START-HERE wrapped at 900x650 (GSettings, set by the live `desktop-items` script; a gschema override is shipped for installed systems).
+- Still to shrink further: Artix's `calamares` package depends on `plasma-integration`, which pulls Plasma, KWin and Breeze into the live layer (about 650 MB uncompressed); needs our own Calamares build.
+
 ## [0.3.0] - 2026-08-19
 ### Added
 - `ai-2 wizard`: the guided first-run setup (scan, tune with one password prompt, install the engine, get a first model, measure the AI Score, recommend and download the fitting model, explain how to use it). Runs by itself in a terminal window at the first login of an installed system (`ai2-first-boot`, marker `~/.config/ai2/setup-done`), and any time by hand. Unattended with `--yes`.

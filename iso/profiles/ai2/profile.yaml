@@ -10,7 +10,7 @@ live-session:
     - acpid
     - bluetoothd
     - cronie
-    - cupsd
+    # AI-2: no cupsd (printing is an optional install)
     - metalog
     # AI-2: NetworkManager, not connmand (xfce profile enables connmand but
     # never installs the connman daemon; networkmanager-runit is installed)
@@ -23,16 +23,21 @@ live-session:
     - wireplumber
 rootfs:
   packages:
-    - atril
     # AI-2: nm-applet instead of connman-gtk (see services note above)
     - network-manager-applet
     - epiphany
     - gnome-keyring
-    - leafpad
     - lightdm-gtk-greeter
     - pavucontrol
     - xfce4
-    - xfce4-goodies
+    # AI-2: lean by design. Instead of xfce4-goodies (37 plugins, media players,
+    # burner) only what the desktop actually uses; everything else is a pacman
+    # install away. mousepad replaces leafpad (gtk2) and is the live text editor.
+    - mousepad
+    - xfce4-notifyd
+    - xfce4-pulseaudio-plugin
+    - xfce4-screenshooter
+    - xfce4-taskmanager
     # AI-2 additions (ai-2 + runtimes from the signed [ai2] repo, see
     # ../../pacman.conf.d/iso-x86_64.conf; buildiso needs -w)
     - ai2-keyring
@@ -53,7 +58,6 @@ rootfs:
       - lightdm-dinit
       - metalog-dinit
       - networkmanager-dinit
-      - cups-dinit
     openrc:
       - pipewire-openrc
       - pipewire-pulse-openrc
@@ -61,12 +65,10 @@ rootfs:
       - lightdm-openrc
       - metalog-openrc
       - networkmanager-openrc
-      - cups-openrc
     runit:
       - lightdm-runit
       - metalog-runit
       - networkmanager-runit
-      - cups-runit
       # AI-2 additions
       - zramen-runit
       - earlyoom-runit
@@ -74,21 +76,17 @@ rootfs:
       - lightdm-s6
       - metalog-s6
       - networkmanager-s6
-      - cups-s6
 livefs:
   packages:
     - amd-ucode
-    - artix-docs
     - artix-grub-live
     - broadcom-wl
     - calamares-extensions
     - gparted
-    - hexchat
     - intel-ucode
     - mkinitcpio-nfs-utils
     - nbd
     - squashfs-tools
-    - virtualbox-guest-utils
   packages-init:
     dinit:
       - artix-live-dinit

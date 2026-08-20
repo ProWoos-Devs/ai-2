@@ -1,0 +1,7 @@
+# AI-2 defaults (mousepad is the text editor; wrap long lines, readable size)
+[org.xfce.mousepad.preferences.view]
+word-wrap=true
+
+[org.xfce.mousepad.state.window]
+width=900
+height=650

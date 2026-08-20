@@ -1,0 +1,202 @@
+---
+# Packages common in all profiles
+# AI-2: trimmed copy of artools' common.yaml (staged over the workspace copy by
+# stage-profile.sh). Lean by design: no kernel headers, no NVIDIA firmware blob,
+# no vi/zsh/texinfo/powertop/inxi. Users install extras with pacman.
+
+packages-base:
+  - base
+  - intel-ucode
+  - amd-ucode
+  - acpi
+  - alsa-firmware
+  - b43-fwcutter
+  - btrfs-progs
+  - crda
+  - dhclient
+  - diffutils
+  - dmraid
+  - dosfstools
+  - efibootmgr
+  - e2fsprogs
+  - ecryptfs-utils
+  - exfat-utils
+  - f2fs-tools
+  - grub
+  - artix-grub-theme
+  - inetutils
+  - iptables
+  - jfsutils
+  - linux
+  # AI-2: split firmware packages instead of the meta (drops linux-firmware-nvidia,
+  # 104 MB; nouveau still drives old cards without it)
+  - linux-firmware-amdgpu
+  - linux-firmware-atheros
+  - linux-firmware-broadcom
+  - linux-firmware-cirrus
+  - linux-firmware-intel
+  - linux-firmware-marvell
+  - linux-firmware-mediatek
+  - linux-firmware-other
+  - linux-firmware-qcom
+  - linux-firmware-radeon
+  - linux-firmware-realtek
+  - linux-firmware-whence
+  - lsb-release
+  - logrotate
+  - lsb-release
+  - man-db
+  - man-pages
+  - memtest86+
+  - mkinitcpio
+  - mkinitcpio-openswap
+  - modemmanager
+  - nano
+  - nbd
+  - net-tools
+  - ntfs-3g
+  - os-prober
+  - s-nail
+  - sudo
+  - sysfsutils
+  - usbutils
+  - which
+  - xfsprogs
+packages-apps: []
+packages-xorg:
+  - xorg-server
+  - xf86-input-vmmouse
+  - xf86-input-wacom
+  - xf86-video-amdgpu
+  - xf86-video-ati
+  - xf86-video-dummy
+  - xf86-video-fbdev
+  - xf86-video-intel
+  - xf86-video-nouveau
+  - xf86-video-sisusb
+  - xf86-video-qxl
+  - xf86-video-vesa
+  - xf86-video-voodoo
+packages-xlibre:
+  - xlibre-xserver
+  - xlibre-xf86-input-vmmouse
+  - xlibre-xf86-input-wacom
+  - xlibre-xf86-video-amdgpu
+  - xlibre-xf86-video-ati
+  - xlibre-xf86-video-dummy
+  - xlibre-xf86-video-fbdev
+  - xlibre-xf86-video-intel
+  - xlibre-xf86-video-nouveau
+  - xlibre-xf86-video-sisusb
+  - xlibre-xf86-video-qxl
+  - xlibre-xf86-video-vesa
+  - xlibre-xf86-video-voodoo
+packages-misc:
+  - xorg-xhost
+  - xorg-xinit
+  - xdg-user-dirs
+  - xdg-utils
+  - wayland
+  - xorg-xwayland
+  - terminus-font
+  - ttf-droid
+  - ttf-inconsolata
+  - ttf-liberation
+  - ttf-roboto
+  - ttf-roboto-mono
+  - ttf-droid
+  # - vkd3d
+  # - vulkan-intel
+  # - vulkan-radeon
+  # - vulkan-swrast
+  # - mesa-vdpau
+  # - libva-mesa-driver
+  # - libva-intel-driver
+  # - gst-plugins-good
+  # - gst-plugins-bad
+  # - gst-plugins-ugly
+  # - gst-libav
+packages-init:
+  dinit:
+    - blocaled
+    - elogind-dinit
+    - dbus-dinit
+    - acpid-dinit
+    - avahi-dinit
+    - bluez-dinit
+    - cronie-dinit
+    - cryptsetup-dinit
+    - dhcpcd-dinit
+    - haveged-dinit
+    - lvm2-dinit
+    - mdadm-dinit
+    - nfs-utils-dinit
+    - ntp-dinit
+    - openssh-dinit
+    - power-profiles-daemon-dinit
+    - rsync-dinit
+    - wpa_supplicant-dinit
+  openrc:
+    - openrc-settingsd
+    - elogind-openrc
+    - dbus-openrc
+    - acpid-openrc
+    - avahi-openrc
+    - bluez-openrc
+    - cronie-openrc
+    - cryptsetup-openrc
+    - dhcpcd-openrc
+    - haveged-openrc
+    - lvm2-openrc
+    - mdadm-openrc
+    - nfs-utils-openrc
+    - ntp-openrc
+    - openssh-openrc
+    - power-profiles-daemon-openrc
+    - rsync-openrc
+    - wpa_supplicant-openrc
+  runit:
+    - blocaled
+    - rsm
+    - elogind-runit
+    - dbus-runit
+    - acpid-runit
+    - avahi-runit
+    - bluez-runit
+    - cronie-runit
+    - cryptsetup-runit
+    - dhcpcd-runit
+    - haveged-runit
+    - lvm2-runit
+    - mdadm-runit
+    - nfs-utils-runit
+    - ntp-runit
+    - openssh-runit
+    - power-profiles-daemon-runit
+    - rsync-runit
+    - wpa_supplicant-runit
+  s6:
+    - blocaled
+    - elogind-s6
+    - dbus-s6
+    - acpid-s6
+    - avahi-s6
+    - bluez-s6
+    - cronie-s6
+    - cryptsetup-s6
+    - dhcpcd-s6
+    - haveged-s6
+    - lvm2-s6
+    - mdadm-s6
+    - nfs-utils-s6
+    - ntp-s6
+    - openssh-s6
+    - power-profiles-daemon-s6
+    - rsync-s6
+    - wpa_supplicant-s6
+packages-boot:
+  - iso-initcpio
+  # AI-2: artools reads /usr/src/linux/version from linux-headers when it builds
+  # the initramfs. The bootfs is a throwaway overlay, so the headers never reach
+  # the rootfs/ISO.
+  - linux-headers

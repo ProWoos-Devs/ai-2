@@ -24,25 +24,12 @@ src="${DATADIR}"/applications
 # fi
 
 
-docs="${DATADIR}"/doc/artix
-
-for f in {Configuration,Troubleshooting}.pdf; do
-    cp $docs/$f "$xdg"/$f
-done
-
-if [ -d /run/openrc ]; then
-    cp $docs/OpenRC.pdf "$xdg"/OpenRC.pdf
-elif [ -d /run/runit ]; then
-    cp $docs/Runit.pdf "$xdg"/Runit.pdf
-elif [ -d /run/dinit ]; then
-    cp $docs/Dinit.pdf "$xdg"/Dinit.pdf
-else
-    cp $docs/S6.pdf "$xdg"/S6.pdf
-fi
+# AI-2: the Artix PDF guides are not copied (no PDF viewer in the lean
+# live image; START-HERE points at wiki.artixlinux.org instead).
 
 # AI-2: xfdesktop shows these icons in REVERSE order of creation, so the
 # installer launcher and then the START-HERE guide are copied LAST: the
-# desktop reads Home, File System, START-HERE, Install AI-2, then the PDFs.
+# desktop reads Home, File System, START-HERE, Install AI-2.
 # Use cp instead of symlinks because ugly arrows or no proper icons
 if [ -f "${BINDIR}"/ai2-install ]; then
     launcher='calamares-config-switcher.desktop'
@@ -53,3 +40,9 @@ fi
 
 # AI-2 guide for beginners (installed system keeps it in /usr/share/doc/ai2)
 cp /usr/share/doc/ai2/START-HERE.txt "$xdg"/START-HERE.txt
+
+# AI-2: mousepad (the only text editor) reads GSettings; wrap long lines and
+# open big enough to read START-HERE without sideways scrolling.
+gsettings set org.xfce.mousepad.preferences.view word-wrap true 2>/dev/null
+gsettings set org.xfce.mousepad.state.window width 900 2>/dev/null
+gsettings set org.xfce.mousepad.state.window height 650 2>/dev/null

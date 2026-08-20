@@ -28,6 +28,10 @@ cp -a "$SRC/iso/profiles/ai2/live-overlay/." "$DST/live-overlay/"
 #   common/gtk/root-overlay/usr           -> GTK2 defaults (Artix-dark, Roboto)
 # NOT taken: common hosts/issue/pacman.conf (ours or the package's are right).
 COMMON=/root/artools-workspace/iso-profiles/common
+# Trimmed package lists (no linux-headers, no NVIDIA firmware, no vi/zsh/...):
+# artools reads $WORKSPACE/iso-profiles/common/common.yaml when it exists.
+[[ -f "$COMMON/common.yaml.artools" ]] || cp -a "$COMMON/common.yaml" "$COMMON/common.yaml.artools"
+cp "$SRC/iso/profiles/common/common.yaml" "$COMMON/common.yaml"
 mkdir -p "$DST/root-overlay/etc/default"
 cp -aL "$COMMON/root-overlay/etc/default/." "$DST/root-overlay/etc/default/"
 cp -aL "$COMMON/gtk/root-overlay/usr/." "$DST/root-overlay/usr/"
