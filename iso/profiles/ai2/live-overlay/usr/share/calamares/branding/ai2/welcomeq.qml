@@ -101,6 +101,18 @@ Page
         // The requirements list (only when something is unmet). Calamares'
         // Requirements item anchors.fill its parent, so it gets its own box
         // BELOW the language chooser instead of a slot in the column above.
+        //
+        // AI-2 (2026-08-21): Calamares fills the requirements model module by
+        // module (RequirementsChecker::addCheckedRequirements) and the slow
+        // one is 'partition', which scans the disks. The stock page paints
+        // the red "does not satisfy the minimum requirements" verdict from
+        // the partial list, so on a slow HDD users see a failure for a few
+        // seconds and may cancel. There is no "check finished" property for
+        // QML (the widget page gets ModuleManager::requirementsComplete), so
+        // we latch on the progress messages: "Requirements checking for
+        // module 'partition' is complete." (the module name is never
+        // translated) or the final "System-requirements checking is
+        // complete.", with a 2 minute fallback so a real failure always shows.
         Item {
             id: requirementsArea
             anchors.top: column.bottom
@@ -110,7 +122,57 @@ Page
             anchors.topMargin: -40
             visible: !config.requirementsModel.satisfiedRequirements
 
-            Requirements {}
+            property bool checkDone: false
+            property string progress: config.requirementsModel.progressMessage
+            onProgressChanged: {
+                if (progress.indexOf("'partition'") >= 0
+                    || progress.indexOf("System-requirements checking is complete") >= 0)
+                    checkDone = true
+            }
+            Timer {
+                interval: 120000
+                running: !requirementsArea.checkDone
+                onTriggered: requirementsArea.checkDone = true
+            }
+
+            ColumnLayout {
+                visible: !requirementsArea.checkDone
+                anchors.top: parent.top
+                anchors.topMargin: 48
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width * 0.8
+                spacing: 12
+
+                BusyIndicator {
+                    Layout.alignment: Qt.AlignHCenter
+                    running: visible
+                }
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    font.pointSize: 13
+                    font.bold: true
+                    text: qsTr("Checking this computer (disks, memory, network)…")
+                }
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    Layout.preferredWidth: parent.width
+                    text: qsTr("This takes a moment on older hard disks. The result appears here when the check is done.")
+                }
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    font.pointSize: 9
+                    opacity: 0.7
+                    text: requirementsArea.progress
+                }
+            }
+
+            Requirements {
+                visible: requirementsArea.checkDone
+            }
         }
     }
 }
