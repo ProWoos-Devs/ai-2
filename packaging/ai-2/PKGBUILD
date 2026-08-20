@@ -7,13 +7,13 @@
 # (git archive of www/ai-2), so a package always maps to a commit.
 
 pkgname=ai-2
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
 url="https://github.com/ProWoos-Devs/AI-2"
 license=('MIT')
-depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme')
+depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf')
 checkdepends=('python-pytest')
 optdepends=('pciutils: GPU detection via lspci'
             'zramen: compressed swap, installed by ai-2 init --apply on low-RAM tiers'
@@ -47,6 +47,8 @@ package() {
   install -Dm644 branding/desktop/ai2-chat.desktop "$pkgdir/usr/share/applications/ai2-chat.desktop"
   install -Dm644 branding/ai2-icon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/ai2.svg"
   install -Dm644 branding/START-HERE.txt "$pkgdir/usr/share/doc/ai2/START-HERE.txt"
+  # mousepad (the only text editor) wraps long lines; pacman compiles schemas
+  install -Dm644 branding/90_ai2.gschema.override "$pkgdir/usr/share/glib-2.0/schemas/90_ai2.gschema.override"
 
   install -Dm644 branding/motd "$pkgdir/usr/share/ai2/motd"
   install -Dm644 branding/lightdm-gtk-greeter.conf "$pkgdir/usr/share/ai2/lightdm-gtk-greeter.conf"
