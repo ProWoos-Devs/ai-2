@@ -4,8 +4,8 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
-### ISO (next build)
-- see the 0.4.0 entry below for the installer and boot-menu changes
+## ISO 20260821b (2026-08-21), tag `iso-20260821b`
+Ships `ai-2` 0.4.0 and the installer/boot-menu changes listed under 0.4.0. 1,988,308,992 bytes. Verified by a complete QEMU install on BIOS AND, for the first time, on UEFI (OVMF, GPT with a 512 MB EFI system partition): installed systems carry lsb-release AI-2, GRUB saved/8 s/no splash, ai-2 0.4.0, broadcom-wl, no live autologin; `ai-2 init --apply` then `ai-2 doctor` on the installed system reports MGLRU enabled with min_ttl_ms 1000 through the new boot-tuning path. Not yet booted on RMM-PC.
 
 ## [0.4.0] - 2026-08-21
 First sprint of the 2026-08-21 enhancement review (`000/20260821-enhancement-review.md` in the workspace).
