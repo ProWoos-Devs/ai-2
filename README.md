@@ -11,7 +11,20 @@ Reference platform is Artix Linux with runit. The oldest validated target is a 2
 
 ## Install
 
-On any Artix (or Arch-based) system, add the signed AI-2 repository:
+### Option 1: the AI-2 ISO (recommended)
+
+A complete system: Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool, with a graphical installer. Lean by design, 1.85 GB.
+
+1. Download the latest ISO from the [Releases page](https://github.com/ProWoos-Devs/ai-2/releases) (current: [artix-ai2-runit-20260821-x86_64.iso](https://github.com/ProWoos-Devs/ai-2/releases/download/iso-20260821/artix-ai2-runit-20260821-x86_64.iso), with its [SHA-256](https://github.com/ProWoos-Devs/ai-2/releases/download/iso-20260821/artix-ai2-runit-20260821-x86_64.iso.sha256)).
+2. Verify it: `sha256sum -c artix-ai2-runit-20260821-x86_64.iso.sha256`
+3. Write it to a USB stick of 4 GB or more. Linux or macOS (replace `sdX`, everything on the stick is erased): `sudo dd if=artix-ai2-runit-20260821-x86_64.iso of=/dev/sdX bs=4M conv=fsync status=progress`. Windows: Rufus or balenaEtcher in their default mode.
+4. Boot the computer from the stick. It starts a live desktop (logs in by itself, user `ai-2`, password `ai-2`) that you can try without touching your disks. `START-HERE.txt` on that desktop explains the installation; "Install AI-2" starts the installer.
+
+After the installation, the setup wizard opens at the first login and does everything below for you. Requirements: a 64-bit PC, 2 GB of RAM (4 GB recommended), about 6 GB of disk. Internet is not needed to install, only later for models and updates.
+
+### Option 2: packages on an existing Artix or Arch-based system
+
+Add the signed AI-2 repository:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/ProWoos-Devs/ai2-packages/main/ai2-package-signing.asc | sudo pacman-key --add -
@@ -31,9 +44,8 @@ Then:
 ```
 sudo pacman -Sy ai2-keyring ai-2
 sudo pacman -S ai2-llama-cpp-baseline    # or -noavx / -avx2, ai-2 detect tells you which
+sudo ai-2 init --apply                   # or just: ai-2 wizard
 ```
-
-Or boot the AI-2 ISO (Artix XFCE runit, Calamares installer, everything above preinstalled).
 
 ## Commands
 
