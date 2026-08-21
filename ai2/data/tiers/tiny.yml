@@ -9,6 +9,7 @@ session:
 memory:
   mechanism: zram
   algorithm: zstd
+  mglru_min_ttl_ms: 1000
   weak_cpu_algorithm: lz4
 kernel:
   vm.swappiness: 180

@@ -15,6 +15,7 @@ from .tiers import Tier
 
 SYSCTL_PATH = "/etc/sysctl.d/90-ai2.conf"
 STATE_DIR = "/etc/ai2"
+BOOT_TUNING = "/usr/lib/ai2/boot-tuning.sh"
 
 # Concrete tooling for an abstract mechanism, keyed by service-backend name.
 # This is where the Debian/systemd variants slot in later (e.g. zram-generator).
@@ -99,6 +100,10 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
     mechanism = memory.get("mechanism")
     if mechanism == "zram":
         algorithm = memory.get("algorithm", "zstd")
+        # A pre-SSE4.1 CPU (baseline build) pays too much for zstd; the tier
+        # may name a cheaper algorithm for it.
+        if hw.cpu_variant == "baseline" and memory.get("weak_cpu_algorithm"):
+            algorithm = memory["weak_cpu_algorithm"]
         size_percent = int(memory.get("size_percent", 100))
         provider = ZRAM_PROVIDERS.get(backend.name)
         if provider is None:
@@ -121,12 +126,35 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
                 backend.enable_cmd(provider["service"]),
                 f"enable zram swap service '{provider['service']}' ({backend.name})",
             ))
-    elif mechanism:
+
+    # Settings that live in sysfs (zswap parameters, MGLRU) are applied by
+    # /usr/lib/ai2/boot-tuning.sh from /etc/ai2/memory.conf, at every boot via
+    # the ai2-boot one-shot service and once right now.
+    boot_conf = {}
+    if mechanism == "zswap":
+        boot_conf["mechanism"] = "zswap"
+        boot_conf["compressor"] = memory.get("compressor", "zstd")
+        boot_conf["zpool"] = memory.get("allocator", "zsmalloc")
+    if memory.get("mglru_min_ttl_ms"):
+        boot_conf["mglru_min_ttl_ms"] = int(memory["mglru_min_ttl_ms"])
+    if boot_conf:
+        content = "# Managed by AI-2, read by /usr/lib/ai2/boot-tuning.sh at boot.\n" + "".join(
+            f"{k} = {v}\n" for k, v in boot_conf.items())
+        what = ", ".join(f"{k}={v}" for k, v in boot_conf.items())
         actions.append(_write_file_action(
-            os.path.join(STATE_DIR, "memory.conf"),
-            f"mechanism = {mechanism}\n",
-            f"record memory mechanism '{mechanism}' (no provisioning implemented)",
+            os.path.join(STATE_DIR, "memory.conf"), content,
+            f"write {STATE_DIR}/memory.conf ({what})",
         ))
+        if os.path.isfile(BOOT_TUNING):
+            actions.append(_cmd_action(backend.enable_cmd("ai2-boot"),
+                                       f"enable boot-time memory tuning service 'ai2-boot' ({backend.name})"))
+            actions.append(_cmd_action([BOOT_TUNING], "apply the memory settings now"))
+        else:
+            actions.append(Action(description=f"{BOOT_TUNING} not installed (ai-2 package too old), "
+                                              "memory.conf written but not applied", run=lambda: None))
+    elif mechanism and mechanism != "zram":
+        actions.append(Action(description=f"memory mechanism '{mechanism}' is not supported, skipping",
+                              run=lambda: None))
 
     services = (config.get("services") or {}).get("never") or []
     for service in services:

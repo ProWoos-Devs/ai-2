@@ -36,7 +36,8 @@ class FakePkgBackend:
 def tiny_plan(backend, pkg=None):
     tiers = load_tiers()
     tier = tiers["tiny"]
-    hw = Hardware(ram_nominal_gib=2, logical_cores=2, init_system="runit")
+    # an SSE4 CPU (noavx build): the zstd default applies, see the baseline test below
+    hw = Hardware(ram_nominal_gib=2, logical_cores=2, init_system="runit", flags={"sse4_1", "sse4_2"})
     return build_plan(hw, tier, resolve_config(tier, tiers), backend, pkg or FakePkgBackend())
 
 
@@ -84,3 +85,30 @@ def test_no_install_actions_when_tooling_already_installed():
     assert "install zram tooling" not in descriptions
     assert "install OOM guard" not in descriptions
     assert "configure zram" in descriptions and "enable OOM guard service" in descriptions
+
+
+def test_weak_cpu_gets_cheaper_zram_algorithm():
+    tiers = load_tiers()
+    tier = tiers["tiny"]
+    hw = Hardware(ram_nominal_gib=2, logical_cores=2, init_system="runit", flags=set())   # baseline build
+    text = render_plan(build_plan(hw, tier, resolve_config(tier, tiers), FakeBackend(), FakePkgBackend()))
+    assert "configure zram (lz4" in text
+
+
+def test_zswap_tier_writes_memory_conf_and_boot_service(monkeypatch):
+    from ai2 import tuning
+    monkeypatch.setattr(tuning, "BOOT_TUNING", __file__)   # pretend the script is installed
+    tiers = load_tiers()
+    tier = tiers["standard"]
+    hw = Hardware(ram_nominal_gib=8, logical_cores=4, init_system="runit", flags={"avx2"})
+    text = render_plan(build_plan(hw, tier, resolve_config(tier, tiers), FakeBackend(), FakePkgBackend()))
+    assert "memory.conf (mechanism=zswap, compressor=zstd, zpool=zsmalloc, mglru_min_ttl_ms=1000)" in text
+    assert "fake-enable ai2-boot" in text
+    assert "no provisioning implemented" not in text
+
+
+def test_mglru_requested_on_low_ram_tiers(monkeypatch):
+    from ai2 import tuning
+    monkeypatch.setattr(tuning, "BOOT_TUNING", __file__)
+    text = render_plan(tiny_plan(FakeBackend()))
+    assert "mglru_min_ttl_ms=1000" in text

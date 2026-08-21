@@ -8,7 +8,9 @@ session:
   login: lightdm
 memory:
   mechanism: zswap
+  compressor: zstd
   allocator: zsmalloc
+  mglru_min_ttl_ms: 1000
 kernel:
   vm.swappiness: 60
 oom_guard: earlyoom

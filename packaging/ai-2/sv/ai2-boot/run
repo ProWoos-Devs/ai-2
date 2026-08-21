@@ -1,0 +1,4 @@
+#!/bin/sh
+# One-shot (Artix convention, see zramen-runit): apply, then park.
+/usr/lib/ai2/boot-tuning.sh
+exec pause

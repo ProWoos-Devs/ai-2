@@ -1,0 +1,11 @@
+[Unit]
+Description=AI-2 boot-time memory tuning (zswap, MGLRU)
+DefaultDependencies=no
+After=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/ai2/boot-tuning.sh
+
+[Install]
+WantedBy=multi-user.target

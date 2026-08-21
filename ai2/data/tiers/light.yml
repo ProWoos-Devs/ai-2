@@ -9,6 +9,7 @@ session:
 memory:
   mechanism: zram
   algorithm: zstd
+  mglru_min_ttl_ms: 1000
 kernel:
   vm.swappiness: 180
   vm.page-cluster: 0
