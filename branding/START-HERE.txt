@@ -11,10 +11,12 @@ AI-2 is a Linux system for ordinary and older computers that gives them a
 local AI assistant: a language model that runs on the machine itself, on
 the CPU, with no account, no subscription and no data leaving the computer.
 
-AI-2 never says "this computer cannot run AI". It looks at the hardware,
-assigns it a capability tier, tunes the system for that tier, measures what
-the machine can really do, and recommends models that genuinely fit. Local
-where possible, remote (an online model) only if you explicitly choose it.
+AI-2 does not turn a computer away for being old or slow. Above a small
+floor (64-bit CPU, 2 GB of RAM, about 6 GB of disk) it looks at the
+hardware, assigns it a capability tier, tunes the system for that tier,
+measures what the machine can really do, and recommends models that
+genuinely fit. Local where possible, remote (an online model) only if you
+explicitly choose it.
 
 AI-2 is based on Artix Linux (itself based on Arch Linux), with the runit
 init system and the XFCE desktop. Being Artix means a rolling release: you
