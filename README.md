@@ -17,7 +17,7 @@ A complete system: Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool,
 
 1. Download the latest ISO from the [Releases page](https://github.com/ProWoos-Devs/ai-2/releases) (current: [artix-ai2-runit-20260821-x86_64.iso](https://github.com/ProWoos-Devs/ai-2/releases/download/iso-20260821/artix-ai2-runit-20260821-x86_64.iso), with its [SHA-256](https://github.com/ProWoos-Devs/ai-2/releases/download/iso-20260821/artix-ai2-runit-20260821-x86_64.iso.sha256)).
 2. Verify it: `sha256sum -c artix-ai2-runit-20260821-x86_64.iso.sha256`
-3. Write it to a USB stick of 4 GB or more. Linux or macOS (replace `sdX`, everything on the stick is erased): `sudo dd if=artix-ai2-runit-20260821-x86_64.iso of=/dev/sdX bs=4M conv=fsync status=progress`. Windows: Rufus or balenaEtcher in their default mode.
+3. Write it to a USB stick of 4 GB or more, or burn it to a DVD. Linux or macOS (replace `sdX`, everything on the stick is erased): `sudo dd if=artix-ai2-runit-20260821-x86_64.iso of=/dev/sdX bs=4M conv=fsync status=progress`. Windows: Rufus or balenaEtcher in their default mode.
 4. Boot the computer from the stick. It starts a live desktop (logs in by itself, user `ai-2`, password `ai-2`) that you can try without touching your disks. `START-HERE.txt` on that desktop explains the installation; "Install AI-2" starts the installer.
 
 After the installation, the setup wizard opens at the first login and does everything below for you. Requirements: a 64-bit PC, 2 GB of RAM (4 GB recommended), about 6 GB of disk. Internet is not needed to install, only later for models and updates.

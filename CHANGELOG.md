@@ -9,6 +9,10 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 - FIX: installed systems get Artix's `/etc/default/grub` again (GRUB theme, `os-prober` enabled so Windows shows in the boot menu, 1024x768 mode). Our profile had lost the stock symlink into artools' common overlay; the 20260816/17 ISOs install a text-mode GRUB without other operating systems. Workaround on an affected install: enable `GRUB_DISABLE_OS_PROBER=false` and the theme in `/etc/default/grub`, then `grub-mkconfig -o /boot/grub/grub.cfg`.
 - Installer: QML welcome page (language choice first, labeled; "Read the guide" button), padded sidebar logo, root filesystem labeled "AI-2", live session never locks or blanks the screen, START-HERE explains how to recognize partitions.
 
+## [0.3.2] - 2026-08-21
+### Changed
+- START-HERE: states the real floor (64-bit CPU, 2 GB of RAM, about 6 GB of disk) instead of "AI-2 never says this computer cannot run AI", which the installer's own requirements check contradicted.
+
 ## ISO 20260821 (2026-08-21), tag `iso-20260821`
 Same lean system as 20260820 (ai-2 0.3.1), installer only. 1,989,390,336 bytes. Verified by a complete QEMU install and first login (GRUB theme, greeter, wizard autostart, Mousepad wraps START-HERE on the installed system). First ISO published as a GitHub Release on the public repo https://github.com/ProWoos-Devs/ai-2.
 ### Fixed
