@@ -29,8 +29,8 @@ from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
 from .models import load_catalog, recommend
-from .runtime import (download_model, find_model_file, find_runtime, find_test_model,
-                      model_dir, runtime_package)
+from .runtime import (download_model, download_preflight, find_model_file, find_runtime,
+                      find_test_model, model_dir, runtime_package)
 from .state import load_score, mark_setup_done, write_score
 from .tiers import assign, load_tiers, resolve_config
 from .tuning import apply_plan, build_plan
@@ -247,6 +247,9 @@ class Wizard:
 
     def _download(self, model: dict) -> str:
         dest = model_dir()
+        problem = download_preflight(model, dest)
+        if problem:
+            raise RuntimeError(problem)
         self.say(f"  Downloading {model['label']} ({model['file_mb']} MB) to {dest}/ ...")
 
         def progress(done, total):

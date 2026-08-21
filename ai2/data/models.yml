@@ -5,7 +5,9 @@
 # Every repo/file here must be downloadable ANONYMOUSLY (no HF login, no gated
 # license click): verified with a HEAD request 2026-08-19 (the official Qwen3
 # repo only ships Q8_0, Google's Gemma repo is gated, hence the unsloth mirrors).
-# file_mb is the real Content-Length rounded up.
+# file_mb is the real Content-Length rounded up. sha256 is the Hugging Face LFS
+# oid of the file (fetched from the HF API), checked after every download;
+# verified is the date the URL, size and hash were last confirmed.
 models:
   - id: qwen2.5-0.5b
     label: Qwen2.5 0.5B Instruct
@@ -15,6 +17,8 @@ models:
     ram_peak_mb: 900
     repo: bartowski/Qwen2.5-0.5B-Instruct-GGUF
     file: Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
+    sha256: 6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653
+    verified: 2026-08-21
 
   - id: qwen3-1.7b
     label: Qwen3 1.7B
@@ -24,6 +28,8 @@ models:
     ram_peak_mb: 2000
     repo: unsloth/Qwen3-1.7B-GGUF
     file: Qwen3-1.7B-Q4_K_M.gguf
+    sha256: b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897
+    verified: 2026-08-21
 
   - id: gemma3-1b
     label: Gemma 3 1B Instruct
@@ -33,6 +39,8 @@ models:
     ram_peak_mb: 1500
     repo: unsloth/gemma-3-1b-it-GGUF
     file: gemma-3-1b-it-Q4_K_M.gguf
+    sha256: 8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd
+    verified: 2026-08-21
 
   - id: smollm3-3b
     label: SmolLM3 3B
@@ -42,6 +50,8 @@ models:
     ram_peak_mb: 3300
     repo: unsloth/SmolLM3-3B-GGUF
     file: SmolLM3-3B-Q4_K_M.gguf
+    sha256: 4de907d2d388a5508fb7cb443a06effe14cce3518b0a78d3bdd9e74d9edce989
+    verified: 2026-08-21
 
   - id: qwen2.5-7b
     label: Qwen2.5 7B Instruct
@@ -51,3 +61,5 @@ models:
     ram_peak_mb: 6800
     repo: bartowski/Qwen2.5-7B-Instruct-GGUF
     file: Qwen2.5-7B-Instruct-Q4_K_M.gguf
+    sha256: 65b8fcd92af6b4fefa935c625d1ac27ea29dcb6ee14589c55a8f115ceaaa1423
+    verified: 2026-08-21

@@ -103,12 +103,63 @@ def hf_url(model: dict) -> str:
     return f"https://huggingface.co/{model['repo']}/resolve/main/{model['file']}"
 
 
+DOWNLOAD_MARGIN_MB = 200
+
+
+def download_preflight(model: dict, dest_dir: str | None = None) -> str | None:
+    """Why a download of `model` into dest_dir would fail, or None if it looks
+    fine. Checks free disk against file_mb plus a margin (the .part file and
+    the final file never coexist, so one copy is enough)."""
+    from .sysinfo import free_disk_mb
+    dest_dir = dest_dir or model_dir()
+    free = free_disk_mb(dest_dir)
+    if free is None:
+        return None
+    part = os.path.join(dest_dir, model["file"] + ".part")
+    have_mb = os.path.getsize(part) // (1024 * 1024) if os.path.isfile(part) else 0
+    need = int(model.get("file_mb", 0)) - have_mb + DOWNLOAD_MARGIN_MB
+    if free < need:
+        return (f"not enough disk space in {dest_dir}: {free} MB free, "
+                f"{model.get('file_mb', '?')} MB needed (plus {DOWNLOAD_MARGIN_MB} MB margin)")
+    return None
+
+
+def serve_preflight(model: dict) -> str | None:
+    """A warning if the model's peak RAM exceeds what is available right now."""
+    from .sysinfo import mem_available_mib
+    avail = mem_available_mib()
+    peak = int(model.get("ram_peak_mb", 0))
+    if avail is None or not peak:
+        return None
+    if avail < peak:
+        return (f"only {avail} MiB of RAM is free right now and {model.get('label', model.get('id'))} "
+                f"peaks at about {peak} MiB; close other programs or expect swapping")
+    return None
+
+
+def _sha256_of(path: str, chunk: int = 1 << 20):
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        while True:
+            data = fh.read(chunk)
+            if not data:
+                break
+            h.update(data)
+    return h
+
+
 def download_model(model: dict, dest_dir: str | None = None,
                    progress=None) -> str:
-    """Download a catalog model (Hugging Face) into dest_dir, verifying the
-    byte count against Content-Length. Downloads to a .part file first, so an
-    interrupted transfer never leaves a truncated .gguf behind. Returns the
-    final path; if the file already exists it is left alone."""
+    """Download a catalog model (Hugging Face) into dest_dir.
+
+    Writes to a .part file first and resumes it with a Range request if a
+    previous attempt was interrupted (old laptops on wifi, multi-GB files).
+    Verifies the byte count against Content-Length and, when the catalog entry
+    carries `sha256`, the hash of the whole file; a mismatch removes the file
+    and raises. Returns the final path; an existing file is left alone."""
+    import hashlib
+    import urllib.error
     import urllib.request
 
     dest_dir = dest_dir or model_dir()
@@ -117,22 +168,55 @@ def download_model(model: dict, dest_dir: str | None = None,
     if os.path.isfile(final):
         return final
     part = final + ".part"
-    req = urllib.request.Request(hf_url(model), headers={"User-Agent": "ai-2"})
-    with urllib.request.urlopen(req, timeout=60) as resp, open(part, "wb") as out:
-        total = int(resp.headers.get("Content-Length") or 0)
-        done = 0
-        while True:
-            chunk = resp.read(1 << 20)
-            if not chunk:
-                break
-            out.write(chunk)
-            done += len(chunk)
-            if progress:
-                progress(done, total)
-    size = os.path.getsize(part)
-    if total and size != total:
-        os.remove(part)
-        raise RuntimeError(f"download incomplete: got {size} of {total} bytes")
+    expected_sha = (model.get("sha256") or "").lower() or None
+
+    have = os.path.getsize(part) if os.path.isfile(part) else 0
+    hasher = _sha256_of(part) if (have and expected_sha) else hashlib.sha256()
+    headers = {"User-Agent": "ai-2"}
+    if have:
+        headers["Range"] = f"bytes={have}-"
+    req = urllib.request.Request(hf_url(model), headers=headers)
+    try:
+        resp = urllib.request.urlopen(req, timeout=60)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 416 and have:
+            # The server says our .part already covers the whole file.
+            resp = None
+        else:
+            raise
+    if resp is not None:
+        with resp:
+            if have and resp.status == 200:
+                # Server ignored the Range header: start over.
+                have = 0
+                hasher = hashlib.sha256()
+                mode = "wb"
+            else:
+                mode = "ab" if have else "wb"
+            length = int(resp.headers.get("Content-Length") or 0)
+            total = have + length if length else 0
+            done = have
+            with open(part, mode) as out:
+                while True:
+                    chunk = resp.read(1 << 20)
+                    if not chunk:
+                        break
+                    out.write(chunk)
+                    hasher.update(chunk)
+                    done += len(chunk)
+                    if progress:
+                        progress(done, total)
+        size = os.path.getsize(part)
+        if total and size != total:
+            # Keep the .part so the next attempt resumes instead of restarting.
+            raise RuntimeError(f"download incomplete: got {size} of {total} bytes "
+                               f"(run the same command again to resume)")
+    if expected_sha:
+        got = hasher.hexdigest() if hasher else _sha256_of(part).hexdigest()
+        if got != expected_sha:
+            os.remove(part)
+            raise RuntimeError(f"checksum mismatch for {model['file']}: expected "
+                               f"{expected_sha[:12]}..., got {got[:12]}... (file removed)")
     os.replace(part, final)
     return final
 

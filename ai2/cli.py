@@ -12,8 +12,9 @@ from .benchmark import STAR_LABELS, measure
 from .detect import detect
 from .models import load_catalog, recommend
 from . import serverstate
-from .runtime import (download_model, find_model_file, find_runtime, find_test_model,
-                      model_dir, run_llama_bench, runtime_package, serve)
+from .runtime import (download_model, download_preflight, find_model_file, find_runtime,
+                      find_test_model, model_dir, run_llama_bench, runtime_package, serve,
+                      serve_preflight)
 from .state import load_score, write_score
 from .tiers import assign, installed_tier_id, load_tiers, resolve_config, runtime_defaults
 from .tuning import apply_plan, build_plan, render_plan
@@ -231,6 +232,10 @@ def cmd_model_pull(args) -> int:
         print(f"{model['label']} already present at {existing}")
         return 0
     dest = model_dir()
+    problem = download_preflight(model, dest)
+    if problem and not args.force:
+        print(f"error: {problem}. Free some space, or pass --force to try anyway.", file=sys.stderr)
+        return 1
     print(f"Downloading {model['label']} ({model['file_mb']} MB) to {dest}/ ...")
 
     def progress(done, total):
@@ -294,6 +299,9 @@ def cmd_serve(args) -> int:
               f"{' (tier ' + installed_tier_id() + ')' if args.idle_timeout is None and installed_tier_id() else ''}. Ctrl-C stops it.")
     if api_key:
         print("Clients must send  Authorization: Bearer <key>")
+    warning = serve_preflight(model)
+    if warning:
+        print(f"warning: {warning}")
     return serve(runtime_dir, path, threads, ctx=ctx, host=args.host,
                  port=args.port, idle_timeout_s=idle, api_key=api_key, model_id=model["id"])
 
@@ -418,6 +426,7 @@ def main(argv: list[str] | None = None) -> int:
     m_sub = p_model.add_subparsers(dest="model_cmd", required=True)
     p_m_pull = m_sub.add_parser("pull", help="download the recommended model (or a named one)")
     p_m_pull.add_argument("model", nargs="?", help="catalog id, e.g. qwen2.5-0.5b")
+    p_m_pull.add_argument("--force", action="store_true", help="download even if the disk-space check fails")
     p_m_pull.set_defaults(func=cmd_model_pull)
 
     p_serve = sub.add_parser("serve", help="run llama-server on demand with the recommended model")
