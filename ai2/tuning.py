@@ -87,11 +87,12 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
     # an elogind drop-in, which is desktop-agnostic. The DE power manager
     # (e.g. xfce4-power-manager inactivity-on-ac=0) should also be set by the
     # session config, but this is the backstop that always applies.
+    logind_dir = "/etc/systemd/logind.conf.d" if backend.name == "systemd" else "/etc/elogind/logind.conf.d"
     actions.append(_write_file_action(
-        "/etc/elogind/logind.conf.d/10-ai2-no-suspend.conf",
+        os.path.join(logind_dir, "10-ai2-no-suspend.conf"),
         "# Managed by AI-2. An AI workstation must not idle-suspend.\n"
         "[Login]\nIdleAction=ignore\n",
-        "disable idle-suspend (elogind IdleAction=ignore drop-in)",
+        f"disable idle-suspend ({'systemd-logind' if backend.name == 'systemd' else 'elogind'} IdleAction=ignore drop-in)",
     ))
 
     memory = config.get("memory") or {}
@@ -203,5 +204,13 @@ def render_plan(actions: list[Action]) -> str:
 def apply_plan(actions: list[Action]) -> None:
     if os.geteuid() != 0:
         raise PermissionError("applying the plan requires root, re-run with sudo")
-    for action in actions:
-        action.run()
+    for i, action in enumerate(actions, 1):
+        try:
+            action.run()
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(f"step {i} failed ({action.description}): command "
+                               f"'{' '.join(str(c) for c in exc.cmd)}' exited {exc.returncode}; "
+                               f"steps 1-{i - 1} were applied") from exc
+        except OSError as exc:
+            raise RuntimeError(f"step {i} failed ({action.description}): {exc}; "
+                               f"steps 1-{i - 1} were applied") from exc

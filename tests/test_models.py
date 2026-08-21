@@ -6,7 +6,7 @@ def test_catalog_loads_sorted():
     assert len(cat) >= 4
     sizes = [m["params_b"] for m in cat]
     assert sizes == sorted(sizes)
-    assert cat[0]["id"] == "qwen2.5-0.5b"
+    assert cat[0]["id"] == "gemma3-270m"
 
 
 def test_estimate_scales_inverse_with_params():

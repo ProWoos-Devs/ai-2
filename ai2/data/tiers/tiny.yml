@@ -23,13 +23,14 @@ runtime:
   service: on-demand
   idle_timeout_s: 300
 models:
-  - {id: qwen3-0.6b, quant: Q4_K_M, ctx: 1024}
+  - {id: qwen2.5-0.5b, quant: Q4_K_M, ctx: 1024}
+  - {id: gemma3-270m, quant: Q4_K_M, ctx: 1024}
 capabilities:
   chat: basic
   translation: full
   ocr: full
   doc_qa: basic
   voice: full
-  coding_assist: basic
+  coding: basic
   image_generation: none
   video: none

@@ -48,9 +48,11 @@ def have_internet(url: str = INTERNET_PROBE, timeout: float = 5.0) -> bool:
 
 
 def smallest_model(catalog: list[dict] | None = None) -> dict:
-    """The catalog's smallest download: the standard benchmark model."""
+    """The standard benchmark model: the catalog entry flagged `benchmark`
+    (every AI Score is measured on the same workload), else the smallest."""
     catalog = catalog or load_catalog()
-    return min(catalog, key=lambda m: m["file_mb"])
+    flagged = [m for m in catalog if m.get("benchmark")]
+    return flagged[0] if flagged else min(catalog, key=lambda m: m["file_mb"])
 
 
 def format_score(data: dict) -> str:

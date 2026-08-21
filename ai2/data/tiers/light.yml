@@ -21,13 +21,14 @@ runtime:
   idle_timeout_s: 600
 models:
   - {id: qwen3-1.7b, quant: Q4_K_M, ctx: 2048}
-  - {id: gemma3-1b-qat, quant: Q4_0, ctx: 2048}
+  - {id: qwen3.5-0.8b, quant: Q4_K_M, ctx: 2048}
+  - {id: gemma3-1b, quant: Q4_K_M, ctx: 2048}
 capabilities:
   chat: full
   translation: full
   ocr: full
   doc_qa: full
   voice: full
-  coding_assist: basic
+  coding: basic
   image_generation: none
   video: none

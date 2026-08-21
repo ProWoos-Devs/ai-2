@@ -19,7 +19,7 @@ runtime:
   service: persistent
 models:
   - {id: smollm3-3b, quant: Q4_K_M, ctx: 4096}
-  - {id: phi4-mini, quant: Q4_K_M, ctx: 4096}
+  - {id: qwen2.5-7b, quant: Q4_K_M, ctx: 4096}
 rag:
   vector_store: sqlite-vec
   embedder: all-MiniLM-L6-v2
@@ -29,6 +29,6 @@ capabilities:
   ocr: full
   doc_qa: full
   voice: full
-  coding_assist: full
+  coding: full
   image_generation: none
   video: none

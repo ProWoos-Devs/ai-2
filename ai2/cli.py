@@ -91,7 +91,7 @@ def cmd_init(args) -> int:
         return 0
     try:
         apply_plan(plan)
-    except PermissionError as exc:
+    except (PermissionError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     print("\nApplied.")

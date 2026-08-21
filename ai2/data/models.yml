@@ -5,6 +5,8 @@
 # Every repo/file here must be downloadable ANONYMOUSLY (no HF login, no gated
 # license click): verified with a HEAD request 2026-08-19 (the official Qwen3
 # repo only ships Q8_0, Google's Gemma repo is gated, hence the unsloth mirrors).
+# ram_peak_mb for the 2026-08-21 additions is an estimate (file + ~400 MB).
+# license is the model's own license (apache-2.0, gemma = Gemma Terms of Use).
 # file_mb is the real Content-Length rounded up. sha256 is the Hugging Face LFS
 # oid of the file (fetched from the HF API), checked after every download;
 # verified is the date the URL, size and hash were last confirmed.
@@ -19,6 +21,38 @@ models:
     file: Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
     sha256: 6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653
     verified: 2026-08-21
+    license: apache-2.0
+    # The fixed benchmark workload (every AI Score so far was measured on it;
+    # keep it even when smaller models enter the catalog).
+    benchmark: true
+
+  - id: gemma3-270m
+    label: Gemma 3 270M Instruct
+    params_b: 0.27
+    quant: Q4_K_M
+    file_mb: 242
+    ram_peak_mb: 650
+    repo: unsloth/gemma-3-270m-it-GGUF
+    file: gemma-3-270m-it-Q4_K_M.gguf
+    sha256: b1baabd6b729e4041822220d3e648e00d99cac5df86b10dffb77bcccf0688e39
+    verified: 2026-08-21
+    license: gemma
+
+  - id: qwen3.5-0.8b
+    label: Qwen3.5 0.8B (MTP)
+    params_b: 0.8
+    quant: Q4_K_M
+    file_mb: 525
+    ram_peak_mb: 1200
+    repo: unsloth/Qwen3.5-0.8B-MTP-GGUF
+    file: Qwen3.5-0.8B-Q4_K_M.gguf
+    sha256: ac7c9d7a1b3e3695bb3bd50f8ceaa97f9c93e99ccc3d3d1a620301b6dd6d3d86
+    verified: 2026-08-21
+    license: apache-2.0
+    # Carries a multi-token-prediction head: llama-server --spec-type draft-mtp
+    # drafts with it for free (no second model in RAM). Unmeasured on no-AVX
+    # CPUs as of 2026-08-21; measure before making it a default.
+    spec_type: draft-mtp
 
   - id: qwen3-1.7b
     label: Qwen3 1.7B
@@ -30,6 +64,7 @@ models:
     file: Qwen3-1.7B-Q4_K_M.gguf
     sha256: b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897
     verified: 2026-08-21
+    license: apache-2.0
 
   - id: gemma3-1b
     label: Gemma 3 1B Instruct
@@ -41,6 +76,7 @@ models:
     file: gemma-3-1b-it-Q4_K_M.gguf
     sha256: 8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd
     verified: 2026-08-21
+    license: gemma
 
   - id: smollm3-3b
     label: SmolLM3 3B
@@ -52,6 +88,7 @@ models:
     file: SmolLM3-3B-Q4_K_M.gguf
     sha256: 4de907d2d388a5508fb7cb443a06effe14cce3518b0a78d3bdd9e74d9edce989
     verified: 2026-08-21
+    license: apache-2.0
 
   - id: qwen2.5-7b
     label: Qwen2.5 7B Instruct
@@ -63,3 +100,4 @@ models:
     file: Qwen2.5-7B-Instruct-Q4_K_M.gguf
     sha256: 65b8fcd92af6b4fefa935c625d1ac27ea29dcb6ee14589c55a8f115ceaaa1423
     verified: 2026-08-21
+    license: apache-2.0
