@@ -79,3 +79,43 @@ def assign(hw: Hardware, tiers: dict[str, Tier] | None = None) -> Tier:
     if eligible:
         return max(eligible, key=lambda t: t.ram_gib)
     return min(tiers.values(), key=lambda t: t.ram_gib)
+
+
+INSTALLED_TIER_FILE = "/etc/ai2/tier"
+
+
+def installed_tier_id(path: str = INSTALLED_TIER_FILE) -> str | None:
+    """The tier `ai-2 init --apply` recorded on this machine, or None."""
+    try:
+        with open(path) as fh:
+            tid = fh.read().strip()
+    except OSError:
+        return None
+    return tid or None
+
+
+def runtime_defaults(model_id: str | None = None, tiers: dict[str, Tier] | None = None,
+                     tier_id: str | None = None) -> dict:
+    """What the applied tier asks of the runtime: {'idle_timeout_s', 'ctx',
+    'service'}. Values missing from the tier fall back to the project defaults
+    (600 s, 2048, on-demand). Read by `serve` and `chat` so a Tiny machine
+    really gets its 300 s / 1024-token configuration."""
+    out = {"idle_timeout_s": 600, "ctx": 2048, "service": "on-demand"}
+    tier_id = tier_id or installed_tier_id()
+    if not tier_id:
+        return out
+    tiers = tiers or load_tiers()
+    tier = tiers.get(tier_id)
+    if tier is None:
+        return out
+    config = resolve_config(tier, tiers)
+    rt = config.get("runtime") or {}
+    if rt.get("idle_timeout_s"):
+        out["idle_timeout_s"] = int(rt["idle_timeout_s"])
+    if rt.get("service"):
+        out["service"] = rt["service"]
+    models = config.get("models") or []
+    match = next((m for m in models if m.get("id") == model_id), None) or (models[0] if models else None)
+    if match and match.get("ctx"):
+        out["ctx"] = int(match["ctx"])
+    return out

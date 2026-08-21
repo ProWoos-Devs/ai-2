@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import asdict
 
@@ -10,10 +11,11 @@ from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
 from .models import load_catalog, recommend
+from . import serverstate
 from .runtime import (download_model, find_model_file, find_runtime, find_test_model,
                       model_dir, run_llama_bench, runtime_package, serve)
 from .state import load_score, write_score
-from .tiers import assign, load_tiers, resolve_config
+from .tiers import assign, installed_tier_id, load_tiers, resolve_config, runtime_defaults
 from .tuning import apply_plan, build_plan, render_plan
 
 SCORE_PATH = "/etc/ai2/score.json"   # system location; see state.py for the user fallback
@@ -268,14 +270,32 @@ def cmd_serve(args) -> int:
               file=sys.stderr)
         return 1
     threads = max(1, hw.logical_cores)
-    idle = None if args.idle_timeout == 0 else args.idle_timeout
+    defaults = runtime_defaults(model["id"])
+    idle_arg = defaults["idle_timeout_s"] if args.idle_timeout is None else args.idle_timeout
+    idle = None if idle_arg == 0 else idle_arg
+    ctx = args.ctx or defaults["ctx"]
+    api_key = args.api_key or os.environ.get("AI2_API_KEY")
+    if args.host not in ("127.0.0.1", "localhost", "::1") and not api_key and not args.insecure:
+        print(f"error: binding to {args.host} exposes the AI to the network. Give it "
+              "--api-key KEY (or AI2_API_KEY) so other devices must authenticate, or "
+              "pass --insecure if this network is trusted.", file=sys.stderr)
+        return 1
+    if serverstate.read_server():
+        running = serverstate.read_server()
+        print(f"error: a server is already running (pid {running['pid']}, model "
+              f"{running['model'] or '?'}, port {running['port']}). Stop it with: ai-2 stop",
+              file=sys.stderr)
+        return 1
     print(f"Serving {model['label']} with the {hw.cpu_variant} runtime, {threads} threads, "
-          f"ctx {args.ctx}, on http://{args.host}:{args.port}/ "
+          f"ctx {ctx}, on http://{args.host}:{args.port}/ "
           f"(OpenAI-compatible /v1/chat/completions)")
     if idle:
-        print(f"On demand: exits after {idle} s without requests. Ctrl-C stops it.")
-    return serve(runtime_dir, path, threads, ctx=args.ctx, host=args.host,
-                 port=args.port, idle_timeout_s=idle)
+        print(f"On demand: exits after {idle} s without requests"
+              f"{' (tier ' + installed_tier_id() + ')' if args.idle_timeout is None and installed_tier_id() else ''}. Ctrl-C stops it.")
+    if api_key:
+        print("Clients must send  Authorization: Bearer <key>")
+    return serve(runtime_dir, path, threads, ctx=ctx, host=args.host,
+                 port=args.port, idle_timeout_s=idle, api_key=api_key, model_id=model["id"])
 
 
 def _server_ready(url: str, timeout: float = 2.0) -> bool:
@@ -295,17 +315,25 @@ def cmd_chat(args) -> int:
     import time
     hw = detect()
     url = f"http://127.0.0.1:{args.port}/"
+    running = serverstate.read_server()
+    if running and args.model and running.get("model") and running["model"] != args.model:
+        print(f"The AI is already running with {running['model']}, not {args.model}. "
+              f"Stop it first:  ai-2 stop", file=sys.stderr)
+        return 1
     if not _server_ready(url):
         runtime_dir = find_runtime(hw.cpu_variant)
         model = _catalog_entry(args.model) if args.model else _recommended_model(hw)
         if runtime_dir is None or model is None or find_model_file(model["file"]) is None:
             print("AI-2 is not set up on this computer yet. Run:  ai-2 wizard", file=sys.stderr)
             return 1
-        state_dir = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "ai2")
+        state_dir = serverstate.state_dir()
         os.makedirs(state_dir, exist_ok=True)
-        log = open(os.path.join(state_dir, "serve.log"), "ab")
-        cmd = [sys.executable, "-m", "ai2.cli", "serve", "--port", str(args.port),
-               "--idle-timeout", str(args.idle_timeout)] + (["--model", model["id"]] if args.model else [])
+        log = open(serverstate.log_file(), "ab")
+        cmd = [sys.executable, "-m", "ai2.cli", "serve", "--port", str(args.port)]
+        if args.idle_timeout is not None:
+            cmd += ["--idle-timeout", str(args.idle_timeout)]
+        if args.model:
+            cmd += ["--model", model["id"]]
         subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                          start_new_session=True,
                          cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -319,13 +347,26 @@ def cmd_chat(args) -> int:
             print(f"error: the server did not come up within {args.wait} s "
                   f"(see {os.path.join(state_dir, 'serve.log')})", file=sys.stderr)
             return 1
-    print(f"Chat with the AI at {url}  (it stops by itself after {args.idle_timeout} s without use)")
+    idle = args.idle_timeout if args.idle_timeout is not None else runtime_defaults(args.model)["idle_timeout_s"]
+    print(f"Chat with the AI at {url}  (it stops by itself after {idle} s without use; ai-2 stop ends it now)")
     if not args.no_browser:
         try:
             subprocess.Popen(["xdg-open", url], stdin=subprocess.DEVNULL,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
         except FileNotFoundError:
             print("Open that address in your browser.")
+    return 0
+
+
+def cmd_stop(args) -> int:
+    """Stop the on-demand server started by serve/chat and free its RAM."""
+    running = serverstate.read_server()
+    if not running:
+        print("No AI-2 server is running.")
+        return 0
+    print(f"Stopping the AI ({running.get('model') or running.get('model_path')}, pid {running['pid']}) ...")
+    serverstate.stop_server()
+    print("Stopped.")
     return 0
 
 
@@ -383,19 +424,24 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--model", help="catalog id (default: the recommended model)")
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8080)
-    p_serve.add_argument("--ctx", type=int, default=2048)
-    p_serve.add_argument("--idle-timeout", type=int, default=600,
-                         help="stop after this many idle seconds (0 = keep running)")
+    p_serve.add_argument("--ctx", type=int, default=None, help="context size (default: the tier's, else 2048)")
+    p_serve.add_argument("--idle-timeout", type=int, default=None,
+                         help="stop after this many idle seconds (default: the tier's, else 600; 0 = keep running)")
+    p_serve.add_argument("--api-key", help="require this bearer token from clients (needed to bind off localhost; also AI2_API_KEY)")
+    p_serve.add_argument("--insecure", action="store_true", help="allow a non-localhost --host without an API key")
     p_serve.set_defaults(func=cmd_serve)
 
     p_chat = sub.add_parser("chat", help="start the local AI (if needed) and open the chat page in the browser")
     p_chat.add_argument("--model", help="catalog id (default: the recommended model)")
     p_chat.add_argument("--port", type=int, default=8080)
-    p_chat.add_argument("--idle-timeout", type=int, default=1800,
-                        help="stop the AI after this many idle seconds (default 30 min; a chat page left open does not count as use)")
+    p_chat.add_argument("--idle-timeout", type=int, default=None,
+                        help="stop the AI after this many idle seconds (default: the tier's, else 600; a chat page left open does not count as use)")
     p_chat.add_argument("--wait", type=int, default=180, help="seconds to wait for the server to come up")
     p_chat.add_argument("--no-browser", action="store_true", help="do not open the browser, just print the address")
     p_chat.set_defaults(func=cmd_chat)
+
+    p_stop = sub.add_parser("stop", help="stop the running local AI server and free its memory")
+    p_stop.set_defaults(func=cmd_stop)
 
     p_wiz = sub.add_parser("wizard", help="guided setup: scan, tune, measure, pick and download a model")
     p_wiz.add_argument("--yes", action="store_true", help="unattended: take the default answer everywhere")

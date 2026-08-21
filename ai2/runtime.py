@@ -139,20 +139,38 @@ def download_model(model: dict, dest_dir: str | None = None,
 
 def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
           host: str = "127.0.0.1", port: int = 8080,
-          idle_timeout_s: int | None = 600) -> int:
+          idle_timeout_s: int | None = 600, api_key: str | None = None,
+          startup_grace_s: int = 900, model_id: str = "",
+          extra_args: list[str] | None = None) -> int:
     """Run llama-server in the foreground and stop it after idle_timeout_s
     seconds without any request in flight (the tier's `service: on-demand`
-    semantics). Returns the server's exit code."""
+    semantics). Returns the server's exit code.
+
+    Idle accounting fails CLOSED: once the server has answered a poll, a poll
+    failure counts as idle time (the old behavior reset the idle clock on every
+    error, so one transient failure kept the model resident forever, found in
+    the 2026-08-21 review). Before the first successful poll the clock is held
+    for at most startup_grace_s (a cold HDD load can take minutes)."""
     import json
     import time
     import urllib.request
+
+    from . import serverstate
 
     env = dict(os.environ, LD_LIBRARY_PATH=runtime_dir)
     cmd = [os.path.join(runtime_dir, "llama-server"), "-m", model_path,
            "-t", str(threads), "-c", str(ctx), "--host", host, "--port", str(port),
            "--slots"]
+    if api_key:
+        cmd += ["--api-key", api_key]
+    cmd += list(extra_args or [])
     proc = subprocess.Popen(cmd, env=env)
-    last_busy = time.monotonic()
+    serverstate.write_server(os.getpid(), model_id, model_path, port, host)
+    started = time.monotonic()
+    last_busy = started
+    seen_up = False
+    poll_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     try:
         while True:
             try:
@@ -162,18 +180,23 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
                 pass
             if idle_timeout_s is None:
                 continue
+            now = time.monotonic()
             try:
-                with urllib.request.urlopen(f"http://{host}:{port}/slots", timeout=2) as r:
+                req = urllib.request.Request(f"http://{poll_host}:{port}/slots", headers=headers)
+                with urllib.request.urlopen(req, timeout=2) as r:
                     slots = json.load(r)
+                seen_up = True
                 if any(s.get("is_processing") for s in slots):
-                    last_busy = time.monotonic()
+                    last_busy = now
             except Exception:
-                # not up yet or a transient error; do not count it as idle time
-                last_busy = time.monotonic()
-                continue
-            if time.monotonic() - last_busy >= idle_timeout_s:
+                if not seen_up and now - started < startup_grace_s:
+                    last_busy = now       # still loading, do not count as idle
+                # otherwise the failure counts as idle time (fail closed)
+            if now - last_busy >= idle_timeout_s:
                 proc.terminate()
                 return proc.wait(timeout=30)
     except KeyboardInterrupt:
         proc.terminate()
         return proc.wait(timeout=30)
+    finally:
+        serverstate.clear_server()
