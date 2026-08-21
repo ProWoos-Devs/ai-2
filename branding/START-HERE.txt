@@ -33,7 +33,11 @@ REQUIREMENTS
   Light tier, 8 GB and up unlock larger models.
 - Disk: about 6 GB for the system, plus room for models (the smallest is
   about 0.4 GB, the largest in the catalog about 5 GB).
-- Boot from this USB stick or DVD, on a BIOS or UEFI computer.
+- Boot from this USB stick or DVD, on a BIOS or UEFI computer. If the
+  computer refuses to boot the stick and mentions Secure Boot, turn Secure
+  Boot off in the firmware setup (the key shown at power-on, often F2, Del,
+  F10 or Esc). AI-2 is 64-bit only; the boot menu says so if the machine
+  is not.
 - Internet is not needed to install. It is needed later to download models
   and updates.
 
@@ -107,6 +111,9 @@ The same steps by hand, in a terminal (Applications > Terminal Emulator):
   ai-2 recommend       the local models that fit this machine's score
   ai-2 model pull      download the recommended model
   ai-2 chat            start the local AI and open the chat page
+  ai-2 stop            stop the local AI and free its memory
+  ai-2 doctor          check that everything is in order
+  ai-2 report          write a file to attach to a bug report
   ai-2 serve           the same AI as a service for programs (OpenAI-style
                        API at http://127.0.0.1:8080/), stops when idle
 

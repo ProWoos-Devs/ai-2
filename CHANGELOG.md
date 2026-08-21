@@ -4,6 +4,26 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+### 0.4.0 (in progress, first sprint of the 2026-08-21 enhancement review)
+#### Fixed
+- The on-demand server no longer stays resident forever after one failed idle poll (it failed open); a poll failure now counts as idle once the server has answered, with a 15 minute start-up grace for cold HDD loads.
+- Downloads resume instead of restarting, every catalog file is verified by SHA-256, `model pull` and the wizard refuse to start on a full disk, `serve` warns when free RAM is below the model's peak.
+- Tier YAMLs named models that were not in the catalog; capability key `coding_assist` did not match the scoring (`coding`); `pyproject.toml` carried a stale version. Cross-file tests and a GitHub Actions workflow now catch this.
+- `ai-2 init --apply` reports which step failed and what was already applied instead of a traceback; the no-suspend drop-in goes to systemd-logind on systemd systems.
+- `ai-2 chat --model X` refuses to attach to a server that holds a different model.
+#### Added
+- `ai-2 doctor` (health checks), `ai-2 report` (bug-report file), `ai-2 stop`.
+- `serve --api-key` (required to bind off localhost, or `--insecure`); serve/chat take idle timeout and context from the applied tier (Tiny 300 s / 1024 tokens).
+- zswap and MGLRU `min_ttl_ms` are applied through `/usr/lib/ai2/boot-tuning.sh` and the `ai2-boot` one-shot service; Standard and Creator tiers stop being memory no-ops; pre-SSE4.1 CPUs get lz4 zram.
+- Catalog: Gemma 3 270M (242 MB) and Qwen3.5 0.8B MTP (525 MB), license field on every entry; `qwen2.5-0.5b` flagged as the fixed benchmark workload.
+- A pacman hook re-applies the fixed `artix-service` after `base` upgrades.
+#### ISO (next build)
+- `broadcom-wl` in the installed system, not only the live layer.
+- Installer: swap default "small" instead of RAM-sized; UEFI boot entry named AI-2; GRUB remembers the last choice and waits 8 s; "splash" dropped from the kernel line; `/etc/lsb-release` says AI-2; live autologin no longer travels into the installed lightdm.conf.
+- Boot menu: "Check this stick first" (checksum=y) and "safe graphics" (nomodeset) entries.
+- START-HERE: Secure Boot and 64-bit notes, doctor/report/stop commands.
+
+
 ### ISO 20260819 (details)
 - Installed systems: the `ai-2` package (0.3.0) now ships the first-login setup wizard autostart, the "AI-2 Chat" menu entry, the AI-2 icon and START-HERE.txt (the live session hides the autostart); the overlays no longer carry START-HERE/icon. XFCE default browser set to Epiphany (the one installed) so AI-2 Chat opens the chat page directly. ai-2 0.3.0 was published to the [ai2] repo 2026-08-19 22:01.
 - FIX: installed systems get Artix's `/etc/default/grub` again (GRUB theme, `os-prober` enabled so Windows shows in the boot menu, 1024x768 mode). Our profile had lost the stock symlink into artools' common overlay; the 20260816/17 ISOs install a text-mode GRUB without other operating systems. Workaround on an affected install: enable `GRUB_DISABLE_OS_PROBER=false` and the theme in `/etc/default/grub`, then `grub-mkconfig -o /boot/grub/grub.cfg`.

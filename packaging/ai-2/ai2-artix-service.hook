@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = base
+
+[Action]
+Description = Re-applying the AI-2 fix for artix-service (runit enable works inside an installer chroot)...
+When = PostTransaction
+Exec = /usr/bin/install -m755 /usr/lib/ai2/artix-service /usr/bin/artix-service

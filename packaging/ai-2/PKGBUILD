@@ -50,6 +50,12 @@ package() {
   # mousepad (the only text editor) wraps long lines; pacman compiles schemas
   install -Dm644 branding/90_ai2.gschema.override "$pkgdir/usr/share/glib-2.0/schemas/90_ai2.gschema.override"
 
+  # Our fixed artix-service (Artix's cannot enable runit services inside the
+  # Calamares chroot). The ISO overlay places it for the install; /usr/bin is
+  # owned by the base package, so a pacman hook re-applies it after upgrades.
+  install -Dm755 packaging/ai-2/artix-service "$pkgdir/usr/lib/ai2/artix-service"
+  install -Dm644 packaging/ai-2/ai2-artix-service.hook "$pkgdir/usr/share/libalpm/hooks/zz-ai2-artix-service.hook"
+
   # boot-time memory tuning (zswap/MGLRU live in sysfs): script + one-shot services
   install -Dm755 packaging/ai-2/boot-tuning.sh "$pkgdir/usr/lib/ai2/boot-tuning.sh"
   install -Dm755 packaging/ai-2/sv/ai2-boot/run "$pkgdir/etc/runit/sv/ai2-boot/run"

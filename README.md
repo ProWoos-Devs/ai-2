@@ -20,7 +20,7 @@ A complete system: Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool,
 3. Write it to a USB stick of 4 GB or more, or burn it to a DVD. Linux or macOS (replace `sdX`, everything on the stick is erased): `sudo dd if=artix-ai2-runit-20260821-x86_64.iso of=/dev/sdX bs=4M conv=fsync status=progress`. Windows: Rufus or balenaEtcher in their default mode.
 4. Boot the computer from the stick. It starts a live desktop (logs in by itself, user `ai-2`, password `ai-2`) that you can try without touching your disks. `START-HERE.txt` on that desktop explains the installation; "Install AI-2" starts the installer.
 
-After the installation, the setup wizard opens at the first login and does everything below for you. Requirements: a 64-bit PC, 2 GB of RAM (4 GB recommended), about 6 GB of disk. Internet is not needed to install, only later for models and updates.
+After the installation, the setup wizard opens at the first login and does everything below for you. Requirements: a 64-bit PC, 2 GB of RAM (4 GB recommended), about 6 GB of disk, Secure Boot off (the image is not signed for it). Internet is not needed to install, only later for models and updates.
 
 ### Option 2: packages on an existing Artix or Arch-based system
 
@@ -58,8 +58,14 @@ ai-2 benchmark       # run llama.cpp on a fixed workload, compute the 0-100 AI S
 ai-2 recommend       # which local model fits this machine, and when to go remote
 ai-2 runtime install # install the llama.cpp package for this CPU class (--apply, root)
 ai-2 model pull      # download the recommended model (or: ai-2 model pull <id>)
+ai-2 chat            # start the local AI if needed and open the chat page in the browser
 ai-2 serve           # llama-server on demand with the recommended model, OpenAI-compatible
-                     # API on http://127.0.0.1:8080, exits after 10 idle minutes
+                     # API on http://127.0.0.1:8080, exits when idle (the tier sets how long);
+                     # --host 0.0.0.0 --api-key KEY to use it from other devices
+ai-2 stop            # stop the local AI and free its memory
+ai-2 doctor          # check engine, model, tuning, services, repository key
+ai-2 report          # write ~/ai2-report.txt to attach to a bug report
+ai-2 wizard          # the guided setup, re-runnable any time
 ai-2 logo            # the mark, in the size the terminal allows
 ```
 

@@ -1,0 +1,104 @@
+#!/bin/bash
+# Modified copy of artix-service from Artix Linux (package "base", GPL);
+# this file stays under Artix's license, see LICENSES.md in the AI-2 tree.
+# AI-2: fixed copy of Artix's artix-service. The stock runit enable/disable
+# acts on /run/runit/service, which does not exist inside the Calamares
+# target chroot (fresh tmpfs /run), so every service enable during install
+# fails silently and the installed system boots without DM or network.
+# This copy links directly into /etc/runit/runsvdir/default, which is the
+# same directory runsvdir watches on a running system (current -> default),
+# is persistent, and works in a chroot. Everything else is unchanged.
+
+cmds_openrc() {
+    COMMANDS[enable]="rc-update add ${SV} default"
+    COMMANDS[disable]="rc-update del ${SV} default"
+    COMMANDS[start]="rc-service ${SV} start"
+    COMMANDS[stop]="rc-service ${SV} stop"
+}
+
+cmds_s6() {
+    COMMANDS[start]="s6-rc -u change ${SV}"
+    COMMANDS[stop]="s6-rc -d change ${SV}"
+    COMMANDS[enable]="s6 set enable ${SV}"
+    COMMANDS[disable]="s6 set disable ${SV}"
+}
+
+cmds_dinit() {
+    COMMANDS[start]="dinitctl start ${SV}"
+    COMMANDS[stop]="dinitctl stop ${SV}"
+    COMMANDS[enable]="dinitctl -o enable ${SV}"
+    COMMANDS[disable]="dinitctl -o disable ${SV}"
+}
+
+cmds_runit() {
+    COMMANDS[start]="runsv /etc/runit/sv/${SV}"
+    COMMANDS[stop]="sv stop /etc/runit/sv/${SV}"
+    COMMANDS[enable]="ln -sfn /etc/runit/sv/${SV} /etc/runit/runsvdir/default/"
+    COMMANDS[disable]="rm /etc/runit/runsvdir/default/${SV}"
+}
+
+is_live() {
+    if [[ ! -d /run/openrc && "${INIT}" == "openrc" ]]; then
+        echo >&2 "  Skipped: ${INIT} is not running."
+        exit 0
+    elif [[ ! -d /run/s6-rc && "${INIT}" == "s6" ]]; then
+        echo >&2 "  Skipped: ${INIT} is not running."
+        exit 0
+    elif [[ ! -S /run/dinitctl && "${INIT}" == "dinit" ]]; then
+        echo >&2 "  Skipped: ${INIT} is not running."
+        exit 0
+    elif [[ ! -d /run/runit && "${INIT}" == "runit" ]]; then
+        echo >&2 "  Skipped: ${INIT} is not running."
+        exit 0
+    fi
+}
+
+detect() {
+    for i in "${SUPPORTED[@]}"; do
+        if [[ -f /usr/bin/"$i"-init ]]; then
+            INIT="$i"
+            cmds_"${INIT}"
+        fi
+    done
+}
+
+usage() {
+    cat <<EOF
+usage: ${0##*/} [action] [service]
+
+  actions:
+    enable
+    disable
+    start
+    stop
+EOF
+}
+
+readonly SUPPORTED=(openrc s6 dinit runit)
+declare -A COMMANDS
+
+INIT=
+ACTION="$1"
+SV="$2"
+
+if [[ -z "${SV}" ]]; then
+    usage; exit 1
+fi
+
+detect
+
+case "${ACTION}" in
+    start|stop)   is_live; ${COMMANDS["${ACTION}"]}; exit 0 ;;
+    enable|disable) ${COMMANDS["${ACTION}"]} ;;
+    help) usage; exit 0 ;;
+    *) usage; exit 1 ;;
+esac
+
+if [[ ${INIT} == s6 ]]; then
+    s6 repository sync && s6 set commit
+    if [[ -d /run/s6-rc ]]; then
+        s6 live install
+    elif [[ ! -L /etc/s6/repo/compiled/current ]]; then
+        s6 live install --init
+    fi
+fi

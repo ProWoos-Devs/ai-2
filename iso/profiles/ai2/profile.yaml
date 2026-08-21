@@ -49,6 +49,10 @@ rootfs:
     - python-yaml
     - zramen
     - earlyoom
+    # AI-2: the proprietary Broadcom wl driver (BCM4311/4312/4322/43225, common
+    # in 2008-2012 laptops) used to live in the live layer only, so WiFi that
+    # worked on the stick vanished after install (review 2026-08-21).
+    - broadcom-wl
   packages-init:
     dinit:
       - pipewire-dinit
@@ -80,7 +84,6 @@ livefs:
   packages:
     - amd-ucode
     - artix-grub-live
-    - broadcom-wl
     - calamares-extensions
     - gparted
     - intel-ucode
