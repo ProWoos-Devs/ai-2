@@ -1,3 +1,5 @@
+<p align="center"><img src="branding/ai2-logo.svg" width="420" alt="> AI-2"></p>
+
 # AI-2
 
 **Give your computer an AI brain.**

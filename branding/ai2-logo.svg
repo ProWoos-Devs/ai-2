@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 164" width="720" height="164" role="img" aria-label="AI-2 logo lockup">
+  <!-- Full lockup: traced from the ASCII master  > AI-2 █  -->
+  <!-- Transparent background so it drops onto any surface; the identity is the green. -->
+  <style>
+    .mono { font-family: "DejaVu Sans Mono","JetBrains Mono","Menlo",monospace; }
+  </style>
+  <!-- rounded prompt box -->
+  <rect x="24" y="30" width="452" height="104" rx="22" fill="none" stroke="#35D07F" stroke-width="5"/>
+  <!-- > AI-2 in mono green -->
+  <text x="56" y="100" class="mono" font-size="58" font-weight="700" fill="#35D07F" xml:space="preserve">&gt; AI-2 </text>
+  <!-- block cursor after the wordmark -->
+  <rect x="382" y="56" width="34" height="52" rx="3" fill="#35D07F">
+    <animate attributeName="opacity" values="1;1;0;0" dur="1.1s" repeatCount="indefinite"/>
+  </rect>
+  <!-- no tagline, no attribution under the box (both dropped 2026-08-16) -->
+</svg>
