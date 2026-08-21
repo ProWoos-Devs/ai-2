@@ -366,6 +366,41 @@ def cmd_chat(args) -> int:
     return 0
 
 
+def cmd_doctor(args) -> int:
+    """Read-only health check of the AI-2 setup on this machine."""
+    from .doctor import render, run_checks, verdict
+    hw = detect()
+    try:
+        backend = get_service_backend(hw.init_system)
+    except ValueError:
+        backend = None
+    checks = run_checks(hw, backend)
+    print(branding.compact())
+    print()
+    print(render(checks))
+    rc = verdict(checks)
+    print("\n" + {0: "Everything looks fine.", 1: "Some warnings, see above.",
+                   2: "Something is broken, see the FAIL lines."}[rc])
+    return rc
+
+
+def cmd_report(args) -> int:
+    """Write a bug-report file (hardware, checks, packages, state, server log tail)."""
+    from .doctor import report_text, run_checks
+    hw = detect()
+    try:
+        backend = get_service_backend(hw.init_system)
+    except ValueError:
+        backend = None
+    text = report_text(hw, run_checks(hw, backend))
+    out = args.output or os.path.expanduser("~/ai2-report.txt")
+    with open(out, "w") as fh:
+        fh.write(text)
+    print(f"Report written to {out}. Attach it to an issue at "
+          "https://github.com/ProWoos-Devs/ai-2/issues (it contains no prompts or chat text).")
+    return 0
+
+
 def cmd_stop(args) -> int:
     """Stop the on-demand server started by serve/chat and free its RAM."""
     running = serverstate.read_server()
@@ -448,6 +483,13 @@ def main(argv: list[str] | None = None) -> int:
     p_chat.add_argument("--wait", type=int, default=180, help="seconds to wait for the server to come up")
     p_chat.add_argument("--no-browser", action="store_true", help="do not open the browser, just print the address")
     p_chat.set_defaults(func=cmd_chat)
+
+    p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")
+    p_doc.set_defaults(func=cmd_doctor)
+
+    p_rep = sub.add_parser("report", help="write a bug-report file with hardware, checks and logs")
+    p_rep.add_argument("-o", "--output", help="file to write (default ~/ai2-report.txt)")
+    p_rep.set_defaults(func=cmd_report)
 
     p_stop = sub.add_parser("stop", help="stop the running local AI server and free its memory")
     p_stop.set_defaults(func=cmd_stop)
