@@ -10,7 +10,7 @@ Ships `ai-2` 0.4.0 and the installer/boot-menu changes listed under 0.4.0. 1,988
 ## [0.4.0] - 2026-08-21
 First sprint of the 2026-08-21 enhancement review (`000/20260821-enhancement-review.md` in the workspace).
 ### Fixed
-- The on-demand server no longer stays resident forever after one failed idle poll (it failed open); a poll failure now counts as idle once the server has answered, with a 15 minute start-up grace for cold HDD loads.
+- The on-demand server no longer stays resident forever after one failed idle poll (it failed open); a poll failure now counts as idle once the server has answered, with a 15 minute start-up grace for cold HDD loads. Verified on the 2011 laptop 2026-08-23 (exits after the tier's 600 s).
 - Downloads resume instead of restarting, every catalog file is verified by SHA-256, `model pull` and the wizard refuse to start on a full disk, `serve` warns when free RAM is below the model's peak.
 - Tier YAMLs named models that were not in the catalog; capability key `coding_assist` did not match the scoring (`coding`); `pyproject.toml` carried a stale version. Cross-file tests and a GitHub Actions workflow now catch this.
 - `ai-2 init --apply` reports which step failed and what was already applied instead of a traceback; the no-suspend drop-in goes to systemd-logind on systemd systems.
@@ -19,7 +19,7 @@ First sprint of the 2026-08-21 enhancement review (`000/20260821-enhancement-rev
 - `ai-2 doctor` (health checks), `ai-2 report` (bug-report file), `ai-2 stop`.
 - `serve --api-key` (required to bind off localhost, or `--insecure`); serve/chat take idle timeout and context from the applied tier (Tiny 300 s / 1024 tokens).
 - zswap and MGLRU `min_ttl_ms` are applied through `/usr/lib/ai2/boot-tuning.sh` and the `ai2-boot` one-shot service; Standard and Creator tiers stop being memory no-ops; pre-SSE4.1 CPUs get lz4 zram.
-- Catalog: Gemma 3 270M (242 MB) and Qwen3.5 0.8B MTP (525 MB), license field on every entry; `qwen2.5-0.5b` flagged as the fixed benchmark workload.
+- Catalog: Gemma 3 270M (242 MB) and Qwen3.5 0.8B MTP (525 MB), license field on every entry; `qwen2.5-0.5b` flagged as the fixed benchmark workload. Measured on the 2011 laptop (A4-3305M, 2 threads, 150 tokens): Gemma 3 270M 4.5 tok/s, Qwen2.5 0.5B 1.8, Qwen3.5 0.8B 1.0; speculative decoding (`--spec-type draft-mtp`) halves Qwen3.5's speed there, so it is not used.
 - A pacman hook re-applies the fixed `artix-service` after `base` upgrades.
 ### ISO profile (takes effect with the next ISO)
 - `broadcom-wl` in the installed system, not only the live layer.
