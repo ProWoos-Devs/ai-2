@@ -9,7 +9,8 @@ PORT=8099
 ai-2 model pull $MODEL_ID || exit 1
 ai-2 stop >/dev/null 2>&1
 M=$(find "$HOME/.local/share/ai2/models" /var/lib/ai2/models -name "$FILE" 2>/dev/null | head -1)
-R=$(dirname "$(ls /usr/lib/ai2/runtimes/*/llama-server 2>/dev/null | head -1)")
+V=$(ai-2 detect --json | sed -n 's/.*"cpu_variant": *"\([a-z0-9]*\)".*/\1/p')
+R=/usr/lib/ai2/runtimes/llama.cpp-$V      # the build for THIS CPU, never the first one alphabetically
 [ -n "$M" ] && [ -d "$R" ] || { echo "model or runtime not found (M=$M R=$R)"; exit 1; }
 THREADS=$(nproc)
 PROMPT='{"messages":[{"role":"user","content":"Explain in 150 words why the sky is blue."}],"max_tokens":150,"temperature":0}'
@@ -17,7 +18,7 @@ for S in none draft-mtp; do
   echo "== spec-type $S (loading, about 90 s on a slow disk)"
   LD_LIBRARY_PATH=$R "$R/llama-server" -m "$M" -t "$THREADS" -c 1024 --port $PORT --spec-type $S >"/tmp/ls-$S.log" 2>&1 &
   PID=$!
-  for i in $(seq 1 60); do sleep 3; curl -s "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break; done
+  for i in $(seq 1 60); do sleep 3; curl -s "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break; kill -0 $PID 2>/dev/null || { echo "   server died:"; tail -3 "/tmp/ls-$S.log"; break; }; done
   for run in 1 2; do
     curl -s "http://127.0.0.1:$PORT/v1/chat/completions" -H 'Content-Type: application/json' -d "$PROMPT" \
       | grep -o '"predicted_per_second":[0-9.]*' | sed "s/.*:/   run $run: /; s/$/ tok\/s/"
