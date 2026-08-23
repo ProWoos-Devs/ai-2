@@ -101,6 +101,31 @@ def find_model_file(filename: str) -> str | None:
     return None
 
 
+def installed_models(catalog: list[dict]) -> list[dict]:
+    """Every .gguf on disk: catalog entries with their path, plus unknown
+    files found in the model directories (id None)."""
+    out = []
+    seen = set()
+    for m in catalog:
+        path = find_model_file(m["file"])
+        if path:
+            out.append({"id": m["id"], "label": m["label"], "path": path,
+                        "size_mb": os.path.getsize(path) // (1024 * 1024), "catalog": m})
+            seen.add(os.path.realpath(path))
+    for d in _model_dirs() + [model_dir()]:
+        if d and os.path.isdir(d):
+            for f in sorted(glob.glob(os.path.join(d, "*.gguf"))):
+                if os.path.realpath(f) not in seen:
+                    seen.add(os.path.realpath(f))
+                    out.append({"id": None, "label": os.path.basename(f), "path": f,
+                                "size_mb": os.path.getsize(f) // (1024 * 1024), "catalog": None})
+    return out
+
+
+def verify_model(path: str, expected_sha256: str) -> bool:
+    return _sha256_of(path).hexdigest() == expected_sha256.lower()
+
+
 def hf_url(model: dict) -> str:
     return f"https://huggingface.co/{model['repo']}/resolve/main/{model['file']}"
 

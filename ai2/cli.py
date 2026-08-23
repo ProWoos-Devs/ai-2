@@ -13,8 +13,8 @@ from .detect import detect
 from .models import load_catalog, recommend
 from . import serverstate
 from .runtime import (download_model, download_preflight, find_model_file, find_runtime,
-                      find_test_model, model_dir, run_llama_bench, runtime_package, serve,
-                      serve_preflight)
+                      find_test_model, installed_models, model_dir, run_llama_bench,
+                      runtime_package, serve, serve_preflight, verify_model)
 from .state import load_score, write_score
 from .tiers import assign, installed_tier_id, load_tiers, resolve_config, runtime_defaults
 from .tuning import apply_plan, build_plan, render_plan
@@ -249,6 +249,83 @@ def cmd_model_pull(args) -> int:
         return 1
     print(f"\nSaved {path}")
     return 0
+
+
+def cmd_model_list(args) -> int:
+    hw = detect()
+    catalog = load_catalog()
+    rec = _recommended_model(hw)
+    have = installed_models(catalog)
+    running = serverstate.read_server()
+    if args.json:
+        print(json.dumps([{k: v for k, v in m.items() if k != "catalog"} for m in have], indent=2))
+        return 0
+    print(f"Models on this computer (download dir {model_dir()}):")
+    if not have:
+        print("  none yet; run: ai-2 model pull")
+    for m in have:
+        marks = []
+        if rec and m["id"] == rec["id"]:
+            marks.append("recommended")
+        if running and os.path.realpath(running.get("model_path", "")) == os.path.realpath(m["path"]):
+            marks.append("loaded")
+        print(f"  {m['id'] or '(not in catalog)':<16} {m['size_mb']:>6} MB  {m['path']}"
+              + (f"  [{', '.join(marks)}]" if marks else ""))
+    others = [m for m in catalog if not any(h["id"] == m["id"] for h in have)]
+    if others:
+        print("Available to download (ai-2 model pull <id>):")
+        for m in others:
+            print(f"  {m['id']:<16} {m['file_mb']:>6} MB  {m['label']}"
+                  + ("  [recommended]" if rec and m["id"] == rec["id"] else ""))
+    return 0
+
+
+def cmd_model_rm(args) -> int:
+    model = _catalog_entry(args.model)
+    if model is None:
+        print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
+        return 1
+    path = find_model_file(model["file"])
+    if path is None:
+        print(f"{model['label']} is not on this computer.")
+        return 0
+    running = serverstate.read_server()
+    if running and os.path.realpath(running.get("model_path", "")) == os.path.realpath(path):
+        print("error: the AI server is using this model; run: ai-2 stop", file=sys.stderr)
+        return 1
+    if not os.access(os.path.dirname(path), os.W_OK):
+        print(f"error: no permission to delete {path} (try with sudo)", file=sys.stderr)
+        return 1
+    size = os.path.getsize(path) // (1024 * 1024)
+    os.remove(path)
+    print(f"Removed {path} ({size} MB freed). Download again any time: ai-2 model pull {model['id']}")
+    return 0
+
+
+def cmd_model_verify(args) -> int:
+    catalog = load_catalog()
+    targets = [m for m in catalog if not args.model or m["id"] == args.model]
+    if args.model and not targets:
+        print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
+        return 1
+    rc = 0
+    checked = 0
+    for m in targets:
+        path = find_model_file(m["file"])
+        if not path:
+            continue
+        checked += 1
+        if not m.get("sha256"):
+            print(f"  ?     {m['id']}  (no checksum in the catalog)")
+            continue
+        ok = verify_model(path, m["sha256"])
+        print(f"  {'ok  ' if ok else 'BAD '}  {m['id']}  {path}")
+        if not ok:
+            rc = 2
+            print(f"        checksum mismatch; delete and download again: ai-2 model rm {m['id']} && ai-2 model pull {m['id']}")
+    if not checked:
+        print("No catalog model on this computer.")
+    return rc
 
 
 def cmd_serve(args) -> int:
@@ -490,6 +567,15 @@ def main(argv: list[str] | None = None) -> int:
     p_m_pull.add_argument("model", nargs="?", help="catalog id, e.g. qwen2.5-0.5b")
     p_m_pull.add_argument("--force", action="store_true", help="download even if the disk-space check fails")
     p_m_pull.set_defaults(func=cmd_model_pull)
+    p_m_list = m_sub.add_parser("list", help="models on this computer and in the catalog")
+    p_m_list.add_argument("--json", action="store_true")
+    p_m_list.set_defaults(func=cmd_model_list)
+    p_m_rm = m_sub.add_parser("rm", help="delete a downloaded model to free disk space")
+    p_m_rm.add_argument("model", help="catalog id")
+    p_m_rm.set_defaults(func=cmd_model_rm)
+    p_m_ver = m_sub.add_parser("verify", help="check downloaded models against the catalog checksums")
+    p_m_ver.add_argument("model", nargs="?", help="catalog id (default: all)")
+    p_m_ver.set_defaults(func=cmd_model_verify)
 
     p_serve = sub.add_parser("serve", help="run llama-server on demand with the recommended model")
     p_serve.add_argument("--model", help="catalog id (default: the recommended model)")
