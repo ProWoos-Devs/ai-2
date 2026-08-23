@@ -47,6 +47,7 @@ def env(tmp_path, monkeypatch):
     """A sandbox: user config dir in tmp, engine calls stubbed, recorder for
     what the wizard did."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     monkeypatch.setenv("AI2_MODEL_DIR", str(tmp_path / "models"))
     calls = []
     monkeypatch.setattr(wz, "detect", lambda: HW)
@@ -118,12 +119,39 @@ def test_no_engine_stops_early_and_offers_to_come_back(env, monkeypatch):
     assert os.path.exists(setup_done_path())   # user said: don't show again
 
 
-def test_offline_without_model_stops_early(env, monkeypatch):
+def test_offline_without_model_finishes_with_pending_model(env, monkeypatch):
+    # No network: tuning and engine still happen, step 7 says what is left,
+    # the report records it, and the wizard offers to come back (rc 1).
     monkeypatch.setattr(wz, "find_test_model", lambda: None)
     monkeypatch.setattr(wz, "have_internet", lambda *a, **k: False)
     rc, w, out = run(env, yes=True)
     assert rc == 1 and "No internet" in out
     assert "measure" not in env["calls"]
+    assert "Almost ready" in out and "Not done yet" in out and "ai-2 chat" in out
+    assert w.report["pending"] == ["model"] and w.report["stopped_at"] == 4
+    prev = wz.Wizard.previous_report()
+    assert prev["pending"] == ["model"] and not prev["completed"]
+    assert os.path.exists(os.path.join(env["tmp"], "state", "ai2", "wizard.log"))
+
+
+def test_second_run_summarizes_the_first(env):
+    run(env, yes=True)
+    rc, w, out = run(env, yes=True)
+    assert rc == 0
+    assert "Last run" in out and "completed" in out and "AI Score 30" in out
+
+
+def test_have_internet_rejects_captive_portal(monkeypatch):
+    import urllib.request
+
+    class Resp:
+        url = "http://portal.example/login"
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: Resp())
+    assert wz.have_internet("https://huggingface.co") is False
+    Resp.url = "https://huggingface.co/"
+    assert wz.have_internet("https://huggingface.co") is True
 
 
 def test_downloads_test_model_when_missing(env, monkeypatch):

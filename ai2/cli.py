@@ -307,12 +307,35 @@ def cmd_serve(args) -> int:
 
 
 def _server_ready(url: str, timeout: float = 2.0) -> bool:
+    """True only when llama-server reports status "ok". It answers /health
+    with 200 while the model is still loading (found on the 2011 laptop:
+    requests then get 503 "Loading model"), so the body must be checked."""
     import urllib.request
     try:
         with urllib.request.urlopen(url.rstrip("/") + "/health", timeout=timeout) as r:
-            return r.status == 200
+            if r.status != 200:
+                return False
+            body = r.read(2000).decode("utf-8", "replace")
+            return '"ok"' in body
     except Exception:
         return False
+
+
+def _as_invoking_user() -> str | None:
+    """Under sudo, point HOME (and the XDG dirs) at the invoking user so the
+    per-user score and models are what gets checked. Returns the user name."""
+    user = os.environ.get("SUDO_USER")
+    if os.geteuid() != 0 or not user or user == "root":
+        return None
+    import pwd
+    try:
+        home = pwd.getpwnam(user).pw_dir
+    except KeyError:
+        return None
+    os.environ["HOME"] = home
+    for var in ("XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_DATA_HOME"):
+        os.environ.pop(var, None)
+    return user
 
 
 def cmd_chat(args) -> int:
@@ -369,6 +392,7 @@ def cmd_chat(args) -> int:
 def cmd_doctor(args) -> int:
     """Read-only health check of the AI-2 setup on this machine."""
     from .doctor import render, run_checks, verdict
+    user = _as_invoking_user()
     hw = detect()
     try:
         backend = get_service_backend(hw.init_system)
@@ -377,6 +401,8 @@ def cmd_doctor(args) -> int:
     checks = run_checks(hw, backend)
     print(branding.compact())
     print()
+    if user:
+        print(f"  (checking the files of user {user})")
     print(render(checks))
     rc = verdict(checks)
     print("\n" + {0: "Everything looks fine.", 1: "Some warnings, see above.",
@@ -387,6 +413,7 @@ def cmd_doctor(args) -> int:
 def cmd_report(args) -> int:
     """Write a bug-report file (hardware, checks, packages, state, server log tail)."""
     from .doctor import report_text, run_checks
+    _as_invoking_user()
     hw = detect()
     try:
         backend = get_service_backend(hw.init_system)

@@ -32,6 +32,7 @@ from .models import load_catalog, recommend
 from .runtime import (download_model, download_preflight, find_model_file, find_runtime,
                       find_test_model, model_dir, runtime_package)
 from .state import load_score, mark_setup_done, write_score
+from . import serverstate
 from .tiers import assign, load_tiers, resolve_config
 from .tuning import apply_plan, build_plan
 
@@ -39,10 +40,13 @@ INTERNET_PROBE = "https://huggingface.co"
 
 
 def have_internet(url: str = INTERNET_PROBE, timeout: float = 5.0) -> bool:
+    """True when the probe host really answered (a captive portal that
+    redirects every request to its login page counts as offline)."""
+    from urllib.parse import urlparse
     try:
         req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "ai-2"})
-        with urllib.request.urlopen(req, timeout=timeout):
-            return True
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return urlparse(resp.url).hostname == urlparse(url).hostname
     except Exception:
         return False
 
@@ -78,10 +82,53 @@ class Wizard:
                  run: Callable[[list[str]], int] | None = None,
                  yes: bool = False):
         self.yes = yes
-        self.say = say or (lambda text: print(text, flush=True))
+        self._say = say or (lambda text: print(text, flush=True))
         self._ask = ask or self._ask_terminal
         self.run = run or (lambda cmd: subprocess.run(cmd).returncode)
-        self.report: dict = {"tuned": None, "score": None, "model": None, "completed": False}
+        self.report: dict = {"tuned": None, "score": None, "model": None, "completed": False,
+                             "pending": [], "stopped_at": None}
+        self._log = None
+        try:
+            os.makedirs(serverstate.state_dir(), exist_ok=True)
+            self._log = open(os.path.join(serverstate.state_dir(), "wizard.log"), "a")
+            import time
+            self._log.write(f"\n===== ai-2 wizard {time.strftime('%Y-%m-%d %H:%M:%S')} =====\n")
+        except OSError:
+            self._log = None
+
+    def say(self, text: str) -> None:
+        """Show text and keep a transcript in the state dir (support questions
+        can be answered from it; nothing personal is written)."""
+        self._say(text)
+        if self._log:
+            try:
+                self._log.write(text + "\n")
+                self._log.flush()
+            except OSError:
+                pass
+
+    @staticmethod
+    def report_path() -> str:
+        return os.path.join(serverstate.state_dir(), "wizard.json")
+
+    def _save_report(self) -> None:
+        import json
+        import time
+        try:
+            os.makedirs(serverstate.state_dir(), exist_ok=True)
+            with open(self.report_path(), "w") as fh:
+                json.dump(self.report | {"when": time.strftime("%Y-%m-%d %H:%M")}, fh, indent=1)
+        except OSError:
+            pass
+
+    @classmethod
+    def previous_report(cls) -> dict | None:
+        import json
+        try:
+            with open(cls.report_path()) as fh:
+                return json.load(fh)
+        except (OSError, ValueError):
+            return None
 
     # -- I/O helpers ---------------------------------------------------------
     def ask(self, question: str, default: bool = True) -> bool:
@@ -118,6 +165,18 @@ class Wizard:
         self.say(branding.compact())
         self.say("\nAI-2 setup: a few minutes, three questions, and this computer gets an AI brain.\n"
                  "You can stop at any time with Ctrl-C and run  ai-2 wizard  again later.")
+        prev = self.previous_report()
+        if prev:
+            done = []
+            if prev.get("tuned"):
+                done.append("tuning applied")
+            if prev.get("score") is not None:
+                done.append(f"AI Score {prev['score']}")
+            if prev.get("model") and find_model_file(next((m["file"] for m in load_catalog() if m["id"] == prev["model"]), "")):
+                done.append(f"model {prev['model']} on disk")
+            state = "completed" if prev.get("completed") else f"stopped at step {prev.get('stopped_at') or '?'}"
+            self.say(f"Last run ({prev.get('when', '?')}): {state}" + (f", {', '.join(done)}" if done else "")
+                     + ". Steps already done are quick to pass through.")
 
         # 1. scan
         self.head(1, "What is this computer?")
@@ -177,7 +236,7 @@ class Wizard:
         if runtime_dir is None:
             self.say("  The engine is not installed, so AI-2 cannot measure this machine yet.\n"
                      "  Later:  sudo ai-2 runtime install --apply   then   ai-2 wizard")
-            return self._early_exit()
+            return self._early_exit(3)
         self.say(f"  Engine ready ({runtime_dir}).")
 
         # 4. a model to measure with
@@ -188,18 +247,21 @@ class Wizard:
             self.say(f"  To measure the machine AI-2 needs a small model: {small['label']}, "
                      f"{small['file_mb']} MB to download.")
             if not have_internet():
-                self.say("  No internet connection right now. Connect and run  ai-2 wizard  again,\n"
-                         "  or:  ai-2 model pull " + small["id"])
-                return self._early_exit()
-            if self.ask("  Download it now?", True):
+                self.say("  No internet connection right now (or a network login page is in the way).\n"
+                         f"  The download waits; everything else is set up. Later:  ai-2 model pull {small['id']}"
+                         "   then   ai-2 wizard")
+                self.report["pending"].append("model")
+            elif self.ask("  Download it now?", True):
                 try:
                     model_path = self._download(small)
                 except Exception as exc:
-                    self.say(f"  Download failed: {exc}. Later:  ai-2 model pull {small['id']}")
-                    return self._early_exit()
+                    self.say(f"  Download failed: {exc}. Later:  ai-2 model pull {small['id']}   then   ai-2 wizard")
+                    self.report["pending"].append("model")
             else:
                 self.say(f"  Skipped. Later:  ai-2 model pull {small['id']}   then   ai-2 wizard")
-                return self._early_exit()
+                self.report["pending"].append("model")
+        if model_path is None:
+            return self._finish(hw)
         self.say(f"  Using {os.path.basename(model_path)}.")
 
         # 5. benchmark
@@ -210,7 +272,7 @@ class Wizard:
             data, rec = measure(hw, model_path, runtime_dir)
         except Exception as exc:
             self.say(f"  The measurement failed: {exc}\n  Later:  ai-2 benchmark")
-            return self._early_exit()
+            return self._early_exit(5)
         write_score(data)
         self.report["score"] = data["ai_score"]
         self.say("\n" + format_score(data))
@@ -237,14 +299,29 @@ class Wizard:
             else:
                 self.say("  Already on this computer.")
 
-        # 7. done
-        self.head(7, "Ready")
+        return self._finish(hw)
+
+    def _finish(self, hw) -> int:
+        """Step 7. With nothing pending the setup is complete; with a pending
+        model download it says what is left and asks whether to come back."""
+        self.head(7, "Ready" if not self.report["pending"] else "Almost ready")
+        if self.report["pending"]:
+            self.say("  Not done yet (needs internet):\n"
+                     "    - the first model and the AI Score:   ai-2 model pull   then   ai-2 wizard")
         self.say("  To talk to the AI:   ai-2 chat        (or the 'AI-2 Chat' entry in the menu)\n"
                  "  For programs (API):  ai-2 serve       OpenAI-compatible, http://127.0.0.1:8080/\n"
                  "  This setup again:    ai-2 wizard\n"
                  "  The guide:           /usr/share/doc/ai2/START-HERE.txt")
+        if self.report["pending"]:
+            self.report["stopped_at"] = 4
+            self._save_report()
+            if self.ask("\nShow this setup again at the next login?", True):
+                return 1
+            mark_setup_done()
+            return 1
         mark_setup_done()
         self.report["completed"] = True
+        self._save_report()
         return 0
 
     def _download(self, model: dict) -> str:
@@ -263,8 +340,10 @@ class Wizard:
         self.say(f"  Saved {path}")
         return path
 
-    def _early_exit(self) -> int:
+    def _early_exit(self, step: int) -> int:
         """The flow stopped before the end. Ask whether to come back at login."""
+        self.report["stopped_at"] = step
+        self._save_report()
         if self.ask("\nShow this setup again at the next login?", True):
             return 1
         mark_setup_done()

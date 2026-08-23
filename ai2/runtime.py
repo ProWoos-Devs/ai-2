@@ -29,13 +29,15 @@ def find_runtime(variant: str) -> str | None:
     return None
 
 
-# Searched in order; smallest gguf is used as the benchmark's fixed workload.
-_MODEL_DIRS = [
-    os.environ.get("AI2_MODEL_DIR", ""),
-    "/var/lib/ai2/models",
-    os.path.expanduser("~/.local/share/ai2/models"),   # where `ai-2 model pull` puts them as a user
-    os.path.expanduser("~/models"),
-]
+# Searched in order; computed at call time so HOME/env changes (doctor under
+# sudo looking at the invoking user) are honored.
+def _model_dirs() -> list[str]:
+    return [
+        os.environ.get("AI2_MODEL_DIR", ""),
+        "/var/lib/ai2/models",
+        os.path.expanduser("~/.local/share/ai2/models"),   # where `ai-2 model pull` puts them as a user
+        os.path.expanduser("~/models"),
+    ]
 
 
 def find_test_model() -> str | None:
@@ -43,7 +45,7 @@ def find_test_model() -> str | None:
     if env and os.path.isfile(env):
         return env
     ggufs: list[str] = []
-    for d in _MODEL_DIRS:
+    for d in _model_dirs():
         if d and os.path.isdir(d):
             ggufs += glob.glob(os.path.join(d, "*.gguf"))
     if not ggufs:
@@ -93,7 +95,7 @@ def model_dir() -> str:
 
 
 def find_model_file(filename: str) -> str | None:
-    for d in _MODEL_DIRS + [model_dir()]:
+    for d in _model_dirs() + [model_dir()]:
         if d and os.path.isfile(os.path.join(d, filename)):
             return os.path.join(d, filename)
     return None
