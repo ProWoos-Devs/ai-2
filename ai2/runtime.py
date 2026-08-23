@@ -11,6 +11,7 @@ from __future__ import annotations
 import glob
 import os
 import subprocess
+import sys
 
 # Searched in order; first dir containing a llama-bench wins.
 def _runtime_candidates(variant: str) -> list[str]:
@@ -288,6 +289,17 @@ def sampling_args(model: dict) -> list[str]:
     return out
 
 
+def _shutdown(proc) -> int:
+    """Terminate llama-server and really wait it out; escalate to SIGKILL if
+    it ignores SIGTERM (a model loading from a slow disk can hang a while)."""
+    proc.terminate()
+    try:
+        return proc.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        return proc.wait(timeout=10)
+
+
 def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
           host: str = "127.0.0.1", port: int = 8080,
           idle_timeout_s: int | None = 600, api_key: str | None = None,
@@ -303,6 +315,7 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
     the 2026-08-21 review). Before the first successful poll the clock is held
     for at most startup_grace_s (a cold HDD load can take minutes)."""
     import json
+    import signal
     import time
     import urllib.request
 
@@ -316,6 +329,11 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
         cmd += ["--api-key", api_key]
     cmd += list(extra_args or [])
     proc = subprocess.Popen(cmd, env=env)
+    # `ai-2 stop` sends SIGTERM to THIS wrapper process. Python's default
+    # SIGTERM action kills it without running except/finally, which orphaned
+    # llama-server with all its RAM (found on the 2011 laptop 2026-08-23).
+    # Turn SIGTERM into SystemExit so the shutdown path below runs.
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(143))
     serverstate.write_server(os.getpid(), model_id, model_path, port, host)
     started = time.monotonic()
     last_busy = started
@@ -344,10 +362,8 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
                     last_busy = now       # still loading, do not count as idle
                 # otherwise the failure counts as idle time (fail closed)
             if now - last_busy >= idle_timeout_s:
-                proc.terminate()
-                return proc.wait(timeout=30)
-    except KeyboardInterrupt:
-        proc.terminate()
-        return proc.wait(timeout=30)
+                return _shutdown(proc)
+    except (KeyboardInterrupt, SystemExit):
+        return _shutdown(proc)
     finally:
         serverstate.clear_server()

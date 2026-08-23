@@ -75,3 +75,41 @@ def test_sampling_args_from_catalog():
     assert runtime.sampling_args({"id": "no-block"}) == []
     # unknown keys are skipped, never passed through to llama-server
     assert runtime.sampling_args({"sampling": {"temp": 0.7, "bogus": 1}}) == ["--temp", "0.7"]
+
+
+def test_sigterm_takes_the_child_down(tmp_path):
+    # `ai-2 stop` SIGTERMs the serve wrapper; llama-server must die with it
+    # (regression: default SIGTERM handling orphaned it, RMM-PC 2026-08-23).
+    import signal
+    import subprocess
+    import sys
+    import time
+    rt = _runtime_dir(tmp_path, FAKE_SERVER)
+    code = (f"import os; os.environ['XDG_STATE_HOME']=r'{tmp_path}/state'\n"
+            f"from ai2 import runtime\n"
+            f"runtime.serve(r'{rt}', 'm.gguf', threads=1, port=18767, "
+            f"idle_timeout_s=600, model_id='t')\n")
+    env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    wrapper = subprocess.Popen([sys.executable, "-c", code], env=env)
+    deadline = time.monotonic() + 20
+    child = None
+    while time.monotonic() < deadline and child is None:
+        out = subprocess.run(["pgrep", "-P", str(wrapper.pid), "-f", "llama-server"],
+                             capture_output=True, text=True).stdout.strip()
+        child = int(out) if out else None
+        time.sleep(0.2)
+    assert child, "fake llama-server never started"
+    wrapper.send_signal(signal.SIGTERM)
+    # serve() turns the SIGTERM into its normal shutdown path and returns,
+    # so the wrapper ends by itself (the exact code is the child's, not 143).
+    wrapper.wait(timeout=40)
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        try:
+            os.kill(child, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.2)
+    else:
+        os.kill(child, signal.SIGKILL)
+        raise AssertionError("llama-server survived the wrapper's SIGTERM")
