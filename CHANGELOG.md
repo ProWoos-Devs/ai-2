@@ -4,6 +4,10 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## ISO 20260823 (2026-08-23), tag `iso-20260823`
+20260821b plus `ai-2` 0.4.1. 1,988,726,784 bytes. Verified by complete QEMU installs on BIOS and UEFI (installed system: ai-2 0.4.1, lsb-release AI-2, GRUB saved/8 s, doctor clean with MGLRU and zram). Released on GitHub with the fixed-name `ai-2-x86_64.iso` assets.
+
+
 ## [0.4.1] - 2026-08-23
 ### Changed
 - The user's D-Bus session bus now starts at `$XDG_RUNTIME_DIR/bus` (`/etc/X11/xinit/xinitrc.d/30-ai2-session-bus.sh`, before Artix's `80-dbus.sh`), the path most desktop components and sandboxes expect, instead of a `dbus-launch` socket under `/tmp`. Note on the record: this was first shipped as a fix for a blank `ai-2 chat` page seen while testing over SSH on the 2011 laptop; after a session restart the blank page could not be reproduced in any configuration, including the original one, and the owner reports the chat always worked from the desktop. The cause of what was seen is not established; the change is kept because it is harmless and standard.
