@@ -17,7 +17,7 @@ from .runtime import (download_model, download_preflight, find_model_file, find_
                       runtime_package, serve, serve_preflight, verify_model)
 from .state import load_score, write_score
 from .tiers import assign, installed_tier_id, load_tiers, resolve_config, runtime_defaults
-from .tuning import apply_plan, build_plan, render_plan
+from .tuning import apply_plan, build_plan, render_plan, revert
 
 SCORE_PATH = "/etc/ai2/score.json"   # system location; see state.py for the user fallback
 
@@ -83,6 +83,15 @@ def cmd_init(args) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    if args.revert:
+        try:
+            done = revert(backend)
+        except PermissionError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print("\n".join("  " + d for d in done) if done else "  nothing recorded to revert")
+        print("Reverted AI-2's tuning (packages stay installed). Reboot to drop zram/earlyoom from memory.")
+        return 0
     plan = build_plan(hw, tier, config, backend, pkg_backend)
     print(f"Tier {tier.label} on {hw.init_system}, plan:")
     print(render_plan(plan))
@@ -545,6 +554,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p_init = sub.add_parser("init", help="plan (default) or apply system tuning for the tier")
     p_init.add_argument("--apply", action="store_true", help="execute the plan (root)")
+    p_init.add_argument("--revert", action="store_true", help="undo a previous --apply: restore original files, disable the services it enabled (root)")
     p_init.add_argument("--tier", choices=["tiny", "light", "standard", "creator", "studio", "workstation"],
                         help="override the assigned tier")
     p_init.set_defaults(func=cmd_init)

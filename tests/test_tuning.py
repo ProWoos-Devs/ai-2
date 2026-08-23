@@ -1,3 +1,4 @@
+import os
 from ai2.detect import Hardware
 from ai2.tiers import load_tiers, resolve_config
 from ai2.tuning import build_plan, render_plan
@@ -112,3 +113,33 @@ def test_mglru_requested_on_low_ram_tiers(monkeypatch):
     monkeypatch.setattr(tuning, "BOOT_TUNING", __file__)
     text = render_plan(tiny_plan(FakeBackend()))
     assert "mglru_min_ttl_ms=1000" in text
+
+
+def test_apply_backs_up_and_revert_restores(tmp_path, monkeypatch):
+    """apply_plan keeps a .ai2-orig copy of a pre-existing file, records what
+    it wrote and enabled, and revert() undoes exactly that."""
+    from ai2 import tuning
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    monkeypatch.setattr(tuning, "STATE_DIR", str(tmp_path / "etc-ai2"))
+    monkeypatch.setattr(tuning, "MANIFEST_PATH", str(tmp_path / "etc-ai2" / "manifest.json"))
+    existing = tmp_path / "conf"
+    existing.write_text("user's own settings\n")
+    fresh = tmp_path / "new.conf"
+    enabled = set()
+    backend = FakeBackend()
+    backend.is_enabled = lambda s: s in enabled
+    actions = [
+        tuning._write_file_action(str(existing), "# Managed by AI-2\nx=1\n", "write conf"),
+        tuning._write_file_action(str(fresh), "# Managed by AI-2\ny=2\n", "write new"),
+        tuning.Action("enable svc", run=lambda: enabled.add("svc"), enables="svc"),
+    ]
+    tuning.apply_plan(actions)
+    assert (tmp_path / "conf.ai2-orig").read_text() == "user's own settings\n"
+    assert existing.read_text().startswith("# Managed by AI-2")
+    m = tuning._load_manifest()
+    assert str(existing) in m["files"] and str(fresh) in m["files"] and m["services"] == ["svc"]
+    backend.disable_cmd = lambda s: ["true"]
+    done = tuning.revert(backend)
+    assert existing.read_text() == "user's own settings\n"
+    assert not fresh.exists() and not (tmp_path / "conf.ai2-orig").exists()
+    assert any("svc" in d for d in done) and not os.path.exists(tuning.MANIFEST_PATH)

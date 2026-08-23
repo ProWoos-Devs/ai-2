@@ -40,25 +40,38 @@ def _zramen_conf(algorithm: str, size_percent: int) -> str:
     )
 
 
+MANIFEST_PATH = os.path.join(STATE_DIR, "manifest.json")
+BACKUP_SUFFIX = ".ai2-orig"
+
+
 @dataclass
 class Action:
     description: str
     run: Callable[[], None]
     commands: list[list[str]] = field(default_factory=list)
+    writes: str | None = None          # file this action writes (for the manifest / revert)
+    enables: str | None = None         # service this action enables (for revert)
 
 
 def _write_file_action(path: str, content: str, description: str) -> Action:
     def run():
         os.makedirs(os.path.dirname(path), exist_ok=True)
+        # First touch of a file AI-2 did not create: keep the original next to it.
+        if os.path.isfile(path) and not os.path.exists(path + BACKUP_SUFFIX):
+            with open(path) as src:
+                old = src.read()
+            if "Managed by AI-2" not in old:
+                with open(path + BACKUP_SUFFIX, "w") as dst:
+                    dst.write(old)
         with open(path, "w") as fh:
             fh.write(content)
-    return Action(description=description, run=run)
+    return Action(description=description, run=run, writes=path)
 
 
-def _cmd_action(cmd: list[str], description: str) -> Action:
+def _cmd_action(cmd: list[str], description: str, enables: str | None = None) -> Action:
     def run():
         subprocess.run(cmd, check=True)
-    return Action(description=description, run=run, commands=[cmd])
+    return Action(description=description, run=run, commands=[cmd], enables=enables)
 
 
 def _missing(pkg_backend, pkgs: list[str]) -> list[str]:
@@ -125,6 +138,7 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
             actions.append(_cmd_action(
                 backend.enable_cmd(provider["service"]),
                 f"enable zram swap service '{provider['service']}' ({backend.name})",
+                enables=provider["service"],
             ))
 
     # Settings that live in sysfs (zswap parameters, MGLRU) are applied by
@@ -147,7 +161,8 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
         ))
         if os.path.isfile(BOOT_TUNING):
             actions.append(_cmd_action(backend.enable_cmd("ai2-boot"),
-                                       f"enable boot-time memory tuning service 'ai2-boot' ({backend.name})"))
+                                       f"enable boot-time memory tuning service 'ai2-boot' ({backend.name})",
+                                       enables="ai2-boot"))
             actions.append(_cmd_action([BOOT_TUNING], "apply the memory settings now"))
         else:
             actions.append(Action(description=f"{BOOT_TUNING} not installed (ai-2 package too old), "
@@ -183,6 +198,7 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
             actions.append(_cmd_action(
                 backend.enable_cmd(provider["service"]),
                 f"enable OOM guard service '{provider['service']}' ({backend.name})",
+                enables=provider["service"],
             ))
 
     runtime = config.get("runtime") or {}
@@ -229,9 +245,53 @@ def render_plan(actions: list[Action]) -> str:
     return "\n".join(lines)
 
 
+def _load_manifest() -> dict:
+    import json
+    try:
+        with open(MANIFEST_PATH) as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {"files": [], "services": []}
+
+
+def _save_manifest(m: dict) -> None:
+    import json
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(MANIFEST_PATH, "w") as fh:
+        json.dump(m, fh, indent=1)
+
+
+def revert(backend) -> list[str]:
+    """Undo what `init --apply` recorded in the manifest: restore backed-up
+    originals or remove files AI-2 created, disable the services it enabled.
+    Never removes packages. Returns the list of things done."""
+    if os.geteuid() != 0:
+        raise PermissionError("reverting requires root, re-run with sudo")
+    m = _load_manifest()
+    done = []
+    for svc in m.get("services", []):
+        if backend.is_enabled(svc):
+            subprocess.run(backend.disable_cmd(svc), check=False)
+            done.append(f"disabled service {svc}")
+    for path in m.get("files", []):
+        backup = path + BACKUP_SUFFIX
+        if os.path.exists(backup):
+            os.replace(backup, path)
+            done.append(f"restored {path} from {backup}")
+        elif os.path.exists(path):
+            os.remove(path)
+            done.append(f"removed {path}")
+    try:
+        os.remove(MANIFEST_PATH)
+    except OSError:
+        pass
+    return done
+
+
 def apply_plan(actions: list[Action]) -> None:
     if os.geteuid() != 0:
         raise PermissionError("applying the plan requires root, re-run with sudo")
+    manifest = _load_manifest()
     for i, action in enumerate(actions, 1):
         try:
             action.run()
@@ -242,3 +302,8 @@ def apply_plan(actions: list[Action]) -> None:
         except OSError as exc:
             raise RuntimeError(f"step {i} failed ({action.description}): {exc}; "
                                f"steps 1-{i - 1} were applied") from exc
+        if action.writes and action.writes not in manifest["files"]:
+            manifest["files"].append(action.writes)
+        if action.enables and action.enables not in manifest["services"]:
+            manifest["services"].append(action.enables)
+        _save_manifest(manifest)
