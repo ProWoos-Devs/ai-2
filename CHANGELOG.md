@@ -4,6 +4,20 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-23
+Second sprint of the 2026-08-21 enhancement review.
+### Added
+- `ai-2 model list` (what is on the machine and in the catalog, with sizes and the recommended/loaded markers), `ai-2 model rm <id>` (free disk space; refuses a model the server is using), `ai-2 model verify` (SHA-256 against the catalog).
+- `ai-2 init --revert`: undo a previous `--apply` from a manifest, restoring the original of any file AI-2 overwrote (kept as `*.ai2-orig`) or removing files it created, and disabling the services it enabled. Never removes packages.
+### Changed
+- The wizard finishes even without a network: it tunes the machine and installs the engine, then says the model and AI Score are pending and offers to come back. It keeps a transcript (`wizard.log`) and a report (`wizard.json`) in the state dir, and a re-run opens with a one-line summary of what the last run did. The internet check now rejects a captive portal (a login page that answers for every host).
+- Benchmark: reads llama-bench's JSON (two repetitions, the spread reported), is time-boxed per CPU class (150 to 300 s) instead of a flat 600 s, and records the runtime build, CPU, kernel and date in the score. The score and the wizard now say in plain words what the speed feels like ("patience mode", "comfortable for chat").
+- `ai-2 chat` waits for the server to report "ok", not just an open port (llama-server answers `/health` 200 while still loading). `ai-2 doctor` and `ai-2 report` run under `sudo` look at the invoking user's score and models, not root's.
+### ISO profile (next build)
+- Drops `linux-firmware-marvell` and `linux-firmware-qcom` (about 257 MB of Chromebook and Snapdragon firmware, useless on an x86_64 ISO for old laptops).
+- A Calamares job removes the two CPU engine builds the installed machine cannot use (the ISO still ships all three for offline installs).
+
+
 ## ISO 20260823 (2026-08-23), tag `iso-20260823`
 20260821b plus `ai-2` 0.4.1. 1,988,726,784 bytes. Verified by complete QEMU installs on BIOS and UEFI (installed system: ai-2 0.4.1, lsb-release AI-2, GRUB saved/8 s, doctor clean with MGLRU and zram). Released on GitHub with the fixed-name `ai-2-x86_64.iso` assets.
 

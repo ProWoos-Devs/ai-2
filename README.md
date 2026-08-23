@@ -53,11 +53,15 @@ sudo ai-2 init --apply                   # or just: ai-2 wizard
 ai-2 detect          # what AI-2 sees: CPU (and which llama.cpp build it needs), RAM, GPU, disk, init
 ai-2 tier            # the assigned capability tier and why
 ai-2 init            # dry run, print the tuning plan for this machine
-ai-2 init --apply    # apply it (root): zram, earlyoom, sysctl, no idle suspend during inference
+ai-2 init --apply    # apply it (root): zram, earlyoom, sysctl, no idle suspend
+ai-2 init --revert   # undo it (root): restore original files, keep packages during inference
 ai-2 benchmark       # run llama.cpp on a fixed workload, compute the 0-100 AI Score and capability stars
 ai-2 recommend       # which local model fits this machine, and when to go remote
 ai-2 runtime install # install the llama.cpp package for this CPU class (--apply, root)
 ai-2 model pull      # download the recommended model (or: ai-2 model pull <id>)
+ai-2 model list      # models on this computer and in the catalog
+ai-2 model rm <id>   # delete a model to free disk space
+ai-2 model verify    # check downloaded models against the catalog checksums
 ai-2 chat            # start the local AI if needed and open the chat page in the browser
 ai-2 serve           # llama-server on demand with the recommended model, OpenAI-compatible
                      # API on http://127.0.0.1:8080, exits when idle (the tier sets how long);

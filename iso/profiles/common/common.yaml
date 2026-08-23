@@ -35,10 +35,10 @@ packages-base:
   - linux-firmware-broadcom
   - linux-firmware-cirrus
   - linux-firmware-intel
-  - linux-firmware-marvell
   - linux-firmware-mediatek
+  # (linux-firmware-marvell and -qcom removed for AI-2: ~257 MB of Snapdragon/
+  # Chromebook-SoC firmware, dead weight on an x86_64 ISO for old laptops)
   - linux-firmware-other
-  - linux-firmware-qcom
   - linux-firmware-radeon
   - linux-firmware-realtek
   - linux-firmware-whence
