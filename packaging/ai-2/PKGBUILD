@@ -7,7 +7,7 @@
 # (git archive of www/ai-2), so a package always maps to a commit.
 
 pkgname=ai-2
-pkgver=0.4.0
+pkgver=0.4.1
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
@@ -55,6 +55,9 @@ package() {
   # owned by the base package, so a pacman hook re-applies it after upgrades.
   install -Dm755 packaging/ai-2/artix-service "$pkgdir/usr/lib/ai2/artix-service"
   install -Dm644 packaging/ai-2/ai2-artix-service.hook "$pkgdir/usr/share/libalpm/hooks/zz-ai2-artix-service.hook"
+
+  # session bus at $XDG_RUNTIME_DIR/bus (WebKit sandbox needs it; see the script)
+  install -Dm755 packaging/ai-2/30-ai2-session-bus.sh "$pkgdir/etc/X11/xinit/xinitrc.d/30-ai2-session-bus.sh"
 
   # boot-time memory tuning (zswap/MGLRU live in sysfs): script + one-shot services
   install -Dm755 packaging/ai-2/boot-tuning.sh "$pkgdir/usr/lib/ai2/boot-tuning.sh"

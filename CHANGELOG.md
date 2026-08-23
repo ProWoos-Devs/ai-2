@@ -4,6 +4,11 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-23
+### Fixed
+- `ai-2 chat` showed a blank page on installed systems: Epiphany's web process aborted on every page because the user's D-Bus session bus was started by `dbus-launch` under `/tmp`, a path WebKitGTK's sandbox cannot reach (`xdg-dbus-proxy` died, the web process got "broken pipe" and aborted). The package now ships `/etc/X11/xinit/xinitrc.d/30-ai2-session-bus.sh`, which starts the session bus at `$XDG_RUNTIME_DIR/bus` before Artix's `80-dbus.sh` runs. Found and verified on the 2011 laptop (chat answering at 1.47 tok/s after the fix).
+
+
 ## ISO 20260821b (2026-08-21), tag `iso-20260821b`
 Ships `ai-2` 0.4.0 and the installer/boot-menu changes listed under 0.4.0. 1,988,308,992 bytes. Verified by a complete QEMU install on BIOS AND, for the first time, on UEFI (OVMF, GPT with a 512 MB EFI system partition): installed systems carry lsb-release AI-2, GRUB saved/8 s/no splash, ai-2 0.4.0, broadcom-wl, no live autologin; `ai-2 init --apply` then `ai-2 doctor` on the installed system reports MGLRU enabled with min_ttl_ms 1000 through the new boot-tuning path. Installed on the 2011 laptop 2026-08-23 (Windows 7 in the menu, wizard, doctor clean, idle exit verified). Released on GitHub 2026-08-23 with the fixed-name `ai-2-x86_64.iso` assets that the `releases/latest` URL serves.
 
