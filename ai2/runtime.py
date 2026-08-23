@@ -272,6 +272,22 @@ def download_model(model: dict, dest_dir: str | None = None,
     return final
 
 
+SAMPLING_FLAGS = {"temp": "--temp", "top_k": "--top-k", "top_p": "--top-p",
+                  "min_p": "--min-p", "repeat_penalty": "--repeat-penalty"}
+
+
+def sampling_args(model: dict) -> list[str]:
+    """llama-server flags for the catalog entry's optional `sampling` block
+    (the values the model card recommends). Unknown keys are ignored so a
+    catalog typo cannot stop the server from starting."""
+    out: list[str] = []
+    for key, value in (model.get("sampling") or {}).items():
+        flag = SAMPLING_FLAGS.get(key)
+        if flag is not None:
+            out += [flag, str(value)]
+    return out
+
+
 def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
           host: str = "127.0.0.1", port: int = 8080,
           idle_timeout_s: int | None = 600, api_key: str | None = None,

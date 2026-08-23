@@ -47,3 +47,13 @@ def test_verify_detects_mismatch_and_match(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(runtime, "verify_model", lambda p, s: hashlib.sha256(data).hexdigest() == hashlib.sha256(open(p, "rb").read()).hexdigest())
     monkeypatch.setattr(cli, "verify_model", runtime.verify_model)
     assert cli.main(["model", "verify", "gemma3-270m"]) == 0
+
+
+def test_bare_command_prints_help(capsys):
+    from ai2 import cli
+    assert cli.main([]) == 0
+    assert "detect" in capsys.readouterr().out
+    assert cli.main(["model"]) == 0
+    assert "pull" in capsys.readouterr().out
+    assert cli.main(["runtime"]) == 0
+    assert "install" in capsys.readouterr().out

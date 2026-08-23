@@ -65,3 +65,13 @@ def test_runtime_defaults_follow_the_tier(tmp_path):
     light = runtime_defaults(None, tiers, tier_id="light")
     assert light["idle_timeout_s"] == 600 and light["ctx"] == 2048
     assert runtime_defaults(None, tiers, tier_id=None) == {"idle_timeout_s": 600, "ctx": 2048, "service": "on-demand"}
+
+
+def test_sampling_args_from_catalog():
+    from ai2.models import load_catalog
+    gemma = next(m for m in load_catalog() if m["id"] == "gemma3-270m")
+    args = runtime.sampling_args(gemma)
+    assert args == ["--temp", "1.0", "--top-k", "64", "--top-p", "0.95", "--min-p", "0.0"]
+    assert runtime.sampling_args({"id": "no-block"}) == []
+    # unknown keys are skipped, never passed through to llama-server
+    assert runtime.sampling_args({"sampling": {"temp": 0.7, "bogus": 1}}) == ["--temp", "0.7"]

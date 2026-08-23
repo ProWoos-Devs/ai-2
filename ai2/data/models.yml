@@ -10,6 +10,9 @@
 # file_mb is the real Content-Length rounded up. sha256 is the Hugging Face LFS
 # oid of the file (fetched from the HF API), checked after every download;
 # verified is the date the URL, size and hash were last confirmed.
+# sampling (optional) is passed to llama-server as its default sampling
+# (--temp/--top-k/--top-p/--min-p/--repeat-penalty); the chat page picks these
+# up from /props. Only set when the model's own card recommends values.
 models:
   - id: qwen2.5-0.5b
     label: Qwen2.5 0.5B Instruct
@@ -37,6 +40,8 @@ models:
     sha256: b1baabd6b729e4041822220d3e648e00d99cac5df86b10dffb77bcccf0688e39
     verified: 2026-08-21
     license: gemma
+    # Google's recommendation on the model card (unsloth mirror, read 2026-08-23).
+    sampling: {temp: 1.0, top_k: 64, top_p: 0.95, min_p: 0.0}
 
   - id: qwen3.5-0.8b
     label: Qwen3.5 0.8B (MTP)
@@ -79,6 +84,8 @@ models:
     sha256: 8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd
     verified: 2026-08-21
     license: gemma
+    # Google's recommendation on the model card (unsloth mirror, read 2026-08-23).
+    sampling: {temp: 1.0, top_k: 64, top_p: 0.95, min_p: 0.0}
 
   - id: smollm3-3b
     label: SmolLM3 3B

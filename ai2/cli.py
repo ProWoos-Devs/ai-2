@@ -14,7 +14,7 @@ from .models import load_catalog, recommend
 from . import serverstate
 from .runtime import (download_model, download_preflight, find_model_file, find_runtime,
                       find_test_model, installed_models, model_dir, run_llama_bench,
-                      runtime_package, serve, serve_preflight, verify_model)
+                      runtime_package, sampling_args, serve, serve_preflight, verify_model)
 from .state import load_score, write_score
 from .tiers import assign, installed_tier_id, load_tiers, resolve_config, runtime_defaults
 from .tuning import apply_plan, build_plan, render_plan, revert
@@ -397,8 +397,12 @@ def cmd_serve(args) -> int:
     warning = serve_preflight(model)
     if warning:
         print(f"warning: {warning}")
+    sampling = sampling_args(model)
+    if sampling:
+        print("Sampling as the model card recommends: " + " ".join(sampling))
     return serve(runtime_dir, path, threads, ctx=ctx, host=args.host,
-                 port=args.port, idle_timeout_s=idle, api_key=api_key, model_id=model["id"])
+                 port=args.port, idle_timeout_s=idle, api_key=api_key, model_id=model["id"],
+                 extra_args=sampling)
 
 
 def _server_ready(url: str, timeout: float = 2.0) -> bool:
@@ -551,7 +555,7 @@ def main(argv: list[str] | None = None) -> int:
                     "its hardware can realistically support.",
     )
     parser.add_argument("--version", action="version", version=f"AI-2 {__version__}")
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", metavar="command")
 
     p_detect = sub.add_parser("detect", help="show detected hardware")
     p_detect.add_argument("--json", action="store_true")
@@ -575,13 +579,13 @@ def main(argv: list[str] | None = None) -> int:
     p_rec.set_defaults(func=cmd_recommend)
 
     p_rt = sub.add_parser("runtime", help="manage the llama.cpp runtime for this CPU")
-    rt_sub = p_rt.add_subparsers(dest="runtime_cmd", required=True)
+    rt_sub = p_rt.add_subparsers(dest="runtime_cmd", metavar="action")
     p_rt_i = rt_sub.add_parser("install", help="install the runtime package for this CPU class")
     p_rt_i.add_argument("--apply", action="store_true", help="really install (root)")
     p_rt_i.set_defaults(func=cmd_runtime_install)
 
     p_model = sub.add_parser("model", help="manage local models")
-    m_sub = p_model.add_subparsers(dest="model_cmd", required=True)
+    m_sub = p_model.add_subparsers(dest="model_cmd", metavar="action")
     p_m_pull = m_sub.add_parser("pull", help="download the recommended model (or a named one)")
     p_m_pull.add_argument("model", nargs="?", help="catalog id, e.g. qwen2.5-0.5b")
     p_m_pull.add_argument("--force", action="store_true", help="download even if the disk-space check fails")
@@ -634,6 +638,11 @@ def main(argv: list[str] | None = None) -> int:
     p_logo.set_defaults(func=cmd_logo)
 
     args = parser.parse_args(argv)
+    if not hasattr(args, "func"):
+        # `ai-2`, `ai-2 model`, `ai-2 runtime` with nothing after it: list what
+        # is available instead of argparse's "arguments are required" error.
+        {None: parser, "model": p_model, "runtime": p_rt}[args.command].print_help()
+        return 0
     return args.func(args)
 
 
