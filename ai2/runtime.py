@@ -40,7 +40,20 @@ def _model_dirs() -> list[str]:
     ]
 
 
+def find_benchmark_model() -> str | None:
+    """The fixed benchmark model, if it is on disk. The AI Score is measured on
+    this and only this, so it stays comparable across machines."""
+    from .models import benchmark_model, load_catalog
+    return find_model_file(benchmark_model(load_catalog())["file"])
+
+
 def find_test_model() -> str | None:
+    """The model `ai-2 benchmark` runs on: the fixed benchmark model when
+    present (for a comparable score), else AI2_TEST_MODEL, else the smallest
+    gguf on disk (a power user's own file)."""
+    bench = find_benchmark_model()
+    if bench:
+        return bench
     env = os.environ.get("AI2_TEST_MODEL")
     if env and os.path.isfile(env):
         return env

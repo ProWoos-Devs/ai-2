@@ -190,6 +190,14 @@ def _recommended_model(hw) -> dict | None:
     return rec["local"]
 
 
+def _usable_model(hw) -> dict | None:
+    """A model to serve/chat with: the one the AI Score recommends, or, before
+    there is a score, the best model already on disk (e.g. one bundled on the
+    ISO) so the machine can chat straight away."""
+    from .models import best_present_model
+    return _recommended_model(hw) or best_present_model(load_catalog(), hw.ram_mib)
+
+
 def _catalog_entry(model_id: str) -> dict | None:
     return next((m for m in load_catalog() if m["id"] == model_id), None)
 
@@ -351,10 +359,10 @@ def cmd_serve(args) -> int:
             print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
             return 1
     else:
-        model = _recommended_model(hw)
+        model = _usable_model(hw)
         if model is None:
-            print("error: no recommendation yet. Run 'ai-2 benchmark' first, or name a "
-                  "model: ai-2 serve --model <id>", file=sys.stderr)
+            print("error: no model on this computer yet. Run 'ai-2 wizard', or name one: "
+                  "ai-2 serve --model <id>", file=sys.stderr)
             return 1
     path = find_model_file(model["file"])
     if path is None:
@@ -440,7 +448,7 @@ def cmd_chat(args) -> int:
         return 1
     if not _server_ready(url):
         runtime_dir = find_runtime(hw.cpu_variant)
-        model = _catalog_entry(args.model) if args.model else _recommended_model(hw)
+        model = _catalog_entry(args.model) if args.model else _usable_model(hw)
         if runtime_dir is None or model is None or find_model_file(model["file"]) is None:
             print("AI-2 is not set up on this computer yet. Run:  ai-2 wizard", file=sys.stderr)
             return 1

@@ -28,9 +28,9 @@ from . import branding
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
-from .models import load_catalog, recommend
-from .runtime import (download_model, download_preflight, find_model_file, find_runtime,
-                      find_test_model, model_dir, runtime_package)
+from .models import benchmark_model, best_present_model, load_catalog, recommend
+from .runtime import (download_model, download_preflight, find_benchmark_model, find_model_file,
+                      find_runtime, find_test_model, model_dir, runtime_package)
 from .state import load_score, mark_setup_done, write_score
 from . import serverstate
 from .tiers import assign, load_tiers, resolve_config
@@ -240,80 +240,94 @@ class Wizard:
             return self._early_exit(3)
         self.say(f"  Engine ready ({runtime_dir}).")
 
-        # 4. a model to measure with
-        self.head(4, "A first model")
-        model_path = find_test_model()
-        if model_path is None:
-            small = smallest_model()
-            self.say(f"  To measure the machine AI-2 needs a small model: {small['label']}, "
-                     f"{small['file_mb']} MB to download.")
-            if not have_internet():
-                self.say("  No internet connection right now (or a network login page is in the way).\n"
-                         f"  The download waits; everything else is set up. Later:  ai-2 model pull {small['id']}"
-                         "   then   ai-2 wizard")
-                self.report["pending"].append("model")
-            elif self.ask("  Download it now?", True):
+        # 4. a model, and the measurement
+        self.head(4, "A first model and the measurement")
+        catalog = load_catalog()
+        ready = best_present_model(catalog, hw.ram_mib)     # already on disk (e.g. bundled on the ISO)
+        if ready:
+            self.say(f"  A model is already here so you can start straight away: {ready['label']}.")
+            self.report["model"] = ready["id"]
+        bench = benchmark_model(catalog)
+        bench_path = find_benchmark_model()
+        if bench_path is None:
+            # The AI Score is measured only on the fixed benchmark model, so it
+            # compares across machines. Get it if we can; otherwise defer.
+            if have_internet():
+                self.say(f"  To measure this machine AI-2 uses a fixed model ({bench['label']}, "
+                         f"{bench['file_mb']} MB). Downloading it ...")
                 try:
-                    model_path = self._download(small)
+                    bench_path = self._download(bench)
                 except Exception as exc:
-                    self.say(f"  Download failed: {exc}. Later:  ai-2 model pull {small['id']}   then   ai-2 wizard")
-                    self.report["pending"].append("model")
+                    self.say(f"  Download failed: {exc}.")
             else:
-                self.say(f"  Skipped. Later:  ai-2 model pull {small['id']}   then   ai-2 wizard")
-                self.report["pending"].append("model")
-        if model_path is None:
-            return self._finish(hw)
-        self.say(f"  Using {os.path.basename(model_path)}.")
+                self.say("  No internet right now (or a network login page is in the way).")
+                if ready:
+                    self.say("  You can already chat: ai-2 chat. The measurement and the best-fitting model\n"
+                             f"  come as soon as you are online; AI-2 will fetch {bench['label']} then.")
+                else:
+                    self.say(f"  Everything else is set up. Later, online:  ai-2 wizard  (fetches {bench['label']})")
+                self.report["pending"].append("score")
 
-        # 5. benchmark
-        self.head(5, "Measure what this computer can really do")
-        self.say("  Running the AI engine for real. On an old machine this takes a few minutes;\n"
-                 "  the fan may spin up, that is normal.")
-        try:
-            data, rec = measure(hw, model_path, runtime_dir)
-        except Exception as exc:
-            self.say(f"  The measurement failed: {exc}\n  Later:  ai-2 benchmark")
-            return self._early_exit(5)
-        write_score(data)
-        self.report["score"] = data["ai_score"]
-        self.say("\n" + format_score(data))
+        # 5. benchmark (only on the fixed model)
+        rec = None
+        if bench_path:
+            self.head(5, "Measure what this computer can really do")
+            self.say("  Running the AI engine for real. On an old machine this takes a few minutes;\n"
+                     "  the fan may spin up, that is normal.")
+            try:
+                data, rec = measure(hw, bench_path, runtime_dir)
+                write_score(data)
+                self.report["score"] = data["ai_score"]
+                self.say("\n" + format_score(data))
+            except Exception as exc:
+                self.say(f"  The measurement failed: {exc}\n  Later:  ai-2 benchmark")
+                self.report["pending"].append("score")
 
-        # 6. recommendation
-        self.head(6, "The model that fits")
-        local = rec["local"]
-        if local is None:
-            self.say("  No local model is a good fit for this machine; use a remote model instead.")
-        else:
-            self.say(f"  Recommended: {local['label']} ({local['params_b']}B, {local['quant']}), "
-                     f"{rec['reason']}.")
-            if rec["remote_suggested"]:
-                self.say("  Anything larger is better used remotely from this machine.")
-            self.report["model"] = local["id"]
-            if find_model_file(local["file"]) is None:
-                if have_internet() and self.ask(f"  Download it now ({local['file_mb']} MB)?", True):
-                    try:
-                        self._download(local)
-                    except Exception as exc:
-                        self.say(f"  Download failed: {exc}. Later:  ai-2 model pull {local['id']}")
-                elif not have_internet():
-                    self.say(f"  No internet right now. Later:  ai-2 model pull {local['id']}")
+        # 6. the model that fits (needs a score)
+        if rec is not None:
+            self.head(6, "The model that fits")
+            local = rec["local"]
+            if local is None:
+                self.say("  No local model is a good fit for this machine; use a remote model instead.")
             else:
-                self.say("  Already on this computer.")
+                self.say(f"  Best fit: {local['label']} ({local['params_b']}B, {local['quant']}), {rec['reason']}.")
+                if rec["remote_suggested"]:
+                    self.say("  Anything larger is better used remotely from this machine.")
+                self.report["model"] = local["id"]
+                if find_model_file(local["file"]) is None:
+                    if have_internet() and self.ask(f"  Download it now ({local['file_mb']} MB)?", True):
+                        try:
+                            self._download(local)
+                        except Exception as exc:
+                            self.say(f"  Download failed: {exc}. Later:  ai-2 model pull {local['id']}")
+                    elif not have_internet():
+                        self.say(f"  No internet right now. Later:  ai-2 model pull {local['id']}")
+                else:
+                    self.say("  Already on this computer.")
 
         return self._finish(hw)
 
     def _finish(self, hw) -> int:
-        """Step 7. With nothing pending the setup is complete; with a pending
-        model download it says what is left and asks whether to come back."""
-        self.head(7, "Ready" if not self.report["pending"] else "Almost ready")
-        if self.report["pending"]:
-            self.say("  Not done yet (needs internet):\n"
-                     "    - the first model and the AI Score:   ai-2 model pull   then   ai-2 wizard")
+        """Step 7. Explain the setup, note anything pending, and check for
+        updates while online."""
+        pending = self.report["pending"]
+        self.head(7, "Ready" if not pending else "Almost ready")
+        if pending:
+            self.say("  Waiting for internet:")
+            if "score" in pending:
+                self.say("    - the AI Score and the best-fitting model:  ai-2 wizard  (once online)")
+            if "model" in pending:
+                self.say("    - the first model:  ai-2 model pull   then   ai-2 wizard")
         self.say("  To talk to the AI:   ai-2 chat        (or the 'AI-2 Chat' entry in the menu)\n"
                  "  For programs (API):  ai-2 serve       OpenAI-compatible, http://127.0.0.1:8080/\n"
                  "  This setup again:    ai-2 wizard\n"
                  "  The guide:           /usr/share/doc/ai2/START-HERE.txt")
-        if self.report["pending"]:
+        # Updates: the system and the model catalog can move on; check now if online.
+        if have_internet():
+            self._check_updates()
+        else:
+            self.say("\n  When you are online, AI-2 checks for updates; you can also run  sudo pacman -Syu  any time.")
+        if pending:
             self.report["stopped_at"] = 4
             self._save_report()
             if self.ask("\nShow this setup again at the next login?", True):
@@ -324,6 +338,24 @@ class Wizard:
         self.report["completed"] = True
         self._save_report()
         return 0
+
+    def _check_updates(self) -> None:
+        """Tell the user, in one line, whether system updates are waiting. The
+        AI-2 tool, the engine and the model catalog all update through pacman."""
+        import shutil
+        if not shutil.which("checkupdates"):
+            self.say("\n  Updates: keep AI-2 (and its models list) current with  sudo pacman -Syu")
+            return
+        try:
+            out = subprocess.run(["checkupdates"], capture_output=True, text=True, timeout=60).stdout
+        except (OSError, subprocess.SubprocessError):
+            out = ""
+        n = len([ln for ln in out.splitlines() if ln.strip()])
+        if n:
+            self.say(f"\n  Updates: {n} available (AI-2, the engine and the models list update this way).\n"
+                     "           Install them with:  sudo pacman -Syu")
+        else:
+            self.say("\n  Updates: the system is current. Check any time with  sudo pacman -Syu")
 
     def _download(self, model: dict) -> str:
         dest = model_dir()

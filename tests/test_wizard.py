@@ -55,6 +55,8 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(wz, "get_package_backend", lambda: FakePkgBackend())
     monkeypatch.setattr(wz, "find_runtime", lambda variant: "/fake/runtime")
     monkeypatch.setattr(wz, "find_test_model", lambda: str(tmp_path / "models" / "test.gguf"))
+    monkeypatch.setattr(wz, "find_benchmark_model", lambda: str(tmp_path / "models" / "bench.gguf"))
+    monkeypatch.setattr(wz, "best_present_model", lambda cat, ram=None: None)
     monkeypatch.setattr(wz, "find_model_file", lambda f: None)
     monkeypatch.setattr(wz, "have_internet", lambda *a, **k: True)
     monkeypatch.setattr(wz, "measure", lambda hw, m, r, t=None: (calls.append("measure") or (SCORE, REC)))
@@ -87,7 +89,7 @@ def test_full_run_with_defaults(env):
     # tuning went through sudo ai-2 init --apply (we are not root in tests)
     assert any(c[0] == "run" and c[1][:2] == ["sudo", "ai-2"] for c in env["calls"])
     assert "measure" in env["calls"]
-    assert ("download", "qwen2.5-0.5b") in env["calls"]
+    assert ("download", "qwen2.5-0.5b") in env["calls"]   # the recommended model
     assert "AI Score   30 / 100" in out
     assert "ai-2 chat" in out
     from ai2.state import setup_done_path
@@ -119,19 +121,30 @@ def test_no_engine_stops_early_and_offers_to_come_back(env, monkeypatch):
     assert os.path.exists(setup_done_path())   # user said: don't show again
 
 
-def test_offline_without_model_finishes_with_pending_model(env, monkeypatch):
-    # No network: tuning and engine still happen, step 7 says what is left,
-    # the report records it, and the wizard offers to come back (rc 1).
-    monkeypatch.setattr(wz, "find_test_model", lambda: None)
+def test_offline_no_bench_model_defers_score(env, monkeypatch):
+    # No network and the benchmark model is not on disk: tune + engine happen,
+    # the score is deferred, and the wizard offers to come back.
+    monkeypatch.setattr(wz, "find_benchmark_model", lambda: None)
     monkeypatch.setattr(wz, "have_internet", lambda *a, **k: False)
     rc, w, out = run(env, yes=True)
     assert rc == 1 and "No internet" in out
     assert "measure" not in env["calls"]
-    assert "Almost ready" in out and "Not done yet" in out and "ai-2 chat" in out
-    assert w.report["pending"] == ["model"] and w.report["stopped_at"] == 4
-    prev = wz.Wizard.previous_report()
-    assert prev["pending"] == ["model"] and not prev["completed"]
+    assert "Almost ready" in out and "AI Score" in out and "ai-2 chat" in out
+    assert w.report["pending"] == ["score"] and w.report["stopped_at"] == 4
     assert os.path.exists(os.path.join(env["tmp"], "state", "ai2", "wizard.log"))
+
+
+def test_offline_bundled_model_lets_you_chat_now(env, monkeypatch):
+    # No network but a model is already on disk (bundled on the ISO): the
+    # wizard says you can chat now and defers the score.
+    monkeypatch.setattr(wz, "find_benchmark_model", lambda: None)
+    monkeypatch.setattr(wz, "have_internet", lambda *a, **k: False)
+    monkeypatch.setattr(wz, "best_present_model",
+                        lambda cat, ram=None: {"id": "gemma3-270m", "label": "Gemma 3 270M Instruct"})
+    rc, w, out = run(env, yes=True)
+    assert rc == 1
+    assert "start straight away: Gemma 3 270M" in out and "You can already chat" in out
+    assert w.report["pending"] == ["score"] and w.report["model"] == "gemma3-270m"
 
 
 def test_second_run_summarizes_the_first(env):

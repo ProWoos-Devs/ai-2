@@ -52,4 +52,21 @@ if ! pacman-key --list-keys F1889E37B4E5FEC8 >/dev/null 2>&1; then
   pacman-key --lsign-key F1889E37B4E5FEC8
 fi
 
+
+# AI-2: bundle the smallest chat model so a fresh install works offline (the
+# user can chat immediately; the AI Score and a better-fitting model come when
+# online). Cached in the container so repeat stages do not re-download. The
+# file is NOT in git (242 MB); it lands in the ISO via the staged root-overlay.
+GEMMA_FILE=gemma-3-270m-it-Q4_K_M.gguf
+GEMMA_SHA=b1baabd6b729e4041822220d3e648e00d99cac5df86b10dffb77bcccf0688e39
+GEMMA_URL=https://huggingface.co/unsloth/gemma-3-270m-it-GGUF/resolve/main/$GEMMA_FILE
+CACHE="$HOME/ai2-model-cache"
+mkdir -p "$CACHE"
+if [ ! -f "$CACHE/$GEMMA_FILE" ] || [ "$(sha256sum "$CACHE/$GEMMA_FILE" | cut -d" " -f1)" != "$GEMMA_SHA" ]; then
+  echo "Downloading bundled model $GEMMA_FILE ..."
+  curl -fL --retry 3 -o "$CACHE/$GEMMA_FILE" "$GEMMA_URL"
+  echo "$GEMMA_SHA  $CACHE/$GEMMA_FILE" | sha256sum -c - || { echo "bundled model checksum FAILED"; exit 1; }
+fi
+install -Dm644 "$CACHE/$GEMMA_FILE" "$DST/root-overlay/var/lib/ai2/models/$GEMMA_FILE"
+
 echo "Staged $(find "$DST" -type f | wc -l) files into $DST"

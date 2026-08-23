@@ -120,6 +120,22 @@ The same steps by hand, in a terminal (Applications > Terminal Emulator):
 Every command has --help.
 
 
+INCLUDED, AND UPDATES
+
+A small model (Gemma 3 270M) comes on the disc, so you can chat the moment
+the install finishes, even with no internet. It is fast and light; it is not
+the smartest model. Once you are online, AI-2 measures your machine, can fetch
+a model that fits it better, and tells you if updates are waiting.
+
+AI-2, the AI engine and the list of available models all update the normal
+way:
+
+  sudo pacman -Syu
+
+The first-login setup explains all of this and does it for you. Run it again
+any time with  ai-2 wizard .
+
+
 LEAN BY DESIGN
 
 AI-2 ships only what it needs: the desktop, a browser, a text editor and

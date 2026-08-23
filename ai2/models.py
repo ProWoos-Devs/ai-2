@@ -24,6 +24,27 @@ USABLE_TG_TPS = 1.5
 RAM_HEADROOM_MIB = 1200
 
 
+def benchmark_model(catalog: list[dict] | None = None) -> dict:
+    """The catalog's fixed benchmark workload (flagged `benchmark: true`). The
+    AI Score is always measured on it so scores compare across machines even
+    when other models (e.g. one bundled on the ISO) are present."""
+    catalog = catalog or load_catalog()
+    return next((m for m in catalog if m.get("benchmark")), min(catalog, key=lambda m: m["params_b"]))
+
+
+def best_present_model(catalog: list[dict], ram_mib: int | None = None,
+                       find=None) -> dict | None:
+    """The largest catalog model already on disk that fits RAM, for a
+    ready-to-chat fallback before there is an AI Score."""
+    from .runtime import find_model_file
+    find = find or find_model_file
+    have = [m for m in catalog if find(m["file"])]
+    if ram_mib is not None:
+        budget = max(0, ram_mib - RAM_HEADROOM_MIB)
+        have = [m for m in have if m["ram_peak_mb"] <= budget] or have
+    return max(have, key=lambda m: m["params_b"]) if have else None
+
+
 def load_catalog() -> list[dict]:
     data = yaml.safe_load(
         importlib.resources.files("ai2").joinpath("data/models.yml").read_text()

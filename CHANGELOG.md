@@ -4,6 +4,15 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-08-23
+### Changed
+- The AI Score is now always measured on the fixed benchmark model (`qwen2.5-0.5b`), never on whichever model happens to be present, so scores stay comparable across machines. The wizard separates the ready-to-chat model from the benchmark model: with a model already on disk (for example one bundled on the ISO) it says you can chat straight away and defers the score until the machine is online.
+- The wizard checks for updates at the end when online (system, engine and models list all update through `sudo pacman -Syu`) and explains the setup, including that a small model is included for offline use.
+- `ai-2 chat` and `ai-2 serve` fall back to the best model already on disk when there is no AI Score yet, so a fresh machine can chat before the first benchmark.
+### ISO profile (next build)
+- Bundles Gemma 3 270M (about 242 MB) in the installed system, so a fresh install can chat with no network; downloaded and checksum-verified at ISO build time (not stored in git).
+
+
 ## [0.5.0] - 2026-08-23
 Second sprint of the 2026-08-21 enhancement review.
 ### Added
