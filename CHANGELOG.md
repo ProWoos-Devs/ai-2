@@ -6,7 +6,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [0.4.1] - 2026-08-23
 ### Fixed
-- `ai-2 chat` showed a blank page on installed systems: Epiphany's web process aborted on every page because the user's D-Bus session bus was started by `dbus-launch` under `/tmp`, a path WebKitGTK's sandbox cannot reach (`xdg-dbus-proxy` died, the web process got "broken pipe" and aborted). The package now ships `/etc/X11/xinit/xinitrc.d/30-ai2-session-bus.sh`, which starts the session bus at `$XDG_RUNTIME_DIR/bus` before Artix's `80-dbus.sh` runs. Found and verified on the 2011 laptop (chat answering at 1.47 tok/s after the fix).
+- `ai-2 chat` showed a blank page in the installed session examined on the 2011 laptop (ISO 20260821b): Epiphany's web process aborted on every page because the user's D-Bus session bus was started by `dbus-launch` under `/tmp`, a path WebKitGTK's sandbox cannot reach (`xdg-dbus-proxy` died, the web process got "broken pipe" and aborted). The package now ships `/etc/X11/xinit/xinitrc.d/30-ai2-session-bus.sh`, which starts the session bus at `$XDG_RUNTIME_DIR/bus` before Artix's `80-dbus.sh` runs. Found and verified on the 2011 laptop (chat answering at 1.47 tok/s after the fix).
 
 
 ## ISO 20260821b (2026-08-21), tag `iso-20260821b`
