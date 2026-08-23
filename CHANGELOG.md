@@ -4,6 +4,10 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## ISO 20260824 (2026-08-24), tag `iso-20260824`
+Ships `ai-2` 0.5.1 and, for the first time, a bundled model (Gemma 3 270M, `/var/lib/ai2/models/`) so a fresh install chats with no network. 1,955,495,936 bytes (smaller than 20260823 despite the model, because the qcom/marvell firmware trim saved more than the model added). Verified by complete QEMU installs on BIOS and UEFI, the installed system carrying only the CPU's own engine build (the other two pruned), no qcom/marvell firmware, and `ai-2 chat` serving the bundled Gemma before any benchmark. Released on GitHub with the fixed-name assets.
+
+
 ## [0.5.1] - 2026-08-23
 ### Changed
 - The AI Score is now always measured on the fixed benchmark model (`qwen2.5-0.5b`), never on whichever model happens to be present, so scores stay comparable across machines. The wizard separates the ready-to-chat model from the benchmark model: with a model already on disk (for example one bundled on the ISO) it says you can chat straight away and defers the score until the machine is online.
