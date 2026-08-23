@@ -22,6 +22,51 @@ class BenchResult:
     pp_tps: float = 0.0     # prompt-processing tokens/sec
     model: str = ""
     threads: int = 0
+    tg_stddev: float = 0.0  # spread over the repetitions (0 = one run or unknown)
+    build: str = ""         # llama.cpp build commit, from the JSON output
+    cpu_info: str = ""
+
+
+def parse_llama_bench_json(output: str) -> BenchResult | None:
+    """Parse llama-bench -o json: a list of objects, one per test, with
+    n_prompt/n_gen, avg_ts, stddev_ts, n_threads, build_commit, cpu_info,
+    model_type. Returns None if it is not that."""
+    import json
+    try:
+        rows = json.loads(output)
+    except ValueError:
+        return None
+    if not isinstance(rows, list) or not rows:
+        return None
+    tg = pp = None
+    tg_sd = 0.0
+    model = threads = build = cpu = None
+    for row in rows:
+        if not isinstance(row, dict) or "avg_ts" not in row:
+            continue
+        if row.get("n_gen", 0) > 0 and row.get("n_prompt", 0) == 0:
+            tg = float(row["avg_ts"]); tg_sd = float(row.get("stddev_ts") or 0.0)
+        elif row.get("n_prompt", 0) > 0 and row.get("n_gen", 0) == 0:
+            pp = float(row["avg_ts"])
+        model = model or row.get("model_type", "")
+        threads = threads or row.get("n_threads", 0)
+        build = build or row.get("build_commit", "")
+        cpu = cpu or row.get("cpu_info", "")
+    if tg is None:
+        return None
+    return BenchResult(tg_tps=tg, pp_tps=pp or 0.0, model=model or "", threads=int(threads or 0),
+                       tg_stddev=tg_sd, build=build or "", cpu_info=cpu or "")
+
+
+def feel(tg_tps: float) -> str:
+    """Plain words for what a generation speed feels like in a chat."""
+    if tg_tps < 2:
+        return "patience mode (answers arrive word by word; fine for short questions)"
+    if tg_tps < 5:
+        return "slow but usable (about reading speed for short answers)"
+    if tg_tps < 12:
+        return "comfortable for chat"
+    return "fluent"
 
 
 def parse_llama_bench(output: str) -> BenchResult | None:
@@ -95,14 +140,23 @@ def capability_stars(tg_tps: float, max_vram_mb: int, ram_gib: int) -> dict[str,
 
 
 def summarize(result: BenchResult, max_vram_mb: int, ram_gib: int) -> dict:
+    import platform
+    import time
     score = ai_score(result.tg_tps)
     stars = capability_stars(result.tg_tps, max_vram_mb, ram_gib)
     return {
+        "bench_version": 2,
         "ai_score": score,
         "tg_tps": round(result.tg_tps, 2),
+        "tg_stddev": round(result.tg_stddev, 3),
         "pp_tps": round(result.pp_tps, 2),
+        "feel": feel(result.tg_tps),
         "bench_model": result.model,
         "threads": result.threads,
+        "runtime_build": result.build,
+        "cpu_info": result.cpu_info,
+        "kernel": platform.release(),
+        "measured_at": time.strftime("%Y-%m-%d %H:%M"),
         "capabilities": stars,
     }
 
@@ -133,8 +187,8 @@ def measure(hw, model_path: str, runtime_dir: str, threads: int | None = None) -
     from .runtime import run_llama_bench
 
     threads = threads or max(1, hw.logical_cores)
-    out = run_llama_bench(runtime_dir, model_path, threads)
-    result = parse_llama_bench(out)
+    out = run_llama_bench(runtime_dir, model_path, threads, variant=hw.cpu_variant)
+    result = parse_llama_bench_json(out) or parse_llama_bench(out)
     if result is None:
         raise RuntimeError("could not parse llama-bench output")
     max_vram = max((g.vram_mb or 0 for g in hw.gpus), default=0)

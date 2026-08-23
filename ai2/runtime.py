@@ -53,16 +53,27 @@ def find_test_model() -> str | None:
     return min(ggufs, key=os.path.getsize)
 
 
+BENCH_TIMEOUT_S = {"baseline": 300, "noavx": 240, "avx2": 150}   # the plan's 1-2 min budget, wider on weak CPUs
+
+
 def run_llama_bench(runtime_dir: str, model: str, threads: int,
-                    pp: int = 32, ng: int = 32, timeout: int = 600) -> str:
-    """Run llama-bench and return its stdout (markdown table). Raises on failure."""
+                    pp: int = 32, ng: int = 32, reps: int = 2, timeout: int | None = None,
+                    variant: str = "baseline", fmt: str = "json") -> str:
+    """Run llama-bench and return its stdout (JSON by default, markdown with
+    fmt="md"). Time-boxed per CPU class so a weak machine does not sit in the
+    benchmark for ten minutes; raises on failure or timeout."""
     env = dict(os.environ, LD_LIBRARY_PATH=runtime_dir)
     cmd = [
         os.path.join(runtime_dir, "llama-bench"),
         "-m", model, "-p", str(pp), "-n", str(ng),
-        "-r", "1", "-t", str(threads), "-o", "md",
+        "-r", str(reps), "-t", str(threads), "-o", fmt,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout)
+    timeout = timeout or BENCH_TIMEOUT_S.get(variant, 300)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"llama-bench did not finish within {timeout} s; this machine is "
+                           f"below what AI-2 can measure in its time budget")
     if proc.returncode != 0:
         raise RuntimeError(f"llama-bench failed (exit {proc.returncode}): "
                            f"{proc.stderr.strip()[:300]}")

@@ -54,3 +54,27 @@ def test_summarize_shape():
     assert s["ai_score"] == 30
     assert s["tg_tps"] == 2.04
     assert set(s["capabilities"]) >= {"chat", "coding", "image_generation", "video"}
+
+
+RMM_JSON = """[
+  {"build_commit": "8e7f22b67", "cpu_info": "AMD A4-3305M APU", "model_type": "qwen2 1B Q4_K - Medium",
+   "n_threads": 2, "n_prompt": 32, "n_gen": 0, "avg_ts": 2.38, "stddev_ts": 0.01},
+  {"build_commit": "8e7f22b67", "cpu_info": "AMD A4-3305M APU", "model_type": "qwen2 1B Q4_K - Medium",
+   "n_threads": 2, "n_prompt": 0, "n_gen": 32, "avg_ts": 2.04, "stddev_ts": 0.03}
+]"""
+
+
+def test_parse_json_output():
+    from ai2.benchmark import parse_llama_bench_json
+    r = parse_llama_bench_json(RMM_JSON)
+    assert r.tg_tps == 2.04 and r.pp_tps == 2.38 and r.threads == 2
+    assert r.tg_stddev == 0.03 and r.build == "8e7f22b67" and "A4-3305M" in r.cpu_info
+    assert parse_llama_bench_json(RMM_OUTPUT) is None     # markdown is not json
+
+
+def test_summary_carries_metadata_and_feel():
+    from ai2.benchmark import BenchResult, feel
+    data = summarize(BenchResult(tg_tps=2.04, pp_tps=2.38, threads=2, build="abc", tg_stddev=0.03), 0, 4)
+    assert data["bench_version"] == 2 and data["runtime_build"] == "abc" and data["kernel"]
+    assert data["feel"].startswith("slow but usable")
+    assert feel(1.5).startswith("patience") and feel(20) == "fluent"

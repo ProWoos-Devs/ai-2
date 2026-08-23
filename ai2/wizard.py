@@ -64,7 +64,8 @@ def format_score(data: dict) -> str:
     bar = "#" * (score // 10) + "." * (10 - score // 10)
     lines = [f"AI Score   {score} / 100",
              f"           [{bar}]  {data['tg_tps']} tok/s generation, "
-             f"{data['pp_tps']} tok/s prompt", "", "Good for:"]
+             f"{data['pp_tps']} tok/s prompt",
+             f"           {data.get('feel', '')}", "", "Good for:"]
     for key, label in STAR_LABELS.items():
         n = data["capabilities"][key]
         lines.append(f"  {'★' * n}{'☆' * (5 - n)}  {label}")

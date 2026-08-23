@@ -157,6 +157,7 @@ def cmd_benchmark(args) -> int:
         bar = "#" * (data["ai_score"] // 10) + "." * (10 - data["ai_score"] // 10)
         print(f"           [{bar}]  {data['tg_tps']} tok/s generation, "
               f"{data['pp_tps']} tok/s prompt")
+        print(f"           {data.get('feel', '')}")
         print("\nRecommended for:")
         for key, label in STAR_LABELS.items():
             n = data["capabilities"][key]
