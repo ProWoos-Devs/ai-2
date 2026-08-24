@@ -54,7 +54,6 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(wz, "get_service_backend", lambda init: FakeBackend())
     monkeypatch.setattr(wz, "get_package_backend", lambda: FakePkgBackend())
     monkeypatch.setattr(wz, "find_runtime", lambda variant: "/fake/runtime")
-    monkeypatch.setattr(wz, "find_test_model", lambda: str(tmp_path / "models" / "test.gguf"))
     monkeypatch.setattr(wz, "find_benchmark_model", lambda: str(tmp_path / "models" / "bench.gguf"))
     monkeypatch.setattr(wz, "best_present_model", lambda cat, ram=None: None)
     monkeypatch.setattr(wz, "find_model_file", lambda f: None)
@@ -168,7 +167,6 @@ def test_have_internet_rejects_captive_portal(monkeypatch):
 
 
 def test_downloads_test_model_when_missing(env, monkeypatch):
-    monkeypatch.setattr(wz, "find_test_model", lambda: None)
     rc, w, out = run(env, yes=True)
     assert rc == 0
     ids = [c[1] for c in env["calls"] if c[0] == "download"]

@@ -30,7 +30,7 @@ from .benchmark import STAR_LABELS, measure
 from .detect import detect
 from .models import benchmark_model, best_present_model, load_catalog, recommend
 from .runtime import (download_model, download_preflight, find_benchmark_model, find_model_file,
-                      find_runtime, find_test_model, model_dir, runtime_package)
+                      find_runtime, model_dir, runtime_package)
 from .state import load_score, mark_setup_done, write_score
 from . import serverstate
 from .tiers import assign, load_tiers, resolve_config

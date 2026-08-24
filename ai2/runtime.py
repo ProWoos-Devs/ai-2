@@ -48,25 +48,6 @@ def find_benchmark_model() -> str | None:
     return find_model_file(benchmark_model(load_catalog())["file"])
 
 
-def find_test_model() -> str | None:
-    """The model `ai-2 benchmark` runs on: the fixed benchmark model when
-    present (for a comparable score), else AI2_TEST_MODEL, else the smallest
-    gguf on disk (a power user's own file)."""
-    bench = find_benchmark_model()
-    if bench:
-        return bench
-    env = os.environ.get("AI2_TEST_MODEL")
-    if env and os.path.isfile(env):
-        return env
-    ggufs: list[str] = []
-    for d in _model_dirs():
-        if d and os.path.isdir(d):
-            ggufs += glob.glob(os.path.join(d, "*.gguf"))
-    if not ggufs:
-        return None
-    return min(ggufs, key=os.path.getsize)
-
-
 BENCH_TIMEOUT_S = {"baseline": 300, "noavx": 240, "avx2": 150}   # the plan's 1-2 min budget, wider on weak CPUs
 
 

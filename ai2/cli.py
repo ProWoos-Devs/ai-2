@@ -10,10 +10,10 @@ from . import __version__, branding
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
-from .models import load_catalog, recommend
+from .models import benchmark_model, load_catalog, recommend
 from . import serverstate
-from .runtime import (download_model, download_preflight, find_model_file, find_runtime,
-                      find_test_model, installed_models, model_dir, run_llama_bench,
+from .runtime import (download_model, download_preflight, find_benchmark_model, find_model_file, find_runtime,
+                      installed_models, model_dir, run_llama_bench,
                       runtime_package, sampling_args, serve, serve_preflight, verify_model)
 from .state import load_score, write_score
 from .tiers import assign, installed_tier_id, load_tiers, resolve_config, runtime_defaults
@@ -146,11 +146,26 @@ def cmd_benchmark(args) -> int:
         print(f"error: no llama.cpp runtime found for '{hw.cpu_variant}' variant "
               f"(looked in the standard paths). Install the runtime first.", file=sys.stderr)
         return 1
-    model = find_test_model()
+    model = find_benchmark_model()
+    comparable = True
     if model is None:
-        print("error: no .gguf test model found (set AI2_TEST_MODEL or put one in "
-              "~/models or /var/lib/ai2/models).", file=sys.stderr)
-        return 1
+        env_model = os.environ.get("AI2_TEST_MODEL")
+        if env_model and os.path.isfile(env_model):
+            # A power user's own workload. Allowed, but the result is marked so
+            # it is never mistaken for a comparable AI Score.
+            model = env_model
+            comparable = False
+        else:
+            bench = benchmark_model(load_catalog())
+            # Benchmarking whatever gguf happens to be on disk (e.g. the model
+            # bundled on the ISO) inflates the score: a smaller model runs
+            # faster on the same machine. Found on an offline install 2026-08-24
+            # (bundled Gemma 270M scored 46 where the fixed model scores 30).
+            print(f"error: the AI Score is measured on one fixed model so scores compare "
+                  f"across machines, and that model ({bench['label']}, {bench['file_mb']} MB) "
+                  f"is not on this computer.\nOnce online, run:  ai-2 model pull {bench['id']}  "
+                  f"and then  ai-2 benchmark", file=sys.stderr)
+            return 1
     threads = max(1, hw.logical_cores)
     print(f"Benchmarking with {hw.cpu_variant} runtime, {threads} threads, "
           f"model {model.split('/')[-1]} ... (this can take a minute)")
@@ -159,6 +174,11 @@ def cmd_benchmark(args) -> int:
     except Exception as exc:
         print(f"error: benchmark failed: {exc}", file=sys.stderr)
         return 1
+    data["comparable"] = comparable
+    if not comparable:
+        print("note: measured on your own model (AI2_TEST_MODEL), not the fixed benchmark "
+              "model. This score and the stars are not comparable with other machines; "
+              "it is stored marked as such.")
     if args.json:
         print(json.dumps(data, indent=2))
     else:

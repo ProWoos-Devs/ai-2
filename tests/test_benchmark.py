@@ -78,3 +78,32 @@ def test_summary_carries_metadata_and_feel():
     assert data["bench_version"] == 2 and data["runtime_build"] == "abc" and data["kernel"]
     assert data["feel"].startswith("slow but usable")
     assert feel(1.5).startswith("patience") and feel(20) == "fluent"
+
+
+def test_benchmark_refuses_substitute_models(tmp_path, monkeypatch, capsys):
+    # Offline install: only the bundled model is on disk. The benchmark must
+    # not fall back to it (a smaller model inflates the score; a real offline
+    # install scored 46 on Gemma 270M where the fixed model scores 30).
+    from ai2 import cli
+    monkeypatch.setattr(cli, "find_runtime", lambda variant: "/fake/runtime")
+    monkeypatch.setattr(cli, "find_benchmark_model", lambda: None)
+    monkeypatch.delenv("AI2_TEST_MODEL", raising=False)
+    assert cli.main(["benchmark"]) == 1
+    err = capsys.readouterr().err
+    assert "ai-2 model pull qwen2.5-0.5b" in err and "fixed model" in err
+
+    # The explicit power-user override still runs, marked non-comparable.
+    own = tmp_path / "own.gguf"
+    own.write_bytes(b"gguf")
+    monkeypatch.setenv("AI2_TEST_MODEL", str(own))
+    fake = {"ai_score": 46, "tg_tps": 4.4, "pp_tps": 9.0, "feel": "", "capabilities":
+            {k: 3 for k in ("chat", "translation", "ocr", "doc_qa", "voice", "coding",
+                            "image_generation", "video")}}
+    monkeypatch.setattr(cli, "measure", lambda hw, m, rt, t: (dict(fake), {"local": None,
+                        "remote_suggested": False, "reason": ""}))
+    stored = {}
+    monkeypatch.setattr(cli, "_write_score", stored.update)
+    assert cli.main(["benchmark"]) == 0
+    out = capsys.readouterr().out
+    assert "not comparable" in out
+    assert stored["comparable"] is False
