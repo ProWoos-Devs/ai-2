@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=AI-2 update check
+Comment=Once a day, tell the user when system updates are waiting (no automatic installs)
+Exec=sh -c "sleep 180; ai-2 update-check --notify --max-age 20"
+Icon=ai2
+Terminal=false
+NoDisplay=true
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-Phase=Applications

@@ -13,7 +13,7 @@ pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstati
 arch=('any')
 url="https://github.com/ProWoos-Devs/AI-2"
 license=('MIT')
-depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf')
+depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pacman-contrib' 'fakeroot')
 checkdepends=('python-pytest')
 optdepends=('pciutils: GPU detection via lspci'
             'zramen: compressed swap, installed by ai-2 init --apply on low-RAM tiers'
@@ -21,7 +21,8 @@ optdepends=('pciutils: GPU detection via lspci'
             'ai2-llama-cpp-baseline: CPU inference runtime for pre-SSE4.1 CPUs'
             'ai2-llama-cpp-noavx: CPU inference runtime for SSE4.x CPUs without AVX2'
             'ai2-llama-cpp-avx2: CPU inference runtime for AVX2 CPUs'
-            'xfce4-terminal: terminal window for the first-login setup wizard')
+            'xfce4-terminal: terminal window for the first-login setup wizard'
+            'libnotify: desktop notification when system updates are waiting')
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')
 
@@ -45,6 +46,9 @@ package() {
   install -Dm755 branding/ai2-first-boot "$pkgdir/usr/bin/ai2-first-boot"
   install -Dm644 branding/desktop/ai2-setup.desktop "$pkgdir/etc/xdg/autostart/ai2-setup.desktop"
   install -Dm644 branding/desktop/ai2-chat.desktop "$pkgdir/usr/share/applications/ai2-chat.desktop"
+  # passive update notification: daily session check + login-shell hint
+  install -Dm644 branding/desktop/ai2-update-check.desktop "$pkgdir/etc/xdg/autostart/ai2-update-check.desktop"
+  install -Dm644 packaging/ai-2/ai2-updates.profile.sh "$pkgdir/etc/profile.d/ai2-updates.sh"
   install -Dm644 branding/ai2-icon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/ai2.svg"
   install -Dm644 branding/START-HERE.txt "$pkgdir/usr/share/doc/ai2/START-HERE.txt"
   # mousepad (the only text editor) wraps long lines; pacman compiles schemas

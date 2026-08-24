@@ -559,6 +559,26 @@ def cmd_stop(args) -> int:
     return 0
 
 
+def cmd_update_check(args) -> int:
+    """The shared passive update check: refresh the cached count (at most once
+    per --max-age hours) and optionally raise a desktop notification. The
+    login-shell hint (/etc/profile.d/ai2-updates.sh) reads the same cache."""
+    from . import updates
+    if args.max_age and updates.state_is_fresh(args.max_age):
+        st = updates.load_state() or {}
+    else:
+        st = updates.check_now() or updates.load_state() or {}
+    count = st.get("count")
+    if count is None:
+        print("No update information (offline, or checkupdates missing).")
+        return 0
+    if args.notify:
+        updates.notify(count)
+    print(f"{count} update(s) available. Update with:  sudo pacman -Syu"
+          if count else "The system is current.")
+    return 0
+
+
 def cmd_wizard(args) -> int:
     from .wizard import Wizard
     try:
@@ -653,6 +673,12 @@ def main(argv: list[str] | None = None) -> int:
     p_wiz = sub.add_parser("wizard", help="guided setup: scan, tune, measure, pick and download a model")
     p_wiz.add_argument("--yes", action="store_true", help="unattended: take the default answer everywhere")
     p_wiz.set_defaults(func=cmd_wizard)
+
+    p_upd = sub.add_parser("update-check", help="check for pending system updates (cached; notifies the desktop with --notify)")
+    p_upd.add_argument("--notify", action="store_true", help="send a desktop notification when updates are pending")
+    p_upd.add_argument("--max-age", type=float, default=0, metavar="HOURS",
+                       help="reuse a cached result younger than this many hours (0 = always check)")
+    p_upd.set_defaults(func=cmd_update_check)
 
     p_logo = sub.add_parser("logo", help="print the AI-2 logo")
     p_logo.set_defaults(func=cmd_logo)
