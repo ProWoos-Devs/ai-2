@@ -45,6 +45,23 @@ def best_present_model(catalog: list[dict], ram_mib: int | None = None,
     return max(have, key=lambda m: m["params_b"]) if have else None
 
 
+STARTER_PARAMS_B = 1.0
+
+
+def is_starter(model: dict) -> bool:
+    """A sub-1B model: fluent and fast but unreliable on facts and arithmetic.
+    The bundled ready-to-chat model is one; users get told plainly."""
+    return model["params_b"] < STARTER_PARAMS_B
+
+
+def models_that_fit(ram_mib: int, catalog: list[dict] | None = None) -> list[dict]:
+    """Catalog models this machine's RAM can hold (speed unknown until the
+    benchmark runs). For the hardware-based offer when there is no score yet."""
+    catalog = catalog or load_catalog()
+    budget = max(0, ram_mib - RAM_HEADROOM_MIB)
+    return [m for m in catalog if m["ram_peak_mb"] <= budget]
+
+
 def load_catalog() -> list[dict]:
     data = yaml.safe_load(
         importlib.resources.files("ai2").joinpath("data/models.yml").read_text()

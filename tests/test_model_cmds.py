@@ -57,3 +57,14 @@ def test_bare_command_prints_help(capsys):
     assert "pull" in capsys.readouterr().out
     assert cli.main(["runtime"]) == 0
     assert "install" in capsys.readouterr().out
+
+
+def test_chat_notes_starter_model(tmp_path, monkeypatch, capsys):
+    from ai2 import cli, serverstate
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setattr(cli, "_server_ready", lambda url, timeout=2.0: True)
+    serverstate.write_server(os.getpid(), "gemma3-270m", "/x/m.gguf", 8080, "127.0.0.1")
+    assert cli.main(["chat", "--no-browser"]) == 0
+    out = capsys.readouterr().out
+    assert "starter model" in out and "ai-2 model list" in out
+    serverstate.clear_server()

@@ -32,3 +32,13 @@ def test_tiny_ram_no_local_model():
     rec = recommend(1024, 5.0, 0.5)
     assert rec["local"] is None
     assert rec["remote_suggested"] is True
+
+
+def test_starter_and_ram_fit():
+    from ai2.models import is_starter, load_catalog, models_that_fit
+    cat = load_catalog()
+    by_id = {m["id"]: m for m in cat}
+    assert is_starter(by_id["gemma3-270m"]) and is_starter(by_id["qwen2.5-0.5b"])
+    assert not is_starter(by_id["gemma3-1b"])
+    fit = [m["id"] for m in models_that_fit(3800, cat)]     # 4 GB machine
+    assert "gemma3-1b" in fit and "smollm3-3b" not in fit

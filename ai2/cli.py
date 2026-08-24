@@ -10,7 +10,7 @@ from . import __version__, branding
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
-from .models import benchmark_model, load_catalog, recommend
+from .models import benchmark_model, is_starter, load_catalog, recommend
 from . import serverstate
 from .runtime import (download_model, download_preflight, find_benchmark_model, find_model_file, find_runtime,
                       installed_models, model_dir, run_llama_bench,
@@ -499,6 +499,11 @@ def cmd_chat(args) -> int:
             return 1
     idle = args.idle_timeout if args.idle_timeout is not None else runtime_defaults(args.model)["idle_timeout_s"]
     print(f"Chat with the AI at {url}  (it stops by itself after {idle} s without use; ai-2 stop ends it now)")
+    running_id = (serverstate.read_server() or {}).get("model") or (args.model or "")
+    running_model = _catalog_entry(running_id) if running_id else None
+    if running_model and is_starter(running_model):
+        print(f"Note: {running_model['label']} is a very small starter model; it can get facts "
+              "and simple math wrong. Bigger models:  ai-2 model list")
     if not args.no_browser:
         try:
             subprocess.Popen(["xdg-open", url], stdin=subprocess.DEVNULL,

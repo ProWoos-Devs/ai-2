@@ -139,10 +139,16 @@ def test_offline_bundled_model_lets_you_chat_now(env, monkeypatch):
     monkeypatch.setattr(wz, "find_benchmark_model", lambda: None)
     monkeypatch.setattr(wz, "have_internet", lambda *a, **k: False)
     monkeypatch.setattr(wz, "best_present_model",
-                        lambda cat, ram=None: {"id": "gemma3-270m", "label": "Gemma 3 270M Instruct"})
+                        lambda cat, ram=None: {"id": "gemma3-270m", "label": "Gemma 3 270M Instruct",
+                                               "params_b": 0.27})
     rc, w, out = run(env, yes=True)
     assert rc == 1
     assert "start straight away: Gemma 3 270M" in out and "You can already chat" in out
+    # the starter model's limits are named plainly...
+    assert "starter model" in out and "facts and simple math wrong" in out
+    # ...and the RAM-based offer lists bigger fitting models with pull commands
+    assert "4 GB RAM" in out and "ai-2 model pull qwen2.5-0.5b" in out
+    assert "ai-2 model pull gemma3-1b" in out
     assert w.report["pending"] == ["score"] and w.report["model"] == "gemma3-270m"
 
 

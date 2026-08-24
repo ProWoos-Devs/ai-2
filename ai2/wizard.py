@@ -28,7 +28,8 @@ from . import branding
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
-from .models import benchmark_model, best_present_model, load_catalog, recommend
+from .models import (benchmark_model, best_present_model, is_starter, load_catalog,
+                     models_that_fit, recommend)
 from .runtime import (download_model, download_preflight, find_benchmark_model, find_model_file,
                       find_runtime, model_dir, runtime_package)
 from .state import load_score, mark_setup_done, write_score
@@ -246,6 +247,10 @@ class Wizard:
         ready = best_present_model(catalog, hw.ram_mib)     # already on disk (e.g. bundled on the ISO)
         if ready:
             self.say(f"  A model is already here so you can start straight away: {ready['label']}.")
+            if is_starter(ready):
+                self.say("  Honest note: it is a very small starter model. It answers quickly and\n"
+                         "  reads well, but it can get facts and simple math wrong. Good for trying\n"
+                         "  things out; for real work, a bigger model below.")
             self.report["model"] = ready["id"]
         bench = benchmark_model(catalog)
         bench_path = find_benchmark_model()
@@ -264,6 +269,13 @@ class Wizard:
                 if ready:
                     self.say("  You can already chat: ai-2 chat. The measurement and the best-fitting model\n"
                              f"  come as soon as you are online; AI-2 will fetch {bench['label']} then.")
+                    bigger = [m for m in models_that_fit(hw.ram_mib, catalog)
+                              if m["params_b"] > ready["params_b"]]
+                    if bigger:
+                        self.say(f"  Going by its {hw.ram_nominal_gib} GB RAM, this computer can also run "
+                                 "(how fast, the measurement will tell):")
+                        for m in bigger[:3]:
+                            self.say(f"    - {m['label']} ({m['file_mb']} MB):  ai-2 model pull {m['id']}")
                 else:
                     self.say(f"  Everything else is set up. Later, online:  ai-2 wizard  (fetches {bench['label']})")
                 self.report["pending"].append("score")
