@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=AI-2 Chat (Terminal)
+Name[es]=AI-2 Chat (terminal)
+Name[de]=AI-2 Chat (Terminal)
+GenericName=Local AI assistant
+GenericName[es]=Asistente de IA local
+GenericName[de]=Lokaler KI-Assistent
+Comment=Chat in a terminal: fastest and lightest, recommended on low-end PCs
+Comment[es]=Chat en una terminal: lo más rápido y ligero, recomendado en PC modestos
+Comment[de]=Chat im Terminal: am schnellsten und leichtesten, empfohlen auf schwachen PCs
+Exec=ai-2 chat --terminal
+Icon=ai2
+Terminal=true
+Categories=Utility;Office;
+Keywords=AI;chat;assistant;LLM;terminal;

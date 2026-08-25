@@ -123,6 +123,11 @@ Computer unter 127.0.0.1 kommt; nichts verlässt die Maschine, es gibt
 nichts zu sichern. Zeigt die Seite beim ersten Mal einen Fehler, lade sie
 neu.
 
+Auf einer langsamen Maschine oder mit wenig RAM nimm besser "AI-2 Chat
+(Terminal)" im Menü (oder  ai-2 chat --terminal ). Es ist dieselbe KI ohne
+Browser drumherum, erscheint sofort und lässt dem Modell den ganzen
+Speicher.
+
 Dieselben Schritte von Hand, in einem Terminal (Anwendungen > Terminal):
 
   ai-2 detect          was AI-2 sieht: CPU (und welche Motor-Variante sie
@@ -138,6 +143,7 @@ Dieselben Schritte von Hand, in einem Terminal (Anwendungen > Terminal):
   ai-2 recommend       die lokalen Modelle, die zum Ergebnis passen
   ai-2 model pull      lädt das empfohlene Modell herunter
   ai-2 chat            startet die lokale KI und öffnet die Chat-Seite
+  ai-2 chat --terminal derselbe Chat in diesem Terminal, der leichteste Client
   ai-2 stop            hält die lokale KI an und gibt ihren Speicher frei
   ai-2 doctor          prüft, ob alles in Ordnung ist
   ai-2 report          schreibt eine Datei zum Anhängen an einen Fehlerbericht

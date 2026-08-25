@@ -538,6 +538,12 @@ def cmd_chat(args) -> int:
     if running_model and is_starter(running_model):
         print(f"Note: {running_model['label']} is a very small starter model; it can get facts "
               "and simple math wrong. Bigger models:  ai-2 model list")
+    if args.terminal or (not args.no_browser
+                         and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY")):
+        from .chatterm import repl
+        if not args.terminal:
+            print("No graphical display, so chatting right here (ai-2 chat --terminal does this anywhere).")
+        return repl(url)
     if not args.no_browser:
         try:
             subprocess.Popen(["xdg-open", url], stdin=subprocess.DEVNULL,
@@ -694,7 +700,9 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--insecure", action="store_true", help="allow a non-localhost --host without an API key")
     p_serve.set_defaults(func=cmd_serve)
 
-    p_chat = sub.add_parser("chat", help="start the local AI (if needed) and open the chat page in the browser")
+    p_chat = sub.add_parser("chat", help="start the local AI (if needed) and chat: browser page by default, --terminal for the lightest client")
+    p_chat.add_argument("--terminal", action="store_true",
+                        help="chat in this terminal instead of the browser (fastest, minimal memory, works over SSH)")
     p_chat.add_argument("--model", help="catalog id (default: the recommended model)")
     p_chat.add_argument("--port", type=int, default=8080)
     p_chat.add_argument("--idle-timeout", type=int, default=None,

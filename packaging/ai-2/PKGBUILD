@@ -46,6 +46,7 @@ package() {
   install -Dm755 branding/ai2-first-boot "$pkgdir/usr/bin/ai2-first-boot"
   install -Dm644 branding/desktop/ai2-setup.desktop "$pkgdir/etc/xdg/autostart/ai2-setup.desktop"
   install -Dm644 branding/desktop/ai2-chat.desktop "$pkgdir/usr/share/applications/ai2-chat.desktop"
+  install -Dm644 branding/desktop/ai2-chat-terminal.desktop "$pkgdir/usr/share/applications/ai2-chat-terminal.desktop"
   # passive update notification: daily session check + login-shell hint
   install -Dm644 branding/desktop/ai2-update-check.desktop "$pkgdir/etc/xdg/autostart/ai2-update-check.desktop"
   install -Dm644 packaging/ai-2/ai2-updates.profile.sh "$pkgdir/etc/profile.d/ai2-updates.sh"

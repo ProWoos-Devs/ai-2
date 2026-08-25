@@ -9,17 +9,17 @@ import re
 from ai2 import i18n
 from ai2.benchmark import STAR_LABELS, feel
 
-WIZARD = pathlib.Path("ai2/wizard.py")
+SOURCES = [pathlib.Path("ai2/wizard.py"), pathlib.Path("ai2/chatterm.py")]
 
 FEEL_STRINGS = [feel(t) for t in (1, 3, 8, 20)]
 
 
-def wizard_keys() -> set[str]:
-    """Every literal template wizard.py sends through tr(): direct tr(...)
-    calls, and head(n, title) titles (head applies tr itself), including
-    conditional-expression titles like ("Ready" if ... else "Almost ready")."""
+def _file_keys(path: pathlib.Path) -> set[str]:
+    """Every literal template a source file sends through tr(): direct
+    tr(...) calls, and head(n, title) titles (head applies tr itself),
+    including conditional titles like ("Ready" if ... else "Almost ready")."""
     keys = set()
-    tree = ast.parse(WIZARD.read_text())
+    tree = ast.parse(path.read_text())
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
@@ -38,12 +38,13 @@ def wizard_keys() -> set[str]:
 
 
 def required_keys() -> set[str]:
-    return wizard_keys() | set(STAR_LABELS.values()) | set(FEEL_STRINGS)
+    keys = set().union(*(_file_keys(p) for p in SOURCES))
+    return keys | set(STAR_LABELS.values()) | set(FEEL_STRINGS)
 
 
 def test_catalogs_cover_every_wizard_string():
     required = required_keys()
-    assert required, "found no tr() templates in wizard.py"
+    assert required, "found no tr() templates in the source files"
     for lang in i18n.LANGUAGES:
         catalog = i18n.load_catalog(lang)
         assert catalog, f"catalog {lang} missing or empty"

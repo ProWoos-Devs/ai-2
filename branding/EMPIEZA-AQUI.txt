@@ -115,6 +115,10 @@ direcciones dice "No seguro" porque la página la sirve tu propio ordenador
 en 127.0.0.1; nada sale de la máquina, no hay nada que proteger. Si la
 página muestra un error la primera vez, recárgala.
 
+En una máquina lenta o con poca RAM, usa mejor "AI-2 Chat (terminal)" en
+el menú (o  ai-2 chat --terminal ). Es la misma IA sin un navegador
+alrededor, aparece al instante y deja toda la memoria para el modelo.
+
 Los mismos pasos a mano, en una terminal (Aplicaciones > Terminal):
 
   ai-2 detect          lo que AI-2 ve: CPU (y qué variante del motor
@@ -128,6 +132,7 @@ Los mismos pasos a mano, en una terminal (Aplicaciones > Terminal):
   ai-2 recommend       los modelos locales que encajan con el resultado
   ai-2 model pull      descarga el modelo recomendado
   ai-2 chat            arranca la IA local y abre la página de chat
+  ai-2 chat --terminal el mismo chat en esta terminal, el cliente más ligero
   ai-2 stop            detiene la IA local y libera su memoria
   ai-2 doctor          comprueba que todo está en orden
   ai-2 report          escribe un archivo para adjuntar a un informe de error

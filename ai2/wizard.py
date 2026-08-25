@@ -350,10 +350,23 @@ class Wizard:
                 self.say(tr("    - the AI Score and the best-fitting model:  ai-2 wizard  (once online)"))
             if "model" in pending:
                 self.say(tr("    - the first model:  ai-2 model pull   then   ai-2 wizard"))
-        self.say(tr("  To talk to the AI:   ai-2 chat        (or the 'AI-2 Chat' entry in the menu)\n"
-                    "  For programs (API):  ai-2 serve       OpenAI-compatible, http://127.0.0.1:8080/\n"
-                    "  This setup again:    ai-2 wizard\n"
-                    "  The guide:           /usr/share/doc/ai2/START-HERE.txt"))
+        # On the low-end tiers (on-demand runtime = RAM is tight) the terminal
+        # chat is the recommendation: same AI, no browser eating memory next
+        # to the model.
+        tiers = load_tiers()
+        config = resolve_config(assign(hw, tiers), tiers)
+        if (config.get("runtime") or {}).get("service") == "on-demand":
+            self.say(tr("  To talk to the AI:   ai-2 chat --terminal   (recommended on this machine: fastest, lightest)\n"
+                        "  In the browser:      ai-2 chat              (or the 'AI-2 Chat' entry in the menu)\n"
+                        "  For programs (API):  ai-2 serve             OpenAI-compatible, http://127.0.0.1:8080/\n"
+                        "  This setup again:    ai-2 wizard\n"
+                        "  The guide:           /usr/share/doc/ai2/START-HERE.txt"))
+        else:
+            self.say(tr("  To talk to the AI:   ai-2 chat              (browser; or the 'AI-2 Chat' entry in the menu)\n"
+                        "  In the terminal:     ai-2 chat --terminal   (lightest, works over SSH)\n"
+                        "  For programs (API):  ai-2 serve             OpenAI-compatible, http://127.0.0.1:8080/\n"
+                        "  This setup again:    ai-2 wizard\n"
+                        "  The guide:           /usr/share/doc/ai2/START-HERE.txt"))
         # Updates: the system and the model catalog can move on; check now if online.
         if have_internet():
             self._check_updates()

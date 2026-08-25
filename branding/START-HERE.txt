@@ -108,6 +108,10 @@ bar says "Not Secure" because the page is served by your own computer at
 127.0.0.1; nothing leaves the machine, there is nothing to secure. If the
 page shows an error the first time, reload it.
 
+On a slow or low-RAM machine, prefer "AI-2 Chat (Terminal)" in the menu
+(or  ai-2 chat --terminal ). It is the same AI without a browser around
+it, so it appears instantly and leaves all the memory to the model.
+
 The same steps by hand, in a terminal (Applications > Terminal Emulator):
 
   ai-2 detect          what AI-2 sees: CPU (and which engine build it
@@ -121,6 +125,7 @@ The same steps by hand, in a terminal (Applications > Terminal Emulator):
   ai-2 recommend       the local models that fit this machine's score
   ai-2 model pull      download the recommended model
   ai-2 chat            start the local AI and open the chat page
+  ai-2 chat --terminal the same chat in this terminal, lightest client
   ai-2 stop            stop the local AI and free its memory
   ai-2 doctor          check that everything is in order
   ai-2 report          write a file to attach to a bug report
