@@ -10,7 +10,7 @@ windowExpanding:    normal
 windowSize: 1100px,700px
 windowPlacement: center
 
-sidebar: widget
+sidebar: qml
 navigation: widget
 
 strings:

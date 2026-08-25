@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -84 232 232" width="232" height="232" role="img" aria-label="AI-2">
-  <!-- Calamares sidebar logo, WIDE variant, v2 (2026-08-25): Calamares renders
-       productLogo into a SQUARE slot (the first wide-canvas version came out
-       horizontally squeezed on RMM-PC). The banner artwork therefore sits on a
-       square transparent canvas, centered vertically: the slot shows it at
-       full width with breathing room above and below, no distortion. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -6 212 76" width="212" height="76" role="img" aria-label="AI-2">
+  <!-- Calamares sidebar logo, WIDE variant, v3 (2026-08-25): the QML sidebar
+       (usr/share/calamares/qml/calamares-sidebar.qml) sizes this at 85% of
+       the column width with the aspect preserved, so the artwork is the bare
+       banner with a small margin. (v2's square canvas existed only for the
+       widget sidebar's hardcoded 80x80 slot.) -->
   <defs>
     <style>.mono{font-family:"DejaVu Sans Mono","JetBrains Mono","Menlo",monospace;}</style>
   </defs>
