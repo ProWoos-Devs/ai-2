@@ -1,7 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -20 232 104" width="232" height="104" role="img" aria-label="AI-2">
-  <!-- Calamares sidebar logo, WIDE variant (2026-08-25): the boxed banner
-       lockup with breathing room (Calamares stretches productLogo to the
-       sidebar width; margins keep it off the edges). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -84 232 232" width="232" height="232" role="img" aria-label="AI-2">
+  <!-- Calamares sidebar logo, WIDE variant, v2 (2026-08-25): Calamares renders
+       productLogo into a SQUARE slot (the first wide-canvas version came out
+       horizontally squeezed on RMM-PC). The banner artwork therefore sits on a
+       square transparent canvas, centered vertically: the slot shows it at
+       full width with breathing room above and below, no distortion. -->
   <defs>
     <style>.mono{font-family:"DejaVu Sans Mono","JetBrains Mono","Menlo",monospace;}</style>
   </defs>
