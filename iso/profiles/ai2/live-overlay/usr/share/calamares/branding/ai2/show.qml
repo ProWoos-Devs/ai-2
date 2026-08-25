@@ -47,6 +47,18 @@ Presentation
         Rectangle {
             anchors.fill: parent
             color: "#0B0F0D"
+            // wordmark in the otherwise empty top band (2026-08-25)
+            Text {
+                anchors.top: parent.top
+                anchors.topMargin: 36
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: '> AI-2 █'
+                font.family: "monospace"
+                font.pixelSize: 26
+                font.bold: true
+                color: "#35D07F"
+                opacity: 0.9
+            }
             Column {
                 anchors.centerIn: parent
                 spacing: 18
@@ -74,6 +86,18 @@ Presentation
         Rectangle {
             anchors.fill: parent
             color: "#0B0F0D"
+            // wordmark in the otherwise empty top band (2026-08-25)
+            Text {
+                anchors.top: parent.top
+                anchors.topMargin: 36
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: '> AI-2 █'
+                font.family: "monospace"
+                font.pixelSize: 26
+                font.bold: true
+                color: "#35D07F"
+                opacity: 0.9
+            }
             Column {
                 anchors.centerIn: parent
                 spacing: 18
@@ -109,6 +133,65 @@ Presentation
         Rectangle {
             anchors.fill: parent
             color: "#0B0F0D"
+            // wordmark in the otherwise empty top band (2026-08-25)
+            Text {
+                anchors.top: parent.top
+                anchors.topMargin: 36
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: '> AI-2 █'
+                font.family: "monospace"
+                font.pixelSize: 26
+                font.bold: true
+                color: "#35D07F"
+                opacity: 0.9
+            }
+            Column {
+                anchors.centerIn: parent
+                spacing: 18
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: 'chat right away, offline'
+                    font.family: "monospace"
+                    font.pixelSize: 32
+                    font.bold: true
+                    color: "#35D07F"
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    text: 'AI-2 ships with a small starter model on board, so the chat\nworks right after install, even with no internet. Being small,\nit reads well but can get facts and simple math wrong.'
+                    font.family: "monospace"
+                    font.pixelSize: 18
+                    color: "#B8F5D0"
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    text: 'Once online, the setup wizard measures this machine\nand offers bigger models that fit your hardware.'
+                    font.family: "monospace"
+                    font.pixelSize: 14
+                    color: "#FFB454"
+                }
+            }
+        }
+    }
+
+    Slide {
+        Rectangle {
+            anchors.fill: parent
+            color: "#0B0F0D"
+            // wordmark in the otherwise empty top band (2026-08-25)
+            Text {
+                anchors.top: parent.top
+                anchors.topMargin: 36
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: '> AI-2 █'
+                font.family: "monospace"
+                font.pixelSize: 26
+                font.bold: true
+                color: "#35D07F"
+                opacity: 0.9
+            }
             Column {
                 anchors.centerIn: parent
                 spacing: 18
@@ -136,6 +219,18 @@ Presentation
         Rectangle {
             anchors.fill: parent
             color: "#0B0F0D"
+            // wordmark in the otherwise empty top band (2026-08-25)
+            Text {
+                anchors.top: parent.top
+                anchors.topMargin: 36
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: '> AI-2 █'
+                font.family: "monospace"
+                font.pixelSize: 26
+                font.bold: true
+                color: "#35D07F"
+                opacity: 0.9
+            }
             Column {
                 anchors.centerIn: parent
                 spacing: 18
@@ -171,6 +266,18 @@ Presentation
         Rectangle {
             anchors.fill: parent
             color: "#0B0F0D"
+            // wordmark in the otherwise empty top band (2026-08-25)
+            Text {
+                anchors.top: parent.top
+                anchors.topMargin: 36
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: '> AI-2 █'
+                font.family: "monospace"
+                font.pixelSize: 26
+                font.bold: true
+                color: "#35D07F"
+                opacity: 0.9
+            }
             Column {
                 anchors.centerIn: parent
                 spacing: 18
@@ -206,6 +313,18 @@ Presentation
         Rectangle {
             anchors.fill: parent
             color: "#0B0F0D"
+            // wordmark in the otherwise empty top band (2026-08-25)
+            Text {
+                anchors.top: parent.top
+                anchors.topMargin: 36
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: '> AI-2 █'
+                font.family: "monospace"
+                font.pixelSize: 26
+                font.bold: true
+                color: "#35D07F"
+                opacity: 0.9
+            }
             Column {
                 anchors.centerIn: parent
                 spacing: 18

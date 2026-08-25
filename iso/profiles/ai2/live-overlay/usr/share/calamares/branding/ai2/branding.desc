@@ -28,7 +28,7 @@ strings:
 
 images:
     productBanner:       "ai2-banner.png"
-    productLogo:         "ai2-logo-sidebar.svg"
+    productLogo:         "ai2-logo-sidebar-wide.svg"
     productWelcome:      "ai2-banner.png"
     productIcon:         "ai2-icon.svg"
 
