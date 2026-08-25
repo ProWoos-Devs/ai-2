@@ -5,4 +5,10 @@
 # Artix's calamares-config-switcher does after its dialog; the live polkit
 # rules make both pkexec calls silent.
 pkexec ln -snf /etc/calamares-offline /etc/calamares
+# The live boot activates any swap partition it finds on the internal disk;
+# Calamares then refuses to offer "Erase disk" for that disk (in-use
+# partition). Found 2026-08-25 on a machine whose previous Linux left a swap
+# partition. Release all swap before installing; the live session does not
+# rely on it.
+pkexec swapoff --all
 exec pkexec calamares "$@"
