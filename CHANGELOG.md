@@ -4,6 +4,17 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-08-25
+### Added
+- `ai-2 update-check`: passive update notification. A daily desktop-session check (XDG autostart, 3 min after login) raises a notify-send bubble when pacman updates are pending, and `/etc/profile.d/ai2-updates.sh` prints a one-line hint in login shells, both fed by one cached `checkupdates` result. Nothing is ever installed automatically. New deps pacman-contrib and fakeroot (checkupdates errors without fakeroot on Artix).
+- Bare `ai-2`, `ai-2 model` and `ai-2 runtime` print the available commands instead of an argparse error.
+- Per-model sampling in the catalog: both Gemma entries carry the model card's recommended values (temp 1.0, top_k 64, top_p 0.95, min_p 0.0), passed to llama-server and inherited by the chat page via /props. Makes the small bundled model noticeably less rambling.
+- The wizard names the bundled starter model's limits plainly (fluent, but facts and simple math can be wrong) and, when offline, lists up to three bigger RAM-fitting models with their `ai-2 model pull` commands. `ai-2 chat` prints a one-line starter note whenever a sub-1B model is serving.
+
+### Fixed
+- `ai-2 stop` really stops llama-server. The stop signal killed only the wrapper process and orphaned the engine with all its RAM; the shutdown now routes through the normal cleanup and escalates to SIGKILL after 30 s.
+- `ai-2 benchmark` refuses to measure a substitute model. On offline installs it happily benchmarked the bundled Gemma 270M, inflating the AI Score and stars (46 and 3 stars where the fixed model gives 30 and 2); it now runs only the fixed benchmark model and explains the one-time pull, and an explicit AI2_TEST_MODEL result is stored marked non-comparable.
+
 ## ISO 20260824 (2026-08-24), tag `iso-20260824`
 Ships `ai-2` 0.5.1 and, for the first time, a bundled model (Gemma 3 270M, `/var/lib/ai2/models/`) so a fresh install chats with no network. 1,955,495,936 bytes (smaller than 20260823 despite the model, because the qcom/marvell firmware trim saved more than the model added). Verified by complete QEMU installs on BIOS and UEFI, the installed system carrying only the CPU's own engine build (the other two pruned), no qcom/marvell firmware, and `ai-2 chat` serving the bundled Gemma before any benchmark. Released on GitHub with the fixed-name assets.
 
