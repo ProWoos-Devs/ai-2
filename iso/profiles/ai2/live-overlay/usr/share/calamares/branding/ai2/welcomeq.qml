@@ -93,7 +93,9 @@ Page
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTr("Read the guide (START HERE)")
                 icon.name: "help-contents"
-                onClicked: Qt.openUrlExternally("file:///usr/share/doc/ai2/START-HERE.txt")
+                // The path is translatable on purpose: each language catalog points
+                // at its own guide file (EMPIEZA-AQUI.txt, START-HIER.txt).
+                onClicked: Qt.openUrlExternally(qsTr("file:///usr/share/doc/ai2/START-HERE.txt"))
             }
 
         }
