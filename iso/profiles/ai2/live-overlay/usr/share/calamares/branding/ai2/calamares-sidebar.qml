@@ -3,7 +3,9 @@
    Why QML: the widget sidebar hardcodes the logo to 80x80 px
    (CalamaresWindow.cpp logoLabel->setFixedSize(80,80)), which squeezed or
    shrank the wide AI-2 banner; here the logo takes 85% of the column width
-   at its own aspect ratio. Colors all come from branding.desc. */
+   at its own aspect ratio. Colors all come from branding.desc.
+   MUST live in the branding component dir: searchQmlFile("calamares-sidebar")
+   checks the branding dir and the QRC only, never /usr/share/calamares/qml. */
 import io.calamares.ui 1.0
 import io.calamares.core 1.0
 
@@ -19,17 +21,24 @@ Rectangle {
         anchors.fill: parent;
         spacing: 0;
 
-        Image {
-            id: logo;
+        Item {
+            // logo band: the wide AI-2 banner at 85% of the column width.
+            // The 212/76 aspect is the SVG's own viewBox; hardcoded because
+            // implicitWidth of an SVG is unreliable at layout time.
+            Layout.fillWidth: true;
             Layout.topMargin: 18;
             Layout.bottomMargin: 18;
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop;
-            Layout.preferredWidth: sideBar.width * 0.85;
-            Layout.preferredHeight: Layout.preferredWidth * implicitHeight / Math.max( 1, implicitWidth );
-            fillMode: Image.PreserveAspectFit;
-            source: "file:/" + Branding.imagePath( Branding.ProductLogo );
-            sourceSize.width: width;
-            sourceSize.height: height;
+            Layout.preferredHeight: logo.height;
+            Image {
+                id: logo;
+                anchors.horizontalCenter: parent.horizontalCenter;
+                width: parent.width * 0.85;
+                height: width * 76 / 212;
+                fillMode: Image.PreserveAspectFit;
+                source: "file:/" + Branding.imagePath( Branding.ProductLogo );
+                sourceSize.width: 640;
+                sourceSize.height: 230;
+            }
         }
 
         Repeater {
