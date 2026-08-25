@@ -4,6 +4,9 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## ISO 20260825 (2026-08-25), tag `iso-20260825`
+Ships `ai-2` 0.5.2 (update notification, real stop, fixed-model-only benchmark, starter-model honesty, Gemma sampling, bare-command help) and the reworked installer slideshow: a new "chat right away, offline" slide naming the bundled starter model's limits, the `> AI-2` wordmark in the top band of every text slide, and the wide boxed-banner logo in the installer sidebar (swapped from the square tile). 1,955,446,784 bytes. Verified by a complete QEMU BIOS install: wide sidebar logo and all 8 slides rendered in real Calamares during the install, installed system boots to the branded GRUB and greeter, carries 0.5.2 with pacman-contrib+fakeroot, both update-notification surfaces, only the CPU's own engine build, and the bundled Gemma; bare `ai-2` lists commands and `benchmark` refuses without the fixed model.
+
 ## [0.5.2] - 2026-08-25
 ### Added
 - `ai-2 update-check`: passive update notification. A daily desktop-session check (XDG autostart, 3 min after login) raises a notify-send bubble when pacman updates are pending, and `/etc/profile.d/ai2-updates.sh` prints a one-line hint in login shells, both fed by one cached `checkupdates` result. Nothing is ever installed automatically. New deps pacman-contrib and fakeroot (checkupdates errors without fakeroot on Artix).
