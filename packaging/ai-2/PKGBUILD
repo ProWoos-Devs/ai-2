@@ -51,6 +51,8 @@ package() {
   install -Dm644 packaging/ai-2/ai2-updates.profile.sh "$pkgdir/etc/profile.d/ai2-updates.sh"
   install -Dm644 branding/ai2-icon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/ai2.svg"
   install -Dm644 branding/START-HERE.txt "$pkgdir/usr/share/doc/ai2/START-HERE.txt"
+  install -Dm644 branding/EMPIEZA-AQUI.txt "$pkgdir/usr/share/doc/ai2/EMPIEZA-AQUI.txt"
+  install -Dm644 branding/START-HIER.txt "$pkgdir/usr/share/doc/ai2/START-HIER.txt"
   # mousepad (the only text editor) wraps long lines; pacman compiles schemas
   install -Dm644 branding/90_ai2.gschema.override "$pkgdir/usr/share/glib-2.0/schemas/90_ai2.gschema.override"
 

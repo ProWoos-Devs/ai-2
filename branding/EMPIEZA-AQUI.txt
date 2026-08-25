@@ -1,0 +1,191 @@
+> AI-2 █
+EMPIEZA AQUÍ
+============
+
+Dale a tu ordenador un cerebro de IA.
+
+(La sesión en vivo y sus iconos están en inglés. El sistema instalado
+estará en tu idioma si lo eliges en la primera pantalla del instalador.)
+
+
+QUÉ ES AI-2
+
+AI-2 es un sistema Linux para ordenadores normales y antiguos que les da
+un asistente de IA local: un modelo de lenguaje que se ejecuta en la propia
+máquina, en la CPU, sin cuenta, sin suscripción y sin que ningún dato salga
+del ordenador.
+
+AI-2 no rechaza un ordenador por viejo o lento. Por encima de un mínimo
+pequeño (CPU de 64 bits, 2 GB de RAM, unos 6 GB de disco) examina el
+hardware, le asigna un nivel de capacidad, ajusta el sistema a ese nivel,
+mide lo que la máquina puede hacer de verdad y recomienda modelos que
+encajan de verdad. Local siempre que sea posible, remoto (un modelo en
+línea) solo si tú lo eliges expresamente.
+
+AI-2 se basa en Artix Linux (a su vez basado en Arch Linux), con el sistema
+de inicio runit y el escritorio XFCE. Ser Artix significa "rolling release":
+actualizas, nunca reinstalas para una versión nueva.
+
+
+REQUISITOS
+
+- Un PC de 64 bits (x86_64). Las CPU muy antiguas valen: AI-2 incluye tres
+  compilaciones del motor de IA (llama.cpp) y elige la que tu CPU puede
+  ejecutar, incluidas CPU sin AVX ni SSE4.1. La máquina más antigua en la
+  que AI-2 se ha validado es un portátil de 2011 con un AMD A4-3305M y
+  4 GB de RAM.
+- RAM: 2 GB como mínimo (nivel Tiny, solo los modelos más pequeños), 4 GB
+  es el nivel Light, con 8 GB o más se abren modelos mayores.
+- Disco: unos 6 GB para el sistema, más espacio para los modelos (el más
+  pequeño ocupa unos 0,4 GB, el mayor del catálogo unos 5 GB).
+- Arranque desde esta memoria USB o DVD, en un equipo BIOS o UEFI. Si el
+  ordenador se niega a arrancar la memoria y menciona Secure Boot, desactiva
+  Secure Boot en la configuración del firmware (la tecla que aparece al
+  encender, normalmente F2, Supr, F10 o Esc). AI-2 es solo de 64 bits; el
+  menú de arranque lo avisa si la máquina no lo es.
+- No hace falta internet para instalar. Hace falta después, para descargar
+  modelos y actualizaciones.
+
+
+ESTA SESIÓN EN VIVO
+
+Estás ejecutando AI-2 desde la memoria USB. Nada en tus discos ha cambiado.
+Pruébalo, mira lo que hay, y si te gusta, instálalo. El usuario de la sesión
+es "ai-2" (contraseña "ai-2") y puede usar sudo.
+
+Si el escritorio nunca apareció o la pantalla se quedó en negro, reinicia y
+elige "Start AI-2 (safe graphics, if the screen stays black)" en el menú de
+arranque.
+
+AYUDA REMOTA: si alguien de confianza (familia, un amigo, un técnico) te
+está ayudando con este ordenador, haz doble clic en "Remote help (SSH)" en
+este escritorio. Muestra el comando exacto y la contraseña que ESA persona
+escribe en SU ordenador, y desde ahí puede trabajar en esta sesión en vivo.
+Solo pueden conectarse equipos de tu propia red, y termina al apagar este
+ordenador. En un sistema AI-2 instalado el acceso remoto está desactivado;
+para permitirlo allí, ejecuta:  sudo ln -s /etc/runit/sv/sshd /run/runit/service/
+
+
+INSTALAR AI-2 EN ESTE ORDENADOR
+
+1. Antes de nada, haz copia de seguridad de lo que te importe. Instalar
+   puede borrar un disco.
+2. Haz doble clic en "Install AI-2" en el escritorio. El instalador arranca
+   directamente, sin preguntas sobre configuraciones.
+3. Ubicación: elige tu región y ciudad (fija el reloj y el idioma).
+4. Teclado: elige tu disposición y pruébala en la caja de texto.
+5. Particiones: elige cómo usar el disco.
+     "Borrar disco"      usa el disco entero para AI-2 (se pierde todo lo
+                         que haya en él).
+     "Instalar junto a"  conserva un sistema existente (por ejemplo Windows)
+                         y te deja encogerlo para hacer sitio; tendrás un
+                         menú de arranque.
+     "Manual"            para quien conoce sus particiones.
+   Cómo reconocer tus particiones en esa página: la barra muestra cada
+   partición del disco elegido con un nombre, un tamaño y un tipo de sistema
+   de archivos. Windows vive en particiones NTFS ("Windows 7", "Windows 10"
+   o simplemente "sda2" cuando Windows no le puso nombre); un Linux ya
+   instalado aparece con su propio nombre ("Artix Linux", "AI-2"); "ext4"
+   es un sistema de archivos de Linux. En caso de duda, el tamaño las
+   distingue. AI-2 etiqueta su propia partición como "AI-2" al instalarse.
+6. Usuarios: tu nombre, un nombre de usuario, una contraseña (también para
+   tareas de administración).
+7. Resumen: léelo, es el último momento para volver atrás.
+8. Instalar: unos minutos en una máquina moderna, más en una antigua.
+9. Terminar: marca "Reiniciar ahora" y retira la memoria cuando lo pida.
+
+El sistema instalado arranca en la pantalla de inicio de sesión de AI-2.
+Entra con el usuario que creaste.
+
+
+PRIMEROS PASOS DESPUÉS DE INSTALAR
+
+En tu primer inicio de sesión se abre sola una ventana llamada "AI-2 setup"
+que te guía: examina el ordenador, ajusta el sistema (pide tu contraseña una
+vez), mide lo que la máquina puede hacer de verdad (el AI Score, de 0 a 100),
+recomienda un modelo que encaja y ofrece descargarlo. Unos minutos, tres
+preguntas. Si la cierras, vuelve a ejecutarla cuando quieras con:
+
+  ai-2 wizard
+
+Después, habla con la IA: Aplicaciones > AI-2 Chat (o  ai-2 chat  en una
+terminal). Arranca la IA local y abre la página de chat en el navegador;
+la IA se detiene sola cuando llevas un rato sin usarla. La barra de
+direcciones dice "No seguro" porque la página la sirve tu propio ordenador
+en 127.0.0.1; nada sale de la máquina, no hay nada que proteger. Si la
+página muestra un error la primera vez, recárgala.
+
+Los mismos pasos a mano, en una terminal (Aplicaciones > Terminal):
+
+  ai-2 detect          lo que AI-2 ve: CPU (y qué variante del motor
+                       necesita), RAM, GPU, disco, sistema de inicio
+  ai-2 tier            el nivel de capacidad asignado a esta máquina, y por qué
+  sudo ai-2 init --apply
+                       ajusta el sistema al nivel (swap comprimido en RAM,
+                       protección contra falta de memoria, sin suspensión
+                       por inactividad, y el motor para esta CPU)
+  ai-2 benchmark       mide la velocidad real de inferencia y calcula el AI Score
+  ai-2 recommend       los modelos locales que encajan con el resultado
+  ai-2 model pull      descarga el modelo recomendado
+  ai-2 chat            arranca la IA local y abre la página de chat
+  ai-2 stop            detiene la IA local y libera su memoria
+  ai-2 doctor          comprueba que todo está en orden
+  ai-2 report          escribe un archivo para adjuntar a un informe de error
+  ai-2 serve           la misma IA como servicio para programas (API estilo
+                       OpenAI en http://127.0.0.1:8080/), se detiene al
+                       quedar inactiva
+
+Todos los comandos tienen --help.
+
+
+INCLUIDO, Y ACTUALIZACIONES
+
+Un modelo pequeño (Gemma 3 270M) viene en el disco, así que puedes chatear
+en cuanto termina la instalación, incluso sin internet. Es rápido y ligero;
+no es el modelo más listo. Cuando estés en línea, AI-2 mide tu máquina,
+puede traer un modelo que le encaje mejor y te avisa si hay actualizaciones
+pendientes.
+
+AI-2, el motor de IA y la lista de modelos disponibles se actualizan de la
+forma normal:
+
+  sudo pacman -Syu
+
+La configuración del primer inicio de sesión explica todo esto y lo hace
+por ti. Ejecútala de nuevo cuando quieras con  ai-2 wizard .
+
+
+LIGERO POR DISEÑO
+
+AI-2 incluye solo lo que necesita: el escritorio, un navegador, un editor
+de texto y el motor de IA. Sin suite de oficina, sin reproductores, sin
+sistema de impresión, sin cabeceras del kernel. Así la descarga es pequeña
+y el sistema va ligero en máquinas antiguas. Lo que eches de menos está a
+un comando de distancia, por ejemplo:
+
+  sudo pacman -S atril          visor de PDF
+  sudo pacman -S cups           impresión
+  sudo pacman -S vlc            reproductor multimedia
+  sudo pacman -S libreoffice-still
+
+
+ACTUALIZAR
+
+Los paquetes de AI-2 vienen de un repositorio firmado que ya está
+configurado. Actualiza todo el sistema con:
+
+  sudo pacman -Syu
+
+
+MÁS AYUDA
+
+- Documentación de Artix: https://wiki.artixlinux.org
+- Menú de arranque: pulsa h para la ayuda de arranque.
+- Registro de la sesión en vivo: /var/log/artix-live.log
+
+
+LICENCIA
+
+AI-2 es software libre, licencia MIT. Los componentes de Artix Linux
+conservan sus propias licencias. El motor de IA (llama.cpp) es MIT. Los
+modelos conservan la licencia de sus autores.

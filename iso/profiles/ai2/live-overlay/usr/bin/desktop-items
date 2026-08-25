@@ -45,7 +45,10 @@ if [ -f "${BINDIR}"/ai2-install ]; then
     chmod +x "$xdg/$launcher"
 fi
 
-# AI-2 guide for beginners (installed system keeps it in /usr/share/doc/ai2)
+# AI-2 guide for beginners (installed system keeps it in /usr/share/doc/ai2),
+# translations first so the English guide ends on top (reverse-creation order).
+cp /usr/share/doc/ai2/START-HIER.txt "$xdg"/START-HIER.txt
+cp /usr/share/doc/ai2/EMPIEZA-AQUI.txt "$xdg"/EMPIEZA-AQUI.txt
 cp /usr/share/doc/ai2/START-HERE.txt "$xdg"/START-HERE.txt
 
 # AI-2: mousepad (the only text editor) reads GSettings; wrap long lines and
