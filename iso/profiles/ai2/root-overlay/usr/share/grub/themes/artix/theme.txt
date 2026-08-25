@@ -2,30 +2,30 @@
 desktop-image: "background.png"
 desktop-color: "#0B0F0D"
 title-text: ""
-message-font: "DejaVu Sans Mono Regular 20"
+message-font: "DejaVu Sans Mono Regular 14"
 message-color: "#B8F5D0"
 message-bg-color: "#0B0F0D"
-terminal-font: "DejaVu Sans Mono Regular 16"
+terminal-font: "DejaVu Sans Mono Regular 12"
 terminal-box: "menu_*.png"
 
 + boot_menu {
-    left = 15%
+    left = 12%
     top = 28%
-    width = 75%
+    width = 78%
     height = 50%
-    item_font = "DejaVu Sans Mono Regular 20"
+    item_font = "DejaVu Sans Mono Regular 14"
     item_color = "#E8FFF1"
-    selected_item_font = "DejaVu Sans Mono Regular 20"
+    selected_item_font = "DejaVu Sans Mono Regular 14"
     selected_item_color = "#0B0F0D"
     selected_item_pixmap_style = "highlight_*.png"
-    icon_height = 28
-    icon_width = 28
-    item_height = 40
+    icon_height = 20
+    icon_width = 20
+    item_height = 28
     item_padding = 4
-    item_icon_space = 32
+    item_icon_space = 24
     item_spacing = 0
     scrollbar = true
-    scrollbar_width = 32
+    scrollbar_width = 24
     scrollbar_thumb = "slider_*.png"
     menu_pixmap_style = "menu_*.png"
 }
@@ -36,7 +36,7 @@ terminal-box: "menu_*.png"
     top = 80%
     width = 100%
     align = "center"
-    font = "DejaVu Sans Mono Regular 20"
+    font = "DejaVu Sans Mono Regular 14"
     color = "#B8F5D0"
     text = "AI-2 starts in %d seconds. Press any key to stop the countdown."
 }
@@ -46,7 +46,7 @@ terminal-box: "menu_*.png"
     top = 86%
     width = 100%
     align = "center"
-    font = "DejaVu Sans Mono Regular 16"
+    font = "DejaVu Sans Mono Regular 12"
     color = "#6B7A72"
     text = "Up/Down: choose    Enter: start    e: edit    c: command line    h: help"
 }

@@ -24,7 +24,7 @@ rsvg-convert -w 1024 -h 768 "$HERE/background.svg" -o "$OUT/background.png"
 magick "$OUT/background.png" -define png:color-type=2 -define png:bit-depth=8 -interlace none "$OUT/background.png"
 
 # selected-item bar: solid phosphor green, rounded ends, item_height tall
-H=40; tmp=$(mktemp -d)
+H=28; tmp=$(mktemp -d)
 magick -size 48x$H xc:none -fill '#35D07F' -draw "roundrectangle 0,0 47,$((H-1)) 6,6" "$tmp/hl.png"
 magick "$tmp/hl.png" -crop 16x${H}+0+0  +repage "${PNG_RGBA[@]}" "$OUT/highlight_w.png"
 magick "$tmp/hl.png" -crop 1x${H}+24+0  +repage "${PNG_RGBA[@]}" "$OUT/highlight_c.png"
@@ -39,14 +39,14 @@ for spec in "nw 0 0 12 12" "n 12 0 1 12" "ne 36 0 12 12" "w 0 12 12 1" "c 12 12 
 done
 
 # scrollbar thumb: muted 12 px bar centered in the 32 px column
-magick -size 32x40 xc:none -fill '#6B7A72' -draw "roundrectangle 10,0 21,39 6,6" "$tmp/sl.png"
-magick "$tmp/sl.png" -crop 32x16+0+0  +repage "${PNG_RGBA[@]}" "$OUT/slider_n.png"
-magick "$tmp/sl.png" -crop 32x1+0+20  +repage "${PNG_RGBA[@]}" "$OUT/slider_c.png"
-magick "$tmp/sl.png" -crop 32x16+0+24 +repage "${PNG_RGBA[@]}" "$OUT/slider_s.png"
+magick -size 24x40 xc:none -fill '#6B7A72' -draw "roundrectangle 7,0 16,39 5,5" "$tmp/sl.png"
+magick "$tmp/sl.png" -crop 24x16+0+0  +repage "${PNG_RGBA[@]}" "$OUT/slider_n.png"
+magick "$tmp/sl.png" -crop 24x1+0+20  +repage "${PNG_RGBA[@]}" "$OUT/slider_c.png"
+magick "$tmp/sl.png" -crop 24x16+0+24 +repage "${PNG_RGBA[@]}" "$OUT/slider_s.png"
 
 # fonts (GRUB pf2). unifont.pf2 from Artix stays in the dir as CJK fallback.
-grub-mkfont -s 20 -o "$OUT/dejavu-sans-mono-20.pf2" "$FONT"
-grub-mkfont -s 16 -o "$OUT/dejavu-sans-mono-16.pf2" "$FONT"
+grub-mkfont -s 14 -o "$OUT/dejavu-sans-mono-14.pf2" "$FONT"
+grub-mkfont -s 12 -o "$OUT/dejavu-sans-mono-12.pf2" "$FONT"
 
 # entry icons: the AI-2 tile for the kernel entries (live: class artix.x86_64;
 # installed: class from GRUB_DISTRIBUTOR, "artix" or "ai_2")
