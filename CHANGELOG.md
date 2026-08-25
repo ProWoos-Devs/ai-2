@@ -4,6 +4,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 ### Added
+- `ai-2 profile`: one view of everything AI-2 knows about the machine (hardware, assigned vs configured tier, AI Score, capability stars), with `--json` for scripts and a future control center. Backed by `machine_profile()` in the new `ai2/profile.py`, which assembles the pieces read-only; where each piece is stored does not change.
 - Schema tests for every declarative YAML file (tier definitions, the model catalog, workflow profiles): each file's shape, types and vocabularies are now validated in CI, including the profile rules translation.yml had promised ("narrow, never exceed" on capabilities and context size, and no contradicting data duplicated from the catalog). The first run caught stale qwen3-1.7b sizes in translation.yml, now fixed by referencing the catalog by id.
 
 ## ISO 20260825 (2026-08-25), tag `iso-20260825`

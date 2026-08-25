@@ -72,6 +72,40 @@ def cmd_tier(args) -> int:
     return 0
 
 
+def cmd_profile(args) -> int:
+    """One view of everything AI-2 knows about this machine."""
+    from .profile import machine_profile
+    prof = machine_profile()
+    if args.json:
+        print(json.dumps(prof, indent=2))
+        return 0
+    hwd = prof["hardware"]
+    print(branding.compact())
+    print()
+    print(f"ai-2     {prof['ai2_version']}")
+    print(f"CPU      {hwd['cpu_model']} ({hwd['cpu_variant']} build, {hwd['logical_cores']} cores)")
+    print(f"RAM      {hwd['ram_nominal_gib']} GB")
+    tier = prof["tier"]
+    line = tier["assigned"]
+    if tier["configured"] is None:
+        line += " (not configured yet; run: sudo ai-2 init --apply)"
+    elif tier["configured"] != tier["assigned"]:
+        line += f" (configured as {tier['configured']})"
+    print(f"Tier     {line}")
+    bench = prof["benchmark"]
+    if not bench:
+        print("AI Score not measured yet; run: ai-2 benchmark")
+        return 0
+    feel = f" ({bench['feel']})" if bench.get("feel") else ""
+    print(f"AI Score {bench.get('ai_score')}/100, {bench.get('tg_tps')} tok/s{feel}")
+    caps = prof["capabilities"] or {}
+    for key, label in STAR_LABELS.items():
+        if key in caps:
+            n = caps[key]
+            print(f"  {'★' * n}{'☆' * (5 - n)}  {label}")
+    return 0
+
+
 def cmd_init(args) -> int:
     hw = detect()
     tiers = load_tiers()
@@ -608,6 +642,10 @@ def main(argv: list[str] | None = None) -> int:
 
     p_tier = sub.add_parser("tier", help="show the assigned capability tier")
     p_tier.set_defaults(func=cmd_tier)
+
+    p_prof = sub.add_parser("profile", help="everything AI-2 knows about this machine, in one view")
+    p_prof.add_argument("--json", action="store_true")
+    p_prof.set_defaults(func=cmd_profile)
 
     p_init = sub.add_parser("init", help="plan (default) or apply system tuning for the tier")
     p_init.add_argument("--apply", action="store_true", help="execute the plan (root)")

@@ -52,6 +52,7 @@ sudo ai-2 init --apply                   # or just: ai-2 wizard
 ```
 ai-2 detect          # what AI-2 sees: CPU (and which llama.cpp build it needs), RAM, GPU, disk, init
 ai-2 tier            # the assigned capability tier and why
+ai-2 profile         # everything AI-2 knows about this machine in one view (--json for scripts)
 ai-2 init            # dry run, print the tuning plan for this machine
 ai-2 init --apply    # apply it (root): zram, earlyoom, sysctl, no idle suspend
 ai-2 init --revert   # undo it (root): restore original files, keep packages during inference
