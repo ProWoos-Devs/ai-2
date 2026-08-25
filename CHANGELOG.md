@@ -3,6 +3,8 @@
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Added
+- Schema tests for every declarative YAML file (tier definitions, the model catalog, workflow profiles): each file's shape, types and vocabularies are now validated in CI, including the profile rules translation.yml had promised ("narrow, never exceed" on capabilities and context size, and no contradicting data duplicated from the catalog). The first run caught stale qwen3-1.7b sizes in translation.yml, now fixed by referencing the catalog by id.
 
 ## ISO 20260825 (2026-08-25), tag `iso-20260825`
 Ships `ai-2` 0.5.2 (update notification, real stop, fixed-model-only benchmark, starter-model honesty, Gemma sampling, bare-command help) plus a day of real-hardware fixes from installing on a 2016 Acer ES1-522:

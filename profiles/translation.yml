@@ -15,5 +15,6 @@ tiers:
     packages: [argos-translate, tesseract]
     models:
       - {id: argos-en-es, file_mb: 120}
-      - {id: qwen3-1.7b, quant: Q4_K_M, file_mb: 1280, ram_peak_mb: 2100}
+      # Catalog model: the id is the reference, sizes/quant live in models.yml.
+      - {id: qwen3-1.7b}
     llama_server: {ctx: 2048}
