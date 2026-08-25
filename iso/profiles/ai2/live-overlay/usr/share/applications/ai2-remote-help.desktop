@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Remote help (SSH)
+Comment=Let someone on your network connect to this live session to help you
+Exec=xfce4-terminal --title='AI-2 remote help' --geometry=64x16 -x /usr/bin/ai2-remote-help
+Icon=ai2
+Terminal=false

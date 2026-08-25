@@ -31,6 +31,13 @@ src="${DATADIR}"/applications
 # installer launcher and then the START-HERE guide are copied LAST: the
 # desktop reads Home, File System, START-HERE, Install AI-2.
 # Use cp instead of symlinks because ugly arrows or no proper icons
+# AI-2 remote help: copied FIRST so it lands BELOW the guide and installer
+# in xfdesktop's reverse-creation ordering.
+if [ -f "${BINDIR}"/ai2-remote-help ]; then
+    cp "$src/ai2-remote-help.desktop" "$xdg/ai2-remote-help.desktop"
+    chmod +x "$xdg/ai2-remote-help.desktop"
+fi
+
 if [ -f "${BINDIR}"/ai2-install ]; then
     launcher='calamares-config-switcher.desktop'
     cp "$src/$launcher" "$xdg/$launcher"

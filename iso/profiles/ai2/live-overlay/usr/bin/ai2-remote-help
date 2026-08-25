@@ -1,0 +1,26 @@
+#!/bin/sh
+# AI-2 live session: one-click remote help. Starts the SSH service so a
+# helper on the SAME network can log in, and shows what to tell them.
+# Live only: the installed system does not ship this (SSH stays off by
+# default there; enabling it is a one-line command in START-HERE).
+[ -e /run/runit/service/sshd ] || sudo ln -sf /etc/runit/sv/sshd /run/runit/service/
+sleep 2
+ips=$(ip -4 -o addr show up scope global 2>/dev/null | awk '{split($4,a,"/"); print a[1]}')
+echo
+echo "  Remote help is ON (until you shut this computer down)."
+echo
+if [ -n "$ips" ]; then
+    echo "  Tell your helper to run, from another computer on this network:"
+    for ip in $ips; do
+        echo
+        echo "      ssh ai-2@$ip        password: ai-2"
+    done
+else
+    echo "  No network yet. Connect to your network first (the icon by the"
+    echo "  clock), then double-click Remote help again to see the address."
+fi
+echo
+echo "  Only computers on your own network can connect."
+echo
+printf "  Press Enter to close this window. "
+read -r _
