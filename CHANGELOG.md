@@ -2,7 +2,7 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.6.0] - 2026-08-26
 ### Added
 - `ai-2 chat --terminal`: chat with the same local AI in the terminal, no browser around it. Stdlib-only client streaming from the unchanged `ai-2 serve`, so it is the fastest to appear and the lightest next to the model (the browser's memory stays free for inference), and it works over SSH. Used automatically when there is no graphical display. `/new` starts a fresh conversation; Ctrl-C during an answer stops only that answer. Speaks Spanish and German like the wizard.
 - A second menu entry, "AI-2 Chat (Terminal)", with localized names and comments saying it is the fastest and lightest way and recommended on low-end PCs; the browser entry's comment points slow-PC users at it. The wizard's closing "how to use it" block is now tier-aware: on the on-demand (low-RAM) tiers it recommends the terminal chat first. START-HERE explains both options in all three languages.
@@ -11,6 +11,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 - `ai-2 profile`: one view of everything AI-2 knows about the machine (hardware, assigned vs configured tier, AI Score, capability stars), with `--json` for scripts and a future control center. Backed by `machine_profile()` in the new `ai2/profile.py`, which assembles the pieces read-only; where each piece is stored does not change.
 - Schema tests for every declarative YAML file (tier definitions, the model catalog, workflow profiles): each file's shape, types and vocabularies are now validated in CI, including the profile rules translation.yml had promised ("narrow, never exceed" on capabilities and context size, and no contradicting data duplicated from the catalog). The first run caught stale qwen3-1.7b sizes in translation.yml, now fixed by referencing the catalog by id.
 ### ISO profile (next build)
+- The GRUB boot menu no longer stretches on widescreen panels: GRUB_GFXMODE is `auto` first (native panel mode when the firmware offers it, 1024x768 fallback), the background is a vignette only, and the logo is a separate fixed-size image that cannot distort, reduced to 0.65 scale (was 0.8). Applies to the live menu and installed systems.
 - The installer slideshow and the welcome page's own strings are translated into Spanish and German: every text wrapped in qsTr(), catalogs in the branding component's `lang/` (`calamares-ai2_es/de.ts`, the compiled `.qm` committed alongside; regenerate with qt6-tools' `lrelease`). Calamares applies the language chosen on the welcome page. The welcome page's "Read the guide" button now opens the guide in that language (the file path is itself a translated string).
 
 ## ISO 20260825 (2026-08-25), tag `iso-20260825`
