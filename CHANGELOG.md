@@ -2,6 +2,9 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## ISO 20260826 (2026-08-26), tag `iso-20260826`
+Ships `ai-2` 0.6.1 (the 0.6.0 batch plus the same-day fixes below). Installer changes: the slideshow and welcome page speak Spanish and German, the welcome page switches language the moment one is picked (including the guide button, which then opens EMPIEZA-AQUI/START-HIER), and the GRUB menu no longer stretches on widescreen panels (gfxmode auto-first, the logo as a fixed-size image, reduced). Verified by two complete QEMU installs, one in Spanish and one in German, each through first boot, the localized wizard, tuning apply, benchmark, and a real `ai-2 chat --terminal` conversation against llama-server (the German run declining the recommended download to exercise the 0.6.1 fallback).
+
 ## [0.6.1] - 2026-08-26
 ### Fixed
 - Declining the recommended model download no longer blocks chatting: `ai-2 chat`/`serve` now fall back to the best model already on disk when the recommendation's file is absent, instead of refusing with "not set up". Found live in the 20260826 ISO verify (score 88 recommended Qwen3 1.7B, the download was declined, and chat refused despite two models being installed); regression-tested.
