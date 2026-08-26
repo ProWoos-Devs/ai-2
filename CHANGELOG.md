@@ -2,7 +2,7 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.7.0] - 2026-08-26
 ### Added
 - Accessibility, first installment (accessible chat on installed systems; plan in the workspace, decisions of 2026-08-26):
   - The terminal chat and the wizard now print whole lines only, no token-by-token repaints, no `\r` progress redraws, no dot spinners: screen readers, locally and over SSH, only follow completed lines, and at local-model speeds the sighted cost is nil. `ai-2 chat --terminal --stream` (or `AI2_CHAT_STREAM=1`) restores token streaming.
