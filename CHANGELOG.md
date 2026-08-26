@@ -2,6 +2,12 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.1] - 2026-08-26
+### Fixed
+- Declining the recommended model download no longer blocks chatting: `ai-2 chat`/`serve` now fall back to the best model already on disk when the recommendation's file is absent, instead of refusing with "not set up". Found live in the 20260826 ISO verify (score 88 recommended Qwen3 1.7B, the download was declined, and chat refused despite two models being installed); regression-tested.
+### ISO profile (next build)
+- The installer welcome page now switches language immediately when one is picked: Calamares never retranslates loaded QML (checked upstream sources, stock welcomeq has the same flaw), so every visible string binding re-evaluates via a counter bumped on the language change. Before this, the page that offers the language choice stayed English, and its guide button opened the English guide.
+
 ## [0.6.0] - 2026-08-26
 ### Added
 - `ai-2 chat --terminal`: chat with the same local AI in the terminal, no browser around it. Stdlib-only client streaming from the unchanged `ai-2 serve`, so it is the fastest to appear and the lightest next to the model (the browser's memory stays free for inference), and it works over SSH. Used automatically when there is no graphical display. `/new` starts a fresh conversation; Ctrl-C during an answer stops only that answer. Speaks Spanish and German like the wizard.

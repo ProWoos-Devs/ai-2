@@ -113,3 +113,36 @@ def test_sigterm_takes_the_child_down(tmp_path):
     else:
         os.kill(child, signal.SIGKILL)
         raise AssertionError("llama-server survived the wrapper's SIGTERM")
+
+
+# --- the model chat/serve actually use ---------------------------------------
+
+def _hw(ram_mib=4096):
+    from types import SimpleNamespace
+    return SimpleNamespace(ram_mib=ram_mib)
+
+
+def test_usable_model_falls_back_when_recommended_absent(monkeypatch):
+    """Declining the recommended download must not block chatting: when the
+    recommended model's file is not on disk, use the best model actually
+    present (regression from the 20260826 ISO verify, where chat said
+    "not set up" right after the wizard because only Qwen2.5 0.5B was on
+    disk and the score recommended Qwen3 1.7B)."""
+    from ai2 import cli, models
+    rec = {"id": "qwen3-1.7b", "file": "missing.gguf"}
+    present = {"id": "qwen2.5-0.5b", "file": "present.gguf"}
+    monkeypatch.setattr(cli, "_recommended_model", lambda hw: rec)
+    monkeypatch.setattr(cli, "find_model_file",
+                        lambda name: "/x/present.gguf" if name == "present.gguf" else None)
+    monkeypatch.setattr(models, "best_present_model", lambda cat, ram: present)
+    assert cli._usable_model(_hw()) is present
+
+
+def test_usable_model_prefers_recommended_when_present(monkeypatch):
+    from ai2 import cli, models
+    rec = {"id": "qwen3-1.7b", "file": "rec.gguf"}
+    monkeypatch.setattr(cli, "_recommended_model", lambda hw: rec)
+    monkeypatch.setattr(cli, "find_model_file", lambda name: "/x/" + name)
+    monkeypatch.setattr(models, "best_present_model",
+                        lambda cat, ram: (_ for _ in ()).throw(AssertionError("must not be called")))
+    assert cli._usable_model(_hw()) is rec

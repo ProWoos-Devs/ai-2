@@ -245,11 +245,17 @@ def _recommended_model(hw) -> dict | None:
 
 
 def _usable_model(hw) -> dict | None:
-    """A model to serve/chat with: the one the AI Score recommends, or, before
-    there is a score, the best model already on disk (e.g. one bundled on the
-    ISO) so the machine can chat straight away."""
+    """A model to serve/chat with: the one the AI Score recommends when its
+    file is actually on disk, else the best model already present (e.g. one
+    bundled on the ISO). The recommendation alone is not enough: a user who
+    declines the recommended download must still be able to chat with what is
+    installed (hit on the 20260826 ISO verify: recommend said Qwen3 1.7B,
+    only Qwen2.5 0.5B was on disk, chat refused with "not set up")."""
     from .models import best_present_model
-    return _recommended_model(hw) or best_present_model(load_catalog(), hw.ram_mib)
+    rec = _recommended_model(hw)
+    if rec is not None and find_model_file(rec["file"]) is not None:
+        return rec
+    return best_present_model(load_catalog(), hw.ram_mib)
 
 
 def _catalog_entry(model_id: str) -> dict | None:

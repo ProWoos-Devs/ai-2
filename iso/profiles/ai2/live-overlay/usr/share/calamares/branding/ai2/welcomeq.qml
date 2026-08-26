@@ -23,6 +23,19 @@ Page
 {
     id: welcome
 
+    // Calamares never calls QQmlEngine::retranslate() (checked v3.3/3.4
+    // sources), so plain qsTr() bindings freeze in the load-time language and
+    // this page stayed English after the user picked one. Every visible
+    // qsTr() below references this counter; it is bumped after a language
+    // change (Qt.callLater so the new translator is installed first), which
+    // re-evaluates the bindings against the new catalog. Handlers (the guide
+    // button's onClicked) resolve qsTr() at run time and need nothing.
+    property int retr: 0
+    Connections {
+        target: config
+        function onLocaleIndexChanged() { Qt.callLater(function() { welcome.retr++ }) }
+    }
+
     header: Item {
         width: parent.width
         height: parent.height
@@ -48,7 +61,7 @@ Page
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 horizontalAlignment: Text.AlignHCenter
-                text: qsTr("<h2>Welcome to the %1 installer</h2>").arg(Branding.string(Branding.ProductName))
+                text: { welcome.retr; return qsTr("<h2>Welcome to the %1 installer</h2>").arg(Branding.string(Branding.ProductName)) }
             }
 
             Text {
@@ -56,7 +69,7 @@ Page
                 horizontalAlignment: Text.AlignHCenter
                 font.pointSize: 13
                 font.bold: true
-                text: qsTr("Choose your language:")
+                text: { welcome.retr; return qsTr("Choose your language:") }
             }
 
             RowLayout {
@@ -86,12 +99,12 @@ Page
                 Layout.preferredWidth: column.width * 0.8
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                text: qsTr("<p>The next pages ask a few questions (location, keyboard, disk, your user) and then install %1 on this computer.</p><p>Nothing is written to your disks until you confirm the summary and the installation starts.</p>").arg(Branding.string(Branding.ProductName))
+                text: { welcome.retr; return qsTr("<p>The next pages ask a few questions (location, keyboard, disk, your user) and then install %1 on this computer.</p><p>Nothing is written to your disks until you confirm the summary and the installation starts.</p>").arg(Branding.string(Branding.ProductName)) }
             }
 
             Button {
                 Layout.alignment: Qt.AlignHCenter
-                text: qsTr("Read the guide (START HERE)")
+                text: { welcome.retr; return qsTr("Read the guide (START HERE)") }
                 icon.name: "help-contents"
                 // The path is translatable on purpose: each language catalog points
                 // at its own guide file (EMPIEZA-AQUI.txt, START-HIER.txt).
@@ -154,14 +167,14 @@ Page
                     horizontalAlignment: Text.AlignHCenter
                     font.pointSize: 13
                     font.bold: true
-                    text: qsTr("Checking this computer (disks, memory, network)…")
+                    text: { welcome.retr; return qsTr("Checking this computer (disks, memory, network)…") }
                 }
                 Text {
                     Layout.alignment: Qt.AlignHCenter
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                     Layout.preferredWidth: parent.width
-                    text: qsTr("This takes a moment on older hard disks. The result appears here when the check is done.")
+                    text: { welcome.retr; return qsTr("This takes a moment on older hard disks. The result appears here when the check is done.") }
                 }
                 Text {
                     Layout.alignment: Qt.AlignHCenter
