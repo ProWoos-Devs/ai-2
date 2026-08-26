@@ -1,4 +1,6 @@
 # AI-2 GRUB theme (boot menu). Phosphor green on near-black, dim neon mark.
+# The background is a vignette only; the lockup is a separate fixed-size image
+# so it stays undistorted when GRUB runs at a non-4:3 mode (1366x768 panels).
 desktop-image: "background.png"
 desktop-color: "#0B0F0D"
 title-text: ""
@@ -7,6 +9,16 @@ message-color: "#B8F5D0"
 message-bg-color: "#0B0F0D"
 terminal-font: "DejaVu Sans Mono Regular 12"
 terminal-box: "menu_*.png"
+
+# the AI-2 lockup at its natural pixel size (gen-background.py prints these
+# width/height/left values; keep them in sync with ai2-logo.png)
++ image {
+    file = "ai2-logo.png"
+    left = 50%-287
+    top = 8
+    width = 574
+    height = 194
+}
 
 + boot_menu {
     left = 12%

@@ -19,9 +19,14 @@ FONT=/usr/share/fonts/TTF/DejaVuSansMono.ttf
 PNG_RGBA=(-define png:color-type=6 -define png:bit-depth=8 -interlace none)   # GRUB's decoder: 8-bit, non-interlaced
 
 mkdir -p "$OUT/icons"
-python3 "$HERE/gen-background.py" "$HERE/background.svg"
+python3 "$HERE/gen-background.py" "$HERE"
 rsvg-convert -w 1024 -h 768 "$HERE/background.svg" -o "$OUT/background.png"
 magick "$OUT/background.png" -define png:color-type=2 -define png:bit-depth=8 -interlace none "$OUT/background.png"
+
+# the lockup as its own image, natural size, transparent (ai2- prefix so the
+# artix-grub-theme package's own logo.png never clobbers it on upgrades)
+rsvg-convert "$HERE/logo.svg" -o "$OUT/ai2-logo.png"
+magick "$OUT/ai2-logo.png" "${PNG_RGBA[@]}" "$OUT/ai2-logo.png"
 
 # selected-item bar: solid phosphor green, rounded ends, item_height tall
 H=28; tmp=$(mktemp -d)
