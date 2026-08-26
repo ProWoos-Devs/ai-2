@@ -50,10 +50,61 @@ def stream_reply(url: str, messages: list[dict]):
                 yield piece
 
 
-def repl(url: str, stream=stream_reply, ask=input, say=print) -> int:
+SENTENCE_ENDS = ".!?…"
+FLUSH_AT = 400   # a run-on with no punctuation still flushes, at a word break
+
+
+def _sentence_cut(buf: str) -> int | None:
+    """Index AFTER which buf holds a complete sentence, or None to wait for
+    more text. A terminator only counts when the next character is already
+    known and is whitespace, so decimals (3.14) and trailing dots whose
+    continuation has not arrived yet stay buffered."""
+    nl = buf.find("\n")
+    if nl >= 0:
+        return nl + 1
+    for i, ch in enumerate(buf[:-1]):
+        if ch in SENTENCE_ENDS and buf[i + 1].isspace():
+            return i + 1
+    if len(buf) > FLUSH_AT:
+        space = buf.rfind(" ", 0, FLUSH_AT)
+        if space > 0:
+            return space + 1
+    return None
+
+
+def sentences(pieces):
+    """Group a token stream into whole sentences. Screen readers and TTS
+    follow linewise output; token-by-token repaints are unreadable to them,
+    which is why sentence mode is the default for everyone (accessibility
+    plan P1.4), not something behind detection."""
+    buf = ""
+    for piece in pieces:
+        buf += piece
+        while True:
+            cut = _sentence_cut(buf)
+            if cut is None:
+                break
+            chunk, buf = buf[:cut].strip(), buf[cut:]
+            if chunk:
+                yield chunk
+    tail = buf.strip()
+    if tail:
+        yield tail
+
+
+def repl(url: str, stream=stream_reply, ask=input, say=print,
+         streaming: bool = False, speak=None) -> int:
     """Chat until Ctrl-C/Ctrl-D. Ctrl-C during an answer only stops that
-    answer. `stream`, `ask` and `say` are injectable for tests."""
-    say(tr("Chat in this terminal. Enter sends, Ctrl-C or Ctrl-D leaves, /new starts a fresh conversation."))
+    answer. Sentence-per-line output is the default (readable by screen
+    readers, locally and over SSH); `streaming=True` restores token-by-token
+    output. `speak` is a callable given each output line (spoken chat).
+    `stream`, `ask`, `say` and `speak` are injectable for tests."""
+    def out(text: str) -> None:
+        say(text)
+        if speak:
+            speak(text)
+
+    out(tr("Chat in this terminal. Enter sends, Ctrl-C or Ctrl-D leaves, /new starts a fresh conversation."))
     messages: list[dict] = []
     while True:
         try:
@@ -65,19 +116,28 @@ def repl(url: str, stream=stream_reply, ask=input, say=print) -> int:
             continue
         if line == "/new":
             messages = []
-            say(tr("New conversation."))
+            out(tr("New conversation."))
             continue
         messages.append({"role": "user", "content": line})
         parts: list[str] = []
-        try:
+
+        def collected():
             for piece in stream(url, messages):
                 parts.append(piece)
-                say(piece, end="", flush=True)
-            say("")
+                yield piece
+
+        try:
+            if streaming:
+                for piece in collected():
+                    say(piece, end="", flush=True)
+                say("")
+            else:
+                for sentence in sentences(collected()):
+                    out(sentence)
         except KeyboardInterrupt:
             say("")
         except OSError as exc:
-            say(tr("The server went away ({exc}). It may have stopped after idling; run  ai-2 chat --terminal  again.")
+            out(tr("The server went away ({exc}). It may have stopped after idling; run  ai-2 chat --terminal  again.")
                 .format(exc=exc))
             return 1
         if parts:

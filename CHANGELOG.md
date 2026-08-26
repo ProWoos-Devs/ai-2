@@ -2,6 +2,15 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Added
+- Accessibility, first installment (accessible chat on installed systems; plan in the workspace, decisions of 2026-08-26):
+  - The terminal chat and the wizard now print whole lines only, no token-by-token repaints, no `\r` progress redraws, no dot spinners: screen readers, locally and over SSH, only follow completed lines, and at local-model speeds the sighted cost is nil. `ai-2 chat --terminal --stream` (or `AI2_CHAT_STREAM=1`) restores token streaming.
+  - Spoken chat: `ai-2 chat --terminal --speak` speaks each answer sentence through speech-dispatcher in the system language, queued in order without blocking the token stream.
+  - When a screen reader (Orca or espeakup) is running, `ai-2 chat` opens the terminal chat instead of the browser page, which is llama-server's own UI and not ours to make accessible.
+  - The update notification is mirrored to speech when a screen reader is running; the visual bubble expires in seconds and was easy to miss even sighted.
+  - `ai-2 accessibility` shows the screen-reader status of the machine; `ai-2 accessibility setup` installs orca, speech-dispatcher and espeak-ng (one sudo prompt) and wires the assistive-technologies flag, Orca autostart and a Super+Alt+S Orca shortcut for the current user. Opt-in only; nothing is added to the ISO and sighted installs are untouched.
+
 ## ISO 20260826 (2026-08-26), tag `iso-20260826`
 Ships `ai-2` 0.6.1 (the 0.6.0 batch plus the same-day fixes below). Installer changes: the slideshow and welcome page speak Spanish and German, the welcome page switches language the moment one is picked (including the guide button, which then opens EMPIEZA-AQUI/START-HIER), and the GRUB menu no longer stretches on widescreen panels (gfxmode auto-first, the logo as a fixed-size image, reduced). Verified by two complete QEMU installs, one in Spanish and one in German, each through first boot, the localized wizard, tuning apply, benchmark, and a real `ai-2 chat --terminal` conversation against llama-server (the German run declining the recommended download to exercise the 0.6.1 fallback).
 

@@ -497,6 +497,11 @@ def _as_invoking_user() -> str | None:
     return user
 
 
+def cmd_accessibility(args) -> int:
+    from . import a11y
+    return a11y.setup() if args.action == "setup" else a11y.status()
+
+
 def cmd_chat(args) -> int:
     """Make sure the local AI server runs (start it on demand, detached) and
     open the chat page in the browser. The server stops itself when idle."""
@@ -527,12 +532,18 @@ def cmd_chat(args) -> int:
         subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                          start_new_session=True,
                          cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        print(f"Starting the AI ({model['label']}) ... this takes a moment on a slow disk", end="", flush=True)
-        deadline = time.monotonic() + args.wait
+        # whole lines, no dot spinner: screen readers only follow completed
+        # lines, and the sighted cost of a line every 10 s is nil
+        print(f"Starting the AI ({model['label']}) ... this takes a moment on a slow disk", flush=True)
+        start = time.monotonic()
+        deadline = start + args.wait
+        last_note = start
         while time.monotonic() < deadline and not _server_ready(url):
             time.sleep(2)
-            print(".", end="", flush=True)
-        print()
+            now = time.monotonic()
+            if now - last_note >= 10:
+                last_note = now
+                print(f"  still starting ({int(now - start)} s)", flush=True)
         if not _server_ready(url):
             print(f"error: the server did not come up within {args.wait} s "
                   f"(see {os.path.join(state_dir, 'serve.log')})", file=sys.stderr)
@@ -544,12 +555,29 @@ def cmd_chat(args) -> int:
     if running_model and is_starter(running_model):
         print(f"Note: {running_model['label']} is a very small starter model; it can get facts "
               "and simple math wrong. Bigger models:  ai-2 model list")
-    if args.terminal or (not args.no_browser
-                         and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY")):
+    from . import a11y
+    reader = not args.terminal and not args.no_browser and a11y.reader_active()
+    if args.terminal or reader or (not args.no_browser
+                                   and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY")):
         from .chatterm import repl
-        if not args.terminal:
+        if reader:
+            print("A screen reader is running, so chatting right here instead of the browser "
+                  "(ai-2 chat --terminal does this anywhere; add --speak for spoken answers).")
+        elif not args.terminal:
             print("No graphical display, so chatting right here (ai-2 chat --terminal does this anywhere).")
-        return repl(url)
+        speaker = None
+        if args.speak:
+            if not a11y.spd_available():
+                print("Spoken chat needs speech-dispatcher (spd-say). Set it up with:  ai-2 accessibility setup")
+                return 1
+            speaker = a11y.Speaker()
+        streaming = args.stream or os.environ.get("AI2_CHAT_STREAM") == "1"
+        try:
+            return repl(url, streaming=streaming,
+                        speak=speaker.speak if speaker else None)
+        finally:
+            if speaker:
+                speaker.close()
     if not args.no_browser:
         try:
             subprocess.Popen(["xdg-open", url], stdin=subprocess.DEVNULL,
@@ -715,6 +743,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="stop the AI after this many idle seconds (default: the tier's, else 600; a chat page left open does not count as use)")
     p_chat.add_argument("--wait", type=int, default=180, help="seconds to wait for the server to come up")
     p_chat.add_argument("--no-browser", action="store_true", help="do not open the browser, just print the address")
+    p_chat.add_argument("--speak", action="store_true",
+                        help="speak the answers aloud through speech-dispatcher (with --terminal)")
+    p_chat.add_argument("--stream", action="store_true",
+                        help="terminal chat prints token by token instead of whole sentences (also AI2_CHAT_STREAM=1)")
     p_chat.set_defaults(func=cmd_chat)
 
     p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")
@@ -736,6 +768,12 @@ def main(argv: list[str] | None = None) -> int:
     p_upd.add_argument("--max-age", type=float, default=0, metavar="HOURS",
                        help="reuse a cached result younger than this many hours (0 = always check)")
     p_upd.set_defaults(func=cmd_update_check)
+
+    p_a11y = sub.add_parser("accessibility",
+                            help="screen-reader status, or set up Orca and spoken chat for this user")
+    p_a11y.add_argument("action", nargs="?", choices=["setup"],
+                        help="setup = install the reader stack (sudo asks once) and wire Orca autostart, the assistive-technologies flag and the Super+Alt+S shortcut for the current user")
+    p_a11y.set_defaults(func=cmd_accessibility)
 
     p_logo = sub.add_parser("logo", help="print the AI-2 logo")
     p_logo.set_defaults(func=cmd_logo)

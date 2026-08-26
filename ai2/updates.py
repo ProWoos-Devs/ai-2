@@ -72,15 +72,24 @@ def check_now(timeout_s: int = 120) -> dict | None:
 
 
 def notify(count: int) -> bool:
-    """Desktop notification in the user's session. True if it was sent."""
-    if count <= 0 or not shutil.which("notify-send"):
+    """Desktop notification in the user's session, mirrored to speech when a
+    screen reader is running (the bubble is visual-only and expires in
+    seconds; a blind daily driver must not miss updates). True if the visual
+    notification was sent."""
+    if count <= 0:
         return False
     s = "s" if count != 1 else ""
-    try:
-        subprocess.run(["notify-send", "--app-name=AI-2", "--icon=ai2",
-                        f"{count} update{s} available",
-                        "AI-2 and the system update together. In a terminal, run:  sudo pacman -Syu"],
-                       timeout=10)
-        return True
-    except (OSError, subprocess.TimeoutExpired):
-        return False
+    title = f"{count} update{s} available"
+    body = "AI-2 and the system update together. In a terminal, run:  sudo pacman -Syu"
+    sent = False
+    if shutil.which("notify-send"):
+        try:
+            subprocess.run(["notify-send", "--app-name=AI-2", "--icon=ai2", title, body],
+                           timeout=10)
+            sent = True
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    from . import a11y
+    if a11y.reader_active():
+        a11y.speak_once(f"AI-2: {title}. Update with: sudo pacman -Syu")
+    return sent

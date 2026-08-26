@@ -410,12 +410,18 @@ class Wizard:
         self.say(tr("  Downloading {label} ({mb} MB) to {dest}/ ...")
                  .format(label=model['label'], mb=model['file_mb'], dest=dest))
 
+        # one full line per 10% step, never a \r repaint: screen readers only
+        # follow completed lines (accessibility plan P1.4)
+        last_step = [-1]
+
         def progress(done, total):
-            pct = f"{done * 100 // total:3d}%" if total else ""
-            print(f"\r  {done // (1 << 20):5d} MB {pct}", end="", flush=True)
+            step = done * 10 // total if total else 0
+            if step > last_step[0]:
+                last_step[0] = step
+                pct = f"{done * 100 // total:3d}%" if total else ""
+                print(f"  {done // (1 << 20):5d} MB {pct}", flush=True)
 
         path = download_model(model, dest, progress=progress)
-        print()
         self.say(tr("  Saved {path}").format(path=path))
         return path
 
