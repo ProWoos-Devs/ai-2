@@ -567,8 +567,8 @@ def cmd_chat(args) -> int:
             print("No graphical display, so chatting right here (ai-2 chat --terminal does this anywhere).")
         speaker = None
         if args.speak:
-            if not a11y.spd_available():
-                print("Spoken chat needs speech-dispatcher (spd-say). Set it up with:  ai-2 accessibility setup")
+            if not a11y.speech_available():
+                print("Spoken chat needs a speech engine. Set one up with:  ai-2 accessibility setup")
                 return 1
             speaker = a11y.Speaker()
         streaming = args.stream or os.environ.get("AI2_CHAT_STREAM") == "1"

@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.1] - 2026-08-27
+### Fixed
+- Spoken output actually makes sound on a stock install: the lean system runs no PulseAudio/PipeWire session server (runit has no systemd user units to start one), and speech-dispatcher's default output played into the void while exiting 0. Found by capturing the VM's audio to WAV in the 0.7.0 release verification: 0 bytes despite clean exits, while direct ALSA produced audio. Now `ai-2 accessibility setup` writes `AudioOutputMethod "alsa"` into the user's speechd.conf when no audio server runs (this is also what makes Orca audible, same daemon), and `--speak`/spoken notifications fall back to espeak-ng straight to ALSA when speech-dispatcher has no working audio path, choosing by observable state, never by spd-say's return code.
+
 ## [0.7.0] - 2026-08-26
 ### Added
 - Accessibility, first installment (accessible chat on installed systems; plan in the workspace, decisions of 2026-08-26):

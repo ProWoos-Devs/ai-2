@@ -40,29 +40,76 @@ def spd_available() -> bool:
     return shutil.which("spd-say") is not None
 
 
+def audio_server_running() -> bool:
+    """PipeWire or PulseAudio serving this session. AI-2's lean install runs
+    neither (runit has no systemd user units to start them), and
+    speech-dispatcher's default output silently plays into the void then,
+    while direct ALSA works (verified in the 0.7.0 QEMU speech test)."""
+    for name in ("pipewire", "pulseaudio"):
+        try:
+            if subprocess.run(["pgrep", "-x", name], stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL, timeout=5).returncode == 0:
+                return True
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+    return False
+
+
+def _speechd_conf_path() -> str:
+    base = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+    return os.path.join(base, "speech-dispatcher", "speechd.conf")
+
+
+def _spd_usable() -> bool:
+    """spd-say will actually produce sound: either an audio server is running
+    (its default output works) or the user config `accessibility setup`
+    writes has pointed it at ALSA."""
+    return spd_available() and (audio_server_running() or os.path.exists(_speechd_conf_path()))
+
+
+def speech_available() -> bool:
+    return _spd_usable() or shutil.which("espeak-ng") is not None
+
+
 def speak_once(text: str, timeout_s: int = 10) -> bool:
     """Fire-and-forget one utterance (used by the update notification).
-    Never raises; returns whether spd-say was invoked."""
-    if not spd_available():
+    Never raises; returns whether a speech command was invoked."""
+    cmd = _speech_cmd(text)
+    if cmd is None:
         return False
     try:
-        subprocess.run(_spd_cmd() + [_safe_text(text)], stdin=subprocess.DEVNULL,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       timeout=timeout_s)
+        subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=timeout_s)
         return True
     except (OSError, subprocess.TimeoutExpired):
         return False
 
 
-def _spd_cmd(wait: bool = False) -> list[str]:
-    cmd = ["spd-say"]
-    if wait:
-        cmd.append("-w")
+def _speech_lang() -> str | None:
     lang = _lang()
-    # a real language code only; LANG=C would make spd-say choke on -l c
-    if len(lang) == 2 and lang.isalpha() and lang != "c":
-        cmd += ["-l", lang]
-    return cmd
+    # a real language code only; LANG=C must not become spd-say -l c
+    return lang if len(lang) == 2 and lang.isalpha() and lang != "c" else None
+
+
+def _speech_cmd(text: str, wait: bool = False) -> list[str] | None:
+    """The argv that will audibly speak `text` on this system, or None.
+    spd-say when speech-dispatcher can reach audio, else espeak-ng straight
+    to ALSA (spd-say exits 0 even when its output goes nowhere, so the choice
+    keys on observable state, not return codes)."""
+    lang = _speech_lang()
+    if _spd_usable():
+        cmd = ["spd-say"]
+        if wait:
+            cmd.append("-w")
+        if lang:
+            cmd += ["-l", lang]
+        return cmd + [_safe_text(text)]
+    if shutil.which("espeak-ng"):
+        cmd = ["espeak-ng"]
+        if lang:
+            cmd += ["-v", lang]
+        return cmd + [_safe_text(text)]
+    return None
 
 
 def _safe_text(text: str) -> str:
@@ -83,8 +130,10 @@ class Speaker:
         self._thread.start()
 
     def _run(self, text: str) -> None:
-        subprocess.run(_spd_cmd(wait=True) + [_safe_text(text)],
-                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        cmd = _speech_cmd(text, wait=True)
+        if cmd is None:
+            return
+        subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL, timeout=300)
 
     def _loop(self) -> None:
@@ -155,7 +204,7 @@ def status(say=print) -> int:
         else "not set"))
     say("Reader running now:  " + ("yes" if reader_active() else "no"))
     say("Spoken chat:         " + ("available (ai-2 chat --terminal --speak)"
-        if spd_available() else "needs the stack (ai-2 accessibility setup)"))
+        if speech_available() else "needs the stack (ai-2 accessibility setup)"))
     if missing or not os.path.exists(_autostart_path()):
         say("")
         say("Set everything up for this user with:  ai-2 accessibility setup")
@@ -178,6 +227,20 @@ def setup(say=print, run=subprocess.run) -> int:
             return 1
     else:
         say("Screen-reader packages already installed.")
+
+    # without a session audio server (AI-2 runs none), speech-dispatcher's
+    # default output plays into the void while exiting 0; point it at ALSA.
+    # Orca talks to the same daemon, so this is what makes Orca audible too.
+    conf = _speechd_conf_path()
+    if not audio_server_running() and not os.path.exists(conf):
+        os.makedirs(os.path.dirname(conf), exist_ok=True)
+        with open(conf, "w") as fh:
+            fh.write('# Written by ai-2 accessibility setup: no PulseAudio/PipeWire\n'
+                     '# session server runs here, so speech goes straight to ALSA.\n'
+                     'AudioOutputMethod "alsa"\n')
+        subprocess.run(["pkill", "-f", "speech-dispatcher"], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=10)
+        say(f"Speech output: ALSA, configured in {conf}")
 
     ok_at = _xfconf("xfce4-session", "/general/StartAssistiveTechnologies", "true", "bool")
     say("Assistive technologies flag: " + ("set" if ok_at

@@ -86,12 +86,49 @@ def test_speaker_orders_and_survives_runner_errors():
     assert got == ["one", "two"]
 
 
-def test_spd_cmd_language_guard(monkeypatch):
+def test_speech_cmd_prefers_spd_when_usable(monkeypatch):
     monkeypatch.setenv("LC_ALL", "de_DE.UTF-8")
-    assert a11y._spd_cmd() == ["spd-say", "-l", "de"]
+    monkeypatch.setattr(a11y, "_spd_usable", lambda: True)
+    assert a11y._speech_cmd("hi", wait=True) == ["spd-say", "-w", "-l", "de", "hi"]
     monkeypatch.setenv("LC_ALL", "C")
-    assert a11y._spd_cmd(wait=True) == ["spd-say", "-w"]
+    assert a11y._speech_cmd("hi") == ["spd-say", "hi"]
     assert a11y._safe_text("-rf everything") == " -rf everything"
+
+
+def test_speech_cmd_falls_back_to_espeak_without_audio_server(monkeypatch):
+    """spd-say exits 0 even when its audio goes nowhere (found in the 0.7.0
+    QEMU speech test: no PipeWire/Pulse on a lean install), so without a
+    server or the setup-written config, speak directly via espeak-ng."""
+    monkeypatch.setenv("LC_ALL", "es_ES.UTF-8")
+    monkeypatch.setattr(a11y, "_spd_usable", lambda: False)
+    monkeypatch.setattr(a11y.shutil, "which", lambda name: "/usr/bin/espeak-ng"
+                        if name == "espeak-ng" else None)
+    assert a11y._speech_cmd("hola") == ["espeak-ng", "-v", "es", "hola"]
+    monkeypatch.setattr(a11y.shutil, "which", lambda name: None)
+    assert a11y._speech_cmd("hola") is None
+
+
+def test_spd_usable_needs_server_or_config(monkeypatch, tmp_path):
+    monkeypatch.setattr(a11y, "spd_available", lambda: True)
+    monkeypatch.setattr(a11y, "audio_server_running", lambda: False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    assert a11y._spd_usable() is False
+    conf = tmp_path / "speech-dispatcher" / "speechd.conf"
+    conf.parent.mkdir(parents=True)
+    conf.write_text('AudioOutputMethod "alsa"\n')
+    assert a11y._spd_usable() is True
+
+
+def test_setup_writes_speechd_alsa_config(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setattr(a11y, "_pkg_missing", lambda: [])
+    monkeypatch.setattr(a11y, "_xfconf", lambda *a, **kw: True)
+    monkeypatch.setattr(a11y, "audio_server_running", lambda: False)
+    monkeypatch.setattr(a11y.subprocess, "run",
+                        lambda *a, **kw: type("P", (), {"returncode": 0})())
+    assert a11y.setup() == 0
+    conf = tmp_path / "speech-dispatcher" / "speechd.conf"
+    assert conf.exists() and 'AudioOutputMethod "alsa"' in conf.read_text()
 
 
 # --- spoken update notification ----------------------------------------------
