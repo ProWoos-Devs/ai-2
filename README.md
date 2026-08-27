@@ -66,6 +66,8 @@ ai-2 model verify    # check downloaded models against the catalog checksums
 ai-2 chat            # start the local AI if needed and open the chat page in the browser
 ai-2 chat --terminal # the same chat in the terminal: fastest, minimal memory, works over SSH
                      # (recommended on low-end PCs; used automatically when there is no display)
+                     # --speak reads the answers aloud; output is whole sentences, screen-reader friendly
+ai-2 accessibility   # screen-reader status; `setup` installs and wires Orca and spoken chat
 ai-2 serve           # llama-server on demand with the recommended model, OpenAI-compatible
                      # API on http://127.0.0.1:8080, exits when idle (the tier sets how long);
                      # --host 0.0.0.0 --api-key KEY to use it from other devices
