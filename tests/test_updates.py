@@ -90,43 +90,46 @@ def _no_reader(monkeypatch):
     monkeypatch.setattr(a11y, "reader_active", lambda: False)
 
 
+def _gui(monkeypatch, present):
+    from ai2 import software
+    monkeypatch.setattr(software, "gui_available", lambda: present)
+
+
 def test_notify_says_nothing_when_nothing_is_pending():
     assert updates.notify(0) is False
 
 
-def test_notify_carries_a_button_when_the_gui_is_installed(monkeypatch):
+def test_build_wording_depends_on_the_gui_being_there(monkeypatch):
+    _gui(monkeypatch, True)
+    title, body, action = updates.build(3)
+    assert "3" in title and action
+    assert "Software Updates" in body
+    _gui(monkeypatch, False)
+    title, body, action = updates.build(1)
+    assert "1" in title and action is None
+    assert "ai-2 update" in body
+
+
+def test_the_bubble_never_expires(monkeypatch):
+    """A ten-second bubble throws away the click that does the job."""
+    _gui(monkeypatch, False)
+    rec = _Recorder()
+    assert updates.show("t", "b", None, run=rec) is True
+    assert "-t" in rec.calls[0] and "0" in rec.calls[0]
+
+
+def test_show_carries_the_button_and_acts_on_the_click(monkeypatch):
     from ai2 import software
-    _no_reader(monkeypatch)
-    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
-    monkeypatch.setattr(software, "gui_available", lambda: True)
     opened = []
     monkeypatch.setattr(software, "open_gui", lambda updates=False: opened.append(updates))
     rec = _Recorder(stdout="open\n")
-    monkeypatch.setattr(updates.subprocess, "run", rec)
-    assert updates.notify(3) is True
-    assert any(arg.startswith("--action=open=") for arg in rec.calls[0])
-    assert "3" in rec.calls[0][-2]
+    assert updates.show("t", "b", "Open Software Updates", run=rec) is True
+    assert any(a.startswith("--action=open=") for a in rec.calls[0])
     assert opened == [True], "clicking the button must open the updates page"
 
 
-def test_notify_without_the_gui_points_at_the_command(monkeypatch):
-    from ai2 import software
-    _no_reader(monkeypatch)
-    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
-    monkeypatch.setattr(software, "gui_available", lambda: False)
-    rec = _Recorder()
-    monkeypatch.setattr(updates.subprocess, "run", rec)
-    assert updates.notify(1) is True
-    assert not any(arg.startswith("--action=") for arg in rec.calls[0])
-    assert "ai-2 update" in rec.calls[0][-1]
-
-
-def test_notify_falls_back_when_actions_are_unsupported(monkeypatch):
+def test_show_falls_back_when_actions_are_unsupported():
     """An old libnotify rejects --action. The plain bubble must still show."""
-    from ai2 import software
-    _no_reader(monkeypatch)
-    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
-    monkeypatch.setattr(software, "gui_available", lambda: True)
     calls = []
 
     def run(cmd, *a, **kw):
@@ -137,15 +140,48 @@ def test_notify_falls_back_when_actions_are_unsupported(monkeypatch):
             stdout = ""
         return Proc()
 
-    monkeypatch.setattr(updates.subprocess, "run", run)
-    assert updates.notify(2) is True
+    assert updates.show("t", "b", "Open", run=run) is True
     assert len(calls) == 2 and not any(x.startswith("--action=") for x in calls[1])
+    assert "-t" in calls[1], "the fallback bubble must still be sticky"
+
+
+def test_notify_forks_a_holder_only_when_there_is_a_button(monkeypatch):
+    """The button needs a live client; without one there is nothing to hold."""
+    _no_reader(monkeypatch)
+    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
+    forks = []
+    _gui(monkeypatch, True)
+    assert updates.notify(2, fork=lambda: forks.append(1) or 4242) is True
+    assert forks == [1], "a bubble with a button must be held by a forked child"
+
+    forks.clear()
+    _gui(monkeypatch, False)
+    rec = _Recorder()
+    monkeypatch.setattr(updates.subprocess, "run", rec)
+    assert updates.notify(2, fork=lambda: forks.append(1) or 4242) is True
+    assert forks == [], "no button, nothing to hold, no fork"
+    assert rec.calls, "the plain bubble is sent by the caller itself"
+
+
+def test_notify_still_shows_something_when_fork_fails(monkeypatch):
+    _no_reader(monkeypatch)
+    _gui(monkeypatch, True)
+    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
+    rec = _Recorder()
+    monkeypatch.setattr(updates.subprocess, "run", rec)
+
+    def boom():
+        raise OSError("cannot fork")
+
+    assert updates.notify(5, fork=boom) is True
+    assert not any(a.startswith("--action=") for a in rec.calls[0]), \
+        "with no holder the button would be a lie"
 
 
 def test_notify_is_spoken_to_a_screen_reader(monkeypatch):
-    from ai2 import a11y, software
+    from ai2 import a11y
     monkeypatch.setattr(updates.shutil, "which", lambda name: None)
-    monkeypatch.setattr(software, "gui_available", lambda: False)
+    _gui(monkeypatch, False)
     monkeypatch.setattr(a11y, "reader_active", lambda: True)
     spoken = []
     monkeypatch.setattr(a11y, "speak_once", lambda text: spoken.append(text))

@@ -2,6 +2,12 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.1] - 2026-08-30
+### Changed
+- The update notification stays on screen until it is dismissed. It used to take xfce4-notifyd's default lifetime and disappear after about ten seconds, which was merely annoying while the only way to act on it was typing a command, and became wasteful in 0.8.0 when the bubble gained a button that does the whole job in one click. One had already fired unseen on a real machine (rafaminu-pc, 2026-08-26).
+  Measured on the shipped image rather than assumed: the default bubble was gone within 45 s while `-t 0` and urgency critical both survived. AI-2 uses `-t 0`, the spec's "never expire", because a pending update is not a critical alert and critical urgency would also override Do Not Disturb.
+  A button needs a client alive behind it for as long as the bubble is up, which was also measured: kill notify-send and the bubble's button stops doing anything and the bubble simply vanishes when clicked. So `notify()` forks the holding process and returns at once, which keeps `ai-2 update-check` usable from a terminal, and there is deliberately no timeout on the holder, since any cap would turn a still-visible bubble into a dead one. Without a button (no graphical package manager installed) nothing needs holding and no process is forked.
+
 ## ISO 20260830 (2026-08-30), tag `iso-20260830`
 Ships `ai-2` 0.8.0 and adds **pamac** to the image, so a freshly installed machine has both a guide to read and a window for installing software and updating. 1,968,680,960 bytes (1.833 GiB, still inside GitHub's 2 GiB asset limit), sha256 `19967d20bb6ebd96ffeee36257594731de1d0e1091460492765a8d72c9d39b12`.
 

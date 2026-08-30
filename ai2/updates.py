@@ -71,54 +71,99 @@ def check_now(timeout_s: int = 120) -> dict | None:
     return st
 
 
-NOTIFY_WAIT_S = 120   # an action button makes notify-send wait for the bubble
+# The bubble does not expire. Measured on the shipped image (xfce4-notifyd,
+# 2026-08-30): the default bubble was gone within 45 s, `-t 0` and urgency
+# critical both survived. `-t 0` is the spec's "never expire" and is the honest
+# one, since a pending update is not a critical alert and critical urgency also
+# overrides Do Not Disturb.
+STICKY = ["-t", "0"]
 
 
-def notify(count: int) -> bool:
-    """Desktop notification in the user's session, mirrored to speech when a
-    screen reader is running (the bubble is visual-only and expires in
-    seconds; a blind daily driver must not miss updates). When the graphical
-    package manager is installed the bubble carries a button that opens it on
-    its updates page, so the whole update is reachable with the mouse. True if
-    the visual notification was sent."""
+def build(count: int) -> tuple[str, str, str | None]:
+    """Title, body, and the action button's label when there is a graphical
+    package manager to open. Separated from the sending so the wording can be
+    tested without a notification daemon."""
     from .i18n import tr
     from . import software
-    if count <= 0:
-        return False
     title = (tr("{n} update available") if count == 1
              else tr("{n} updates available")).format(n=count)
-    gui = software.gui_available()
-    body = (tr("AI-2 and the system update together. Open Software Updates, "
-               "or run  ai-2 update  in a terminal.") if gui else
-            tr("AI-2 and the system update together. In a terminal, run:  ai-2 update"))
-    sent = False
-    if shutil.which("notify-send"):
-        action = ["--action=open=" + tr("Open Software Updates")] if gui else []
-        sent = _send(action + [title, body], gui)
-        if not sent and action:
-            # No action support in this libnotify: the plain bubble still has
-            # to appear, the button was the extra.
-            sent = _send([title, body], False)
+    if software.gui_available():
+        return (title,
+                tr("AI-2 and the system update together. Open Software Updates, "
+                   "or run  ai-2 update  in a terminal."),
+                tr("Open Software Updates"))
+    return (title,
+            tr("AI-2 and the system update together. In a terminal, run:  ai-2 update"),
+            None)
+
+
+def notify(count: int, fork=os.fork) -> bool:
+    """Desktop notification in the user's session, mirrored to speech when a
+    screen reader is running (the bubble is visual-only; a blind daily driver
+    must not miss updates).
+
+    The bubble stays until it is dismissed. That matters because it now carries
+    a button that opens the package manager on its updates page, and a bubble
+    that expires after ten seconds throws away the one click that does the job
+    (one fired unseen on a real machine on 2026-08-26).
+
+    A button needs a client alive behind it for as long as the bubble: verified
+    on the shipped image, killing notify-send leaves a bubble whose button does
+    nothing and which simply vanishes when clicked. So the holding process is
+    forked off and the caller returns at once, which keeps `ai-2 update-check`
+    usable from a terminal. Without a button there is nothing to wait for and
+    notify-send returns on its own.
+
+    True when the bubble was handed over or shown."""
+    if count <= 0:
+        return False
+    title, body, action = build(count)
     from . import a11y
     if a11y.reader_active():
+        from .i18n import tr
         a11y.speak_once(f"AI-2: {title}. " + tr("Update with:  ai-2 update"))
-    return sent
-
-
-def _send(args: list[str], gui: bool) -> bool:
-    """One notify-send call. With an action button notify-send implies --wait,
-    so it stays for the life of the bubble and prints the clicked action on
-    stdout; the timeout is what keeps the autostart from hanging forever."""
+    if not shutil.which("notify-send"):
+        return False
+    if action is None:
+        return show(title, body, None)
     try:
-        proc = subprocess.run(["notify-send", "--app-name=AI-2", "--icon=ai2", *args],
-                              capture_output=True, text=True, timeout=NOTIFY_WAIT_S)
-    except subprocess.TimeoutExpired:
-        return True     # the bubble was shown; only the wait timed out
+        pid = fork()
+    except OSError:
+        # No fork, so no one can hold the button: a plain sticky bubble is
+        # still worth more than nothing.
+        return show(title, body, None)
+    if pid == 0:                      # child: holds the bubble, then goes away
+        try:
+            os.setsid()               # survive a Ctrl-C in the parent's terminal
+        except OSError:
+            pass
+        try:
+            show(title, body, action)
+        finally:
+            os._exit(0)
+    return True
+
+
+def show(title: str, body: str, action: str | None, run=None) -> bool:
+    """Send one notification. With an action button notify-send implies
+    --wait, so this blocks for the life of the bubble and returns the clicked
+    action on stdout; there is deliberately no timeout, because any cap would
+    turn a still-visible bubble into a dead one whose button does nothing. The
+    process costs nothing while it waits and ends with the session."""
+    run = run or subprocess.run
+    cmd = ["notify-send", "--app-name=AI-2", "--icon=ai2", *STICKY]
+    if action:
+        cmd.append("--action=open=" + action)
+    cmd += [title, body]
+    try:
+        proc = run(cmd, capture_output=True, text=True)
     except OSError:
         return False
     if proc.returncode != 0:
-        return False
-    if gui and proc.stdout.strip() == "open":
+        # An older libnotify rejects --action; the plain bubble is the point,
+        # the button was the extra.
+        return show(title, body, None, run=run) if action else False
+    if action and proc.stdout.strip() == "open":
         from . import software
         software.open_gui(updates=True)
     return True
