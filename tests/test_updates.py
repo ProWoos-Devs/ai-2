@@ -62,3 +62,92 @@ def test_cli_update_check(tmp_path, monkeypatch, capsys):
     assert cli.main(["update-check", "--notify"]) == 0
     assert "1 update(s) available" in capsys.readouterr().out
     assert sent == [1]
+
+
+class _Recorder:
+    """Stands in for notify-send: records the argv it was called with and
+    answers with whatever the test wants on stdout."""
+
+    def __init__(self, returncode=0, stdout=""):
+        self.calls = []
+        self.returncode = returncode
+        self.stdout = stdout
+
+    def __call__(self, cmd, *a, **kw):
+        self.calls.append(cmd)
+
+        class Proc:
+            pass
+
+        proc = Proc()
+        proc.returncode = self.returncode
+        proc.stdout = self.stdout
+        return proc
+
+
+def _no_reader(monkeypatch):
+    from ai2 import a11y
+    monkeypatch.setattr(a11y, "reader_active", lambda: False)
+
+
+def test_notify_says_nothing_when_nothing_is_pending():
+    assert updates.notify(0) is False
+
+
+def test_notify_carries_a_button_when_the_gui_is_installed(monkeypatch):
+    from ai2 import software
+    _no_reader(monkeypatch)
+    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(software, "gui_available", lambda: True)
+    opened = []
+    monkeypatch.setattr(software, "open_gui", lambda updates=False: opened.append(updates))
+    rec = _Recorder(stdout="open\n")
+    monkeypatch.setattr(updates.subprocess, "run", rec)
+    assert updates.notify(3) is True
+    assert any(arg.startswith("--action=open=") for arg in rec.calls[0])
+    assert "3" in rec.calls[0][-2]
+    assert opened == [True], "clicking the button must open the updates page"
+
+
+def test_notify_without_the_gui_points_at_the_command(monkeypatch):
+    from ai2 import software
+    _no_reader(monkeypatch)
+    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(software, "gui_available", lambda: False)
+    rec = _Recorder()
+    monkeypatch.setattr(updates.subprocess, "run", rec)
+    assert updates.notify(1) is True
+    assert not any(arg.startswith("--action=") for arg in rec.calls[0])
+    assert "ai-2 update" in rec.calls[0][-1]
+
+
+def test_notify_falls_back_when_actions_are_unsupported(monkeypatch):
+    """An old libnotify rejects --action. The plain bubble must still show."""
+    from ai2 import software
+    _no_reader(monkeypatch)
+    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(software, "gui_available", lambda: True)
+    calls = []
+
+    def run(cmd, *a, **kw):
+        calls.append(cmd)
+
+        class Proc:
+            returncode = 1 if any(x.startswith("--action=") for x in cmd) else 0
+            stdout = ""
+        return Proc()
+
+    monkeypatch.setattr(updates.subprocess, "run", run)
+    assert updates.notify(2) is True
+    assert len(calls) == 2 and not any(x.startswith("--action=") for x in calls[1])
+
+
+def test_notify_is_spoken_to_a_screen_reader(monkeypatch):
+    from ai2 import a11y, software
+    monkeypatch.setattr(updates.shutil, "which", lambda name: None)
+    monkeypatch.setattr(software, "gui_available", lambda: False)
+    monkeypatch.setattr(a11y, "reader_active", lambda: True)
+    spoken = []
+    monkeypatch.setattr(a11y, "speak_once", lambda text: spoken.append(text))
+    assert updates.notify(4) is False        # nothing visual, no notify-send
+    assert spoken and "ai-2 update" in spoken[0]

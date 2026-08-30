@@ -38,6 +38,12 @@ rootfs:
     - xfce4-pulseaudio-plugin
     - xfce4-screenshooter
     - xfce4-taskmanager
+    # AI-2: the graphical package manager (Artix's own package of Manjaro's
+    # Add/Remove Software). Two packages and 4.5 MiB installed, because gtk4
+    # and libadwaita already come with epiphany and the polkit agent
+    # (polkit-gnome) with xfce4-session. Its update tray is hidden by the
+    # ai-2 package's pacman hook; AI-2 does the notifying.
+    - pamac
     # AI-2 additions (ai-2 + runtimes from the signed [ai2] repo, see
     # ../../pacman.conf.d/iso-x86_64.conf; buildiso needs -w)
     - ai2-keyring

@@ -1,0 +1,199 @@
+> AI-2 █
+AI-2 ANLEITUNG
+==============
+
+Gib deinem Computer ein KI-Gehirn.
+
+Das ist die Anleitung für den Computer, auf dem du AI-2 gerade installiert
+hast. Die andere Anleitung, START-HIER.txt, ging um den USB-Stick und die
+Installation; dieser Teil ist erledigt.
+
+In English: AI-2-GUIDE.txt   (oder  ai-2 guide --lang en )
+En español: AI-2-GUIA.txt    (oder  ai-2 guide --lang es )
+
+Du kannst diese Datei jederzeit wieder öffnen über Anwendungen > AI-2
+Anleitung, oder in einem Terminal mit:
+
+  ai-2 guide
+
+Alles Folgende geht auf zwei Wegen, mit der Maus oder im Terminal. Beide tun
+dasselbe. Nimm den, der dir lieber ist.
+
+
+WAS DIESER COMPUTER JETZT KANN
+
+Ein Sprachmodell läuft auf diesem Rechner selbst, auf der CPU. Kein Konto,
+kein Abo, und nichts von dem, was du schreibst, verlässt den Computer. Ohne
+Internet antwortet die KI trotzdem.
+
+Wie gut sie ist, hängt an der Hardware, und AI-2 hat das schon gemessen. Der
+KI-Wert (0 bis 100) und das Modell, das auf diese Maschine passt, wurden bei
+der ersten Anmeldung festgelegt. Noch einmal ansehen:
+
+  ai-2 profile
+
+Ein alter Computer gibt kurze, langsame Antworten aus einem kleinen Modell.
+Das ist normal und nicht kaputt. Ein kleines Modell kann sich auch bei
+Fakten und einfachem Rechnen irren, behandle es also als schnellen Helfer,
+nicht als Lexikon.
+
+
+MIT DER KI REDEN
+
+  Anwendungen > AI-2 Chat             öffnet die Chatseite im Browser
+  Anwendungen > AI-2 Chat (Terminal)  dieselbe KI in einem Terminal
+
+Auf einer langsamen Maschine oder mit wenig Speicher nimm besser die
+Terminal-Variante. Sie ist sofort da und lässt der KI den ganzen Speicher.
+Sie ist auch die, die über SSH und mit einem Screenreader funktioniert.
+
+Im Terminal:
+
+  ai-2 chat              die KI starten und die Chatseite öffnen
+  ai-2 chat --terminal   direkt dort chatten, am leichtesten
+  ai-2 stop              die KI jetzt beenden und ihren Speicher freigeben
+
+Die KI startet, wenn du sie anforderst, und beendet sich nach einer Weile
+ohne Nutzung von selbst, sie frisst also keinen Speicher im Hintergrund. Die
+Browserseite sagt "Nicht sicher", weil dieser Computer sie selbst unter
+127.0.0.1 ausliefert. Nichts verlässt die Maschine, es gibt also nichts zu
+sichern.
+
+
+FALLS ETWAS NICHT EINGERICHTET IST
+
+Die geführte Einrichtung öffnet sich bei der ersten Anmeldung von selbst.
+Wenn du sie geschlossen hast, oder sie nach mehr Speicher oder einer neuen
+Platte wiederholen willst:
+
+  ai-2 wizard
+
+Sie prüft den Computer, stimmt ihn ab, misst den KI-Wert und bietet an, das
+passende Modell zu laden. Drei Fragen, ein paar Minuten.
+
+Modelle:
+
+  ai-2 model list        was auf diesem Computer liegt und was es sonst gibt
+  ai-2 recommend         das Modell, das auf diese Maschine passt
+  ai-2 model pull        es herunterladen
+  ai-2 model rm <id>     eines löschen und Plattenplatz freigeben
+
+Modelle sind große Dateien. Sie liegen in /var/lib/ai2/models, wenn AI-2 von
+einem Administrator eingerichtet wurde, sonst in ~/.local/share/ai2/models.
+
+
+PROGRAMME INSTALLIEREN
+
+AI-2 bringt nur mit, was es braucht, damit das System auf einer alten
+Maschine klein und schnell bleibt. Alles andere ist einen Schritt entfernt,
+aus denselben signierten Paketquellen und kostenlos.
+
+Mit Fenster:
+
+  Anwendungen > Software hinzufügen/entfernen
+
+Suchen, anhaken, auf Anwenden klicken. Es fragt nach deinem Passwort, weil
+Programme zu installieren das ganze System verändert.
+
+Im Terminal:
+
+  ai-2 install            listet auf, was AI-2 üblicherweise weglässt
+  ai-2 install office     LibreOffice
+  ai-2 install printing   Drucken, und der Druckdienst wird für dich aktiviert
+  ai-2 install htop       jeder Paketname geht ebenfalls
+
+Die Kurznamen decken office, pdf, media, photos, image-editor, browser,
+archives, printing, scanner und usb-disks ab. Jeder andere Name geht direkt
+an die Paketverwaltung des Systems, also an pacman, so dass
+`sudo pacman -S <name>` dasselbe tut, wenn du das schon kennst.
+
+Zwei Hinweise für kleine Maschinen. LibreOffice und GIMP sind groß, beim
+Herunterladen wie im Betrieb; prüfe vorher den freien Platz mit `df -h /`.
+Und Programme, die du so installierst, stammen nicht von AI-2, sondern von
+Artix und Arch Linux, ihre eigene Hilfe ist also die richtige.
+
+
+DAS SYSTEM AKTUALISIEREN
+
+AI-2 ist ein Rolling Release. Es gibt keine Versionssprünge und nie eine
+Neuinstallation. Du aktualisierst, und der Computer ist aktuell. Das
+AI-2-Werkzeug, die KI-Engine, die Modellliste, der Desktop und der Kernel
+werden zusammen in einem Schritt aktualisiert.
+
+Wenn Aktualisierungen anstehen, bekommst du eine Meldung und beim nächsten
+Öffnen eines Terminals eine einzeilige Erinnerung. Es wird nie etwas hinter
+deinem Rücken installiert.
+
+Mit Fenster:
+
+  Anwendungen > Software-Aktualisierungen
+
+Im Terminal:
+
+  ai-2 update
+
+Das ist `sudo pacman -Syu` mit freundlicherem Gesicht, und es zeigt den
+genauen Befehl an, bevor es ihn ausführt, du kannst ihn also auch selbst
+tippen.
+
+Ratschläge, an die man sich halten sollte:
+
+- Aktualisiere, wenn du Zeit und eine stabile Verbindung hast. Es ist ein
+  einziger Vorgang, und ihn mittendrin abzubrechen ist der eine Weg, sich
+  Ärger zu machen.
+- Aktualisiere das Ganze. Einzelne Pakete in einem Rolling Release zu
+  aktualisieren ist, wie Systeme kaputtgehen. `ai-2 update` tut das nie.
+- Bei einem Notebook vorher das Netzteil anstecken.
+- Wenn es sich über Schlüssel oder Signaturen beschwert, führe
+  `sudo pacman -Sy artix-keyring ai2-keyring` aus und aktualisiere erneut.
+- Lies, was am Ende ausgegeben wird. Es kommt selten vor, aber manchmal
+  braucht ein Paket einen Handgriff, und dort steht er.
+
+
+WENN ETWAS NICHT STIMMT
+
+  ai-2 doctor    prüft Engine, Modell, Abstimmung und Dienste
+  ai-2 report    schreibt ~/ai2-report.txt für einen Fehlerbericht
+
+Der Bericht enthält Hardwaredaten, Prüfungen und Logausschnitte. Er enthält
+nichts von dem, was du der KI geschrieben hast.
+
+Wenn die KI nicht startet, liegt es meist daran, dass nie ein Modell geladen
+wurde (`ai-2 wizard`) oder dass die Platte voll ist (`df -h /`).
+
+
+BARRIEREFREIHEIT
+
+  ai-2 accessibility         läuft ein Screenreader, und was ist eingerichtet
+  ai-2 accessibility setup   installiert Orca, speech-dispatcher und
+                             espeak-ng, schaltet den Screenreader und sein
+                             Kürzel Super+Alt+S ein
+
+Mit laufendem Screenreader öffnet `ai-2 chat` den Terminal-Chat statt der
+Browserseite, denn diese Seite gehört der KI-Engine und liegt nicht in
+unserer Hand. Damit Antworten vorgelesen werden:
+
+  ai-2 chat --terminal --speak
+
+
+FERNZUGRIFF
+
+Ein installiertes AI-2 hat den Fernzugriff aus. Wenn jemand, dem du traust,
+von seinem Computer aus an diesem arbeiten soll, im eigenen Netz, schalte
+ihn ein mit:
+
+  sudo ln -s /etc/runit/sv/sshd /run/runit/service/
+
+Er bleibt bis zum nächsten Neustart an. Die übrige Zeit bleibt er aus.
+
+
+HILFE
+
+  ai-2 --help            alle Befehle, und jeder hat sein eigenes --help
+  https://github.com/ProWoos-Devs/ai-2/wiki      AI-2-Dokumentation
+  https://github.com/ProWoos-Devs/ai-2/issues    Fehler und Ideen
+  https://wiki.artixlinux.org                    das System darunter
+
+AI-2 ist freie Software, MIT-Lizenz. Die Komponenten von Artix Linux
+behalten ihre eigenen Lizenzen, die KI-Engine (llama.cpp) ist MIT, und
+Modelle behalten die Lizenz ihrer Autoren.

@@ -7,7 +7,7 @@
 # (git archive of www/ai-2), so a package always maps to a commit.
 
 pkgname=ai-2
-pkgver=0.7.1
+pkgver=0.8.0
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
@@ -22,7 +22,8 @@ optdepends=('pciutils: GPU detection via lspci'
             'ai2-llama-cpp-noavx: CPU inference runtime for SSE4.x CPUs without AVX2'
             'ai2-llama-cpp-avx2: CPU inference runtime for AVX2 CPUs'
             'xfce4-terminal: terminal window for the first-login setup wizard'
-            'libnotify: desktop notification when system updates are waiting')
+            'libnotify: desktop notification when system updates are waiting'
+            'pamac: graphical Add/Remove Software and Software Updates (Artix galaxy)')
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')
 
@@ -47,6 +48,9 @@ package() {
   install -Dm644 branding/desktop/ai2-setup.desktop "$pkgdir/etc/xdg/autostart/ai2-setup.desktop"
   install -Dm644 branding/desktop/ai2-chat.desktop "$pkgdir/usr/share/applications/ai2-chat.desktop"
   install -Dm644 branding/desktop/ai2-chat-terminal.desktop "$pkgdir/usr/share/applications/ai2-chat-terminal.desktop"
+  install -Dm644 branding/desktop/ai2-guide.desktop "$pkgdir/usr/share/applications/ai2-guide.desktop"
+  # hidden by TryExec when pamac is not installed
+  install -Dm644 branding/desktop/ai2-software-updates.desktop "$pkgdir/usr/share/applications/ai2-software-updates.desktop"
   # passive update notification: daily session check + login-shell hint
   install -Dm644 branding/desktop/ai2-update-check.desktop "$pkgdir/etc/xdg/autostart/ai2-update-check.desktop"
   install -Dm644 packaging/ai-2/ai2-updates.profile.sh "$pkgdir/etc/profile.d/ai2-updates.sh"
@@ -54,6 +58,11 @@ package() {
   install -Dm644 branding/START-HERE.txt "$pkgdir/usr/share/doc/ai2/START-HERE.txt"
   install -Dm644 branding/EMPIEZA-AQUI.txt "$pkgdir/usr/share/doc/ai2/EMPIEZA-AQUI.txt"
   install -Dm644 branding/START-HIER.txt "$pkgdir/usr/share/doc/ai2/START-HIER.txt"
+  # the guide for the installed system (the one `ai-2 guide` opens); the
+  # START-HERE family above is the live stick's
+  install -Dm644 branding/AI-2-GUIDE.txt "$pkgdir/usr/share/doc/ai2/AI-2-GUIDE.txt"
+  install -Dm644 branding/AI-2-GUIA.txt "$pkgdir/usr/share/doc/ai2/AI-2-GUIA.txt"
+  install -Dm644 branding/AI-2-ANLEITUNG.txt "$pkgdir/usr/share/doc/ai2/AI-2-ANLEITUNG.txt"
   # mousepad (the only text editor) wraps long lines; pacman compiles schemas
   install -Dm644 branding/90_ai2.gschema.override "$pkgdir/usr/share/glib-2.0/schemas/90_ai2.gschema.override"
 
@@ -62,6 +71,11 @@ package() {
   # owned by the base package, so a pacman hook re-applies it after upgrades.
   install -Dm755 packaging/ai-2/artix-service "$pkgdir/usr/lib/ai2/artix-service"
   install -Dm644 packaging/ai-2/ai2-artix-service.hook "$pkgdir/usr/share/libalpm/hooks/zz-ai2-artix-service.hook"
+
+  # pamac is the graphical package manager; AI-2 hides its update tray because
+  # AI-2 notifies about updates itself (and a pamac upgrade restores the file)
+  install -Dm755 packaging/ai-2/pamac-adjust.sh "$pkgdir/usr/lib/ai2/pamac-adjust.sh"
+  install -Dm644 packaging/ai-2/ai2-pamac.hook "$pkgdir/usr/share/libalpm/hooks/zz-ai2-pamac.hook"
 
   # session bus at $XDG_RUNTIME_DIR/bus (WebKit sandbox needs it; see the script)
   install -Dm755 packaging/ai-2/30-ai2-session-bus.sh "$pkgdir/etc/X11/xinit/xinitrc.d/30-ai2-session-bus.sh"

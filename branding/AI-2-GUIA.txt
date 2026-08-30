@@ -1,0 +1,196 @@
+> AI-2 █
+GUÍA DE AI-2
+============
+
+Dale un cerebro de IA a tu ordenador.
+
+Esta es la guía del ordenador en el que acabas de instalar AI-2. La otra
+guía, EMPIEZA-AQUI.txt, trataba del pendrive y de la instalación; esa parte
+ya está hecha.
+
+In English: AI-2-GUIDE.txt      (o  ai-2 guide --lang en )
+Auf Deutsch: AI-2-ANLEITUNG.txt  (o  ai-2 guide --lang de )
+
+Puedes volver a abrir este archivo cuando quieras desde Aplicaciones > Guía
+de AI-2, o en una terminal con:
+
+  ai-2 guide
+
+Todo lo que sigue se puede hacer de dos maneras, con el ratón o en una
+terminal. Hacen lo mismo. Usa la que prefieras.
+
+
+QUÉ PUEDE HACER YA ESTE ORDENADOR
+
+Un modelo de lenguaje funciona en esta misma máquina, en la CPU. No hay
+cuenta, no hay suscripción y nada de lo que escribes sale de aquí. Sin
+conexión a internet la IA sigue respondiendo.
+
+Lo buena que sea depende del hardware, y AI-2 ya lo ha medido. La Puntuación
+IA (0 a 100) y el modelo que encaja en esta máquina se decidieron en el
+primer inicio de sesión. Para verlos otra vez:
+
+  ai-2 profile
+
+Un ordenador antiguo da respuestas cortas y lentas con un modelo pequeño.
+Eso es normal y no está averiado. Un modelo pequeño también puede
+equivocarse en datos y en cuentas sencillas, así que trátalo como un
+ayudante rápido, no como una enciclopedia.
+
+
+HABLAR CON LA IA
+
+  Aplicaciones > AI-2 Chat             abre la página de chat en el navegador
+  Aplicaciones > AI-2 Chat (terminal)  la misma IA en una terminal
+
+En una máquina lenta o con poca memoria, usa mejor la versión de terminal.
+Aparece al instante y deja toda la memoria para la IA. Es también la que
+funciona por SSH y con un lector de pantalla.
+
+En una terminal:
+
+  ai-2 chat              arranca la IA y abre la página de chat
+  ai-2 chat --terminal   chatea ahí mismo, lo más ligero
+  ai-2 stop              para la IA ahora y libera su memoria
+
+La IA arranca cuando la pides y se para sola tras un rato sin uso, así que
+no se queda comiendo memoria de fondo. La página del navegador dice "No es
+seguro" porque la sirve este mismo ordenador en 127.0.0.1. Nada sale de la
+máquina, así que no hay nada que proteger.
+
+
+SI ALGO NO ESTÁ CONFIGURADO
+
+La configuración guiada se abre sola en tu primer inicio de sesión. Si la
+cerraste, o quieres repetirla después de ampliar memoria o disco, ejecuta:
+
+  ai-2 wizard
+
+Analiza el ordenador, lo ajusta, mide la Puntuación IA y ofrece descargar el
+modelo que encaja. Tres preguntas y unos minutos.
+
+Modelos:
+
+  ai-2 model list        lo que hay en este ordenador y lo que existe
+  ai-2 recommend         el modelo que encaja en esta máquina
+  ai-2 model pull        descargarlo
+  ai-2 model rm <id>     borrar uno para liberar disco
+
+Los modelos son archivos grandes. Están en /var/lib/ai2/models cuando AI-2
+lo configuró un administrador, y si no en ~/.local/share/ai2/models.
+
+
+INSTALAR PROGRAMAS
+
+AI-2 trae solo lo que necesita, para que el sistema siga siendo pequeño y
+rápido en una máquina antigua. Todo lo demás está a un paso, desde los
+mismos repositorios firmados y sin coste.
+
+Con ventana:
+
+  Aplicaciones > Añadir/Quitar software
+
+Busca lo que quieras, márcalo y pulsa Aplicar. Te pide la contraseña porque
+instalar programas cambia todo el sistema.
+
+En una terminal:
+
+  ai-2 install            lista lo más común que AI-2 no trae
+  ai-2 install office     LibreOffice
+  ai-2 install printing   impresión, y activa por ti el servicio de impresión
+  ai-2 install htop       también vale cualquier nombre de paquete
+
+Los nombres cortos cubren office, pdf, media, photos, image-editor, browser,
+archives, printing, scanner y usb-disks. Cualquier otro nombre pasa directo
+al gestor de paquetes del sistema, que es pacman, así que
+`sudo pacman -S <nombre>` hace lo mismo si ya lo conoces.
+
+Dos avisos para máquinas pequeñas. LibreOffice y GIMP son grandes, tanto de
+descarga como de uso; comprueba antes el espacio libre con `df -h /`. Y los
+programas que instales así no los hace AI-2, vienen de Artix y de Arch
+Linux, así que la ayuda a leer es la suya.
+
+
+ACTUALIZAR EL SISTEMA
+
+AI-2 es rolling release. No hay versiones a las que saltar ni que
+reinstalar, nunca. Actualizas y el ordenador está al día. La herramienta
+AI-2, el motor de IA, la lista de modelos, el escritorio y el núcleo se
+actualizan juntos en un solo paso.
+
+Cuando hay actualizaciones pendientes recibes un aviso, y un recordatorio de
+una línea la próxima vez que abras una terminal. Nunca se instala nada a tus
+espaldas.
+
+Con ventana:
+
+  Aplicaciones > Actualizaciones de software
+
+En una terminal:
+
+  ai-2 update
+
+Es `sudo pacman -Syu` con mejor cara, y escribe el comando exacto antes de
+ejecutarlo, así que también puedes teclearlo tú.
+
+Consejos que conviene seguir:
+
+- Actualiza cuando tengas tiempo y una conexión estable. Es una sola
+  operación, e interrumpirla a medias es la única forma de liarla.
+- Actualiza el conjunto. Actualizar paquetes sueltos en una rolling release
+  es como se rompen los sistemas. `ai-2 update` nunca hace eso.
+- En un portátil, enchúfalo antes.
+- Si se queja de claves o de firmas, ejecuta
+  `sudo pacman -Sy artix-keyring ai2-keyring` y actualiza otra vez.
+- Lee lo que escribe al final. Es raro, pero a veces un paquete necesita un
+  paso manual y ahí es donde lo dice.
+
+
+CUANDO ALGO VA MAL
+
+  ai-2 doctor    revisa el motor, el modelo, los ajustes y los servicios
+  ai-2 report    escribe ~/ai2-report.txt para adjuntar a un informe de fallo
+
+El informe lleva datos del hardware, comprobaciones y trozos de registro. No
+lleva nada de lo que hayas escrito a la IA.
+
+Si la IA no arranca, lo habitual es que no se haya descargado ningún modelo
+(ejecuta `ai-2 wizard`) o que el disco esté lleno (`df -h /`).
+
+
+ACCESIBILIDAD
+
+  ai-2 accessibility         si hay un lector de pantalla y qué está puesto
+  ai-2 accessibility setup   instala Orca, speech-dispatcher y espeak-ng,
+                             activa el lector de pantalla y su atajo
+                             Super+Alt+S
+
+Con un lector de pantalla en marcha, `ai-2 chat` abre el chat de terminal en
+lugar de la página del navegador, porque esa página es del motor de IA y no
+está en nuestra mano arreglarla. Para que lea las respuestas en voz alta:
+
+  ai-2 chat --terminal --speak
+
+
+ACCESO REMOTO
+
+Un AI-2 instalado tiene el acceso remoto desactivado. Si alguien de
+confianza necesita trabajar en este ordenador desde el suyo, en tu propia
+red, actívalo con:
+
+  sudo ln -s /etc/runit/sv/sshd /run/runit/service/
+
+Se queda activo hasta el siguiente reinicio. El resto del tiempo, déjalo
+apagado.
+
+
+AYUDA
+
+  ai-2 --help            todos los comandos, y cada uno tiene su --help
+  https://github.com/ProWoos-Devs/ai-2/wiki      documentación de AI-2
+  https://github.com/ProWoos-Devs/ai-2/issues    fallos e ideas
+  https://wiki.artixlinux.org                    el sistema de debajo
+
+AI-2 es software libre, licencia MIT. Los componentes de Artix Linux
+mantienen sus propias licencias, el motor de IA (llama.cpp) es MIT, y los
+modelos mantienen la licencia de sus autores.

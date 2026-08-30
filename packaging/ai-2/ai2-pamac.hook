@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = pamac
+
+[Action]
+Description = Hiding pamac's update tray (AI-2 notifies about updates itself)...
+When = PostTransaction
+Exec = /usr/lib/ai2/pamac-adjust.sh

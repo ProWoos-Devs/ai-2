@@ -147,11 +147,20 @@ Dieselben Schritte von Hand, in einem Terminal (Anwendungen > Terminal):
   ai-2 stop            hält die lokale KI an und gibt ihren Speicher frei
   ai-2 doctor          prüft, ob alles in Ordnung ist
   ai-2 report          schreibt eine Datei zum Anhängen an einen Fehlerbericht
+  ai-2 install         listet und installiert, was AI-2 weglässt (Büro,
+                       Drucken, Medien, ...), oder jedes Paket
+  ai-2 update          aktualisiert AI-2, den Motor und das System
+  ai-2 guide           die Anleitung für den installierten Computer
   ai-2 serve           dieselbe KI als Dienst für Programme (OpenAI-artige
                        API unter http://127.0.0.1:8080/), hält bei
                        Inaktivität an
 
 Jeder Befehl hat --help.
+
+Das installierte System hat seine eigene Anleitung, über den Computer und
+nicht über diesen Stick. Sie liegt nach der ersten Anmeldung auf dem
+Schreibtisch, steht unter Anwendungen > AI-2 Anleitung, und im Terminal
+ist sie  ai-2 guide .
 
 
 ENTHALTEN, UND UPDATES
@@ -162,10 +171,10 @@ ist schnell und leicht; es ist nicht das klügste Modell. Sobald du online
 bist, misst AI-2 deine Maschine, kann ein besser passendes Modell holen und
 sagt dir, wenn Updates warten.
 
-AI-2, der KI-Motor und die Liste der verfügbaren Modelle aktualisieren sich
-auf dem normalen Weg:
+AI-2, der KI-Motor und die Liste der verfügbaren Modelle aktualisieren
+sich zusammen, in einem Schritt:
 
-  sudo pacman -Syu
+  ai-2 update
 
 Die Einrichtung bei der ersten Anmeldung erklärt das alles und erledigt es
 für dich. Starte sie jederzeit neu mit  ai-2 wizard .
@@ -179,18 +188,24 @@ Drucksystem, keine Kernel-Header. So bleibt der Download klein und das
 System leicht auf alten Maschinen. Was dir fehlt, ist einen Befehl
 entfernt, zum Beispiel:
 
-  sudo pacman -S atril          PDF-Betrachter
-  sudo pacman -S cups           Drucken
-  sudo pacman -S vlc            Medienplayer
-  sudo pacman -S libreoffice-still
+  Anwendungen > Software hinzufügen/entfernen   suchen, anhaken, anwenden
+
+oder im Terminal:
+
+  ai-2 install            was AI-2 weglässt, und die Kurznamen dafür
+  ai-2 install pdf        ein PDF-Betrachter
+  ai-2 install printing   Drucken, der Druckdienst wird gleich aktiviert
+  ai-2 install office     LibreOffice
 
 
 AKTUALISIEREN
 
 Die AI-2-Pakete kommen aus einem signierten Repository, das schon
-eingerichtet ist. Aktualisiere das ganze System mit:
+eingerichtet ist. Du wirst benachrichtigt, wenn Updates warten, und nichts
+installiert sich von selbst. Aktualisiere das ganze System über
+Anwendungen > Software-Aktualisierungen, oder im Terminal:
 
-  sudo pacman -Syu
+  ai-2 update
 
 
 MEHR HILFE

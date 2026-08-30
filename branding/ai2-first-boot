@@ -1,7 +1,16 @@
 #!/bin/sh
-# AI-2: at login, open the guided setup in a terminal window until it has
-# been completed once for this user (marker: ~/.config/ai2/setup-done, written
-# by `ai-2 wizard`; delete it to get the wizard back at login).
+# AI-2: at login, two things, each done once per user.
+#
+# 1. Put the AI-2 guide (the installed-system one, in the system language) on
+#    the user's desktop, so a freshly installed machine hands the user
+#    something to read instead of an empty desktop. Marker:
+#    ~/.config/ai2/guide-placed, written even when nothing was copied, so a
+#    user who deletes the icon does not get it back at every login.
+# 2. Open the guided setup in a terminal window until it has been completed
+#    once (marker: ~/.config/ai2/setup-done, written by `ai-2 wizard`; delete
+#    it to get the wizard back at login).
+ai-2 guide --place-desktop >/dev/null 2>&1
+
 marker="${XDG_CONFIG_HOME:-$HOME/.config}/ai2/setup-done"
 [ -e "$marker" ] && exit 0
 sleep 8   # let the desktop settle first

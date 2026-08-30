@@ -129,10 +129,18 @@ The same steps by hand, in a terminal (Applications > Terminal Emulator):
   ai-2 stop            stop the local AI and free its memory
   ai-2 doctor          check that everything is in order
   ai-2 report          write a file to attach to a bug report
+  ai-2 install         list and install what AI-2 leaves out (office,
+                       printing, media, ...), or any package by name
+  ai-2 update          update AI-2, the engine and the system in one step
+  ai-2 guide           the guide for the installed computer
   ai-2 serve           the same AI as a service for programs (OpenAI-style
                        API at http://127.0.0.1:8080/), stops when idle
 
 Every command has --help.
+
+The installed system carries its own guide, about the computer rather
+than about this stick. It lands on the desktop at your first login, it is
+in Applications > AI-2 Guide, and in a terminal it is  ai-2 guide .
 
 
 INCLUDED, AND UPDATES
@@ -142,10 +150,10 @@ the install finishes, even with no internet. It is fast and light; it is not
 the smartest model. Once you are online, AI-2 measures your machine, can fetch
 a model that fits it better, and tells you if updates are waiting.
 
-AI-2, the AI engine and the list of available models all update the normal
-way:
+AI-2, the AI engine and the list of available models all update together,
+in one step:
 
-  sudo pacman -Syu
+  ai-2 update
 
 The first-login setup explains all of this and does it for you. Run it again
 any time with  ai-2 wizard .
@@ -158,18 +166,23 @@ the AI engine. No office suite, no media players, no printing stack, no
 kernel headers. That keeps the download small and the system light on
 old machines. Anything you miss is one command away, for example:
 
-  sudo pacman -S atril          PDF viewer
-  sudo pacman -S cups           printing
-  sudo pacman -S vlc            media player
-  sudo pacman -S libreoffice-still
+  Applications > Add/Remove Software     search it, tick it, apply
+
+or in a terminal:
+
+  ai-2 install            what AI-2 leaves out, and its short names
+  ai-2 install pdf        a PDF viewer
+  ai-2 install printing   printing, with the print service enabled for you
+  ai-2 install office     LibreOffice
 
 
 UPDATING
 
 AI-2 packages come from a signed repository that is already configured.
-Update the whole system with:
+You are told when updates are waiting, and nothing installs itself. Update
+the whole system from Applications > Software Updates, or in a terminal:
 
-  sudo pacman -Syu
+  ai-2 update
 
 
 MORE HELP

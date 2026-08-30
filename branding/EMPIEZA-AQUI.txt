@@ -136,11 +136,19 @@ Los mismos pasos a mano, en una terminal (Aplicaciones > Terminal):
   ai-2 stop            detiene la IA local y libera su memoria
   ai-2 doctor          comprueba que todo está en orden
   ai-2 report          escribe un archivo para adjuntar a un informe de error
+  ai-2 install         lista e instala lo que AI-2 no trae (oficina,
+                       impresión, multimedia, ...), o cualquier paquete
+  ai-2 update          actualiza AI-2, el motor y el sistema en un paso
+  ai-2 guide           la guía del ordenador ya instalado
   ai-2 serve           la misma IA como servicio para programas (API estilo
                        OpenAI en http://127.0.0.1:8080/), se detiene al
                        quedar inactiva
 
 Todos los comandos tienen --help.
+
+El sistema instalado lleva su propia guía, sobre el ordenador y no sobre
+este pendrive. Aparece en el escritorio en tu primer inicio de sesión,
+está en Aplicaciones > Guía de AI-2, y en una terminal es  ai-2 guide .
 
 
 INCLUIDO, Y ACTUALIZACIONES
@@ -151,10 +159,10 @@ no es el modelo más listo. Cuando estés en línea, AI-2 mide tu máquina,
 puede traer un modelo que le encaje mejor y te avisa si hay actualizaciones
 pendientes.
 
-AI-2, el motor de IA y la lista de modelos disponibles se actualizan de la
-forma normal:
+AI-2, el motor de IA y la lista de modelos disponibles se actualizan
+juntos, en un solo paso:
 
-  sudo pacman -Syu
+  ai-2 update
 
 La configuración del primer inicio de sesión explica todo esto y lo hace
 por ti. Ejecútala de nuevo cuando quieras con  ai-2 wizard .
@@ -168,18 +176,24 @@ sistema de impresión, sin cabeceras del kernel. Así la descarga es pequeña
 y el sistema va ligero en máquinas antiguas. Lo que eches de menos está a
 un comando de distancia, por ejemplo:
 
-  sudo pacman -S atril          visor de PDF
-  sudo pacman -S cups           impresión
-  sudo pacman -S vlc            reproductor multimedia
-  sudo pacman -S libreoffice-still
+  Aplicaciones > Añadir/Quitar software    búscalo, márcalo, aplica
+
+o en una terminal:
+
+  ai-2 install            lo que AI-2 no trae, y sus nombres cortos
+  ai-2 install pdf        un visor de PDF
+  ai-2 install printing   impresión, con el servicio ya activado por ti
+  ai-2 install office     LibreOffice
 
 
 ACTUALIZAR
 
 Los paquetes de AI-2 vienen de un repositorio firmado que ya está
-configurado. Actualiza todo el sistema con:
+configurado. Se te avisa cuando hay actualizaciones pendientes, y nada se
+instala solo. Actualiza todo el sistema desde Aplicaciones >
+Actualizaciones de software, o en una terminal:
 
-  sudo pacman -Syu
+  ai-2 update
 
 
 MÁS AYUDA

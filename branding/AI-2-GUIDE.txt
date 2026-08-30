@@ -1,0 +1,192 @@
+> AI-2 █
+AI-2 GUIDE
+==========
+
+Give your computer an AI brain.
+
+This is the guide for the computer you have just installed AI-2 on. The
+other guide, START-HERE.txt, was about the USB stick and the installation;
+that part is done.
+
+En español: AI-2-GUIA.txt      (or  ai-2 guide --lang es )
+Auf Deutsch: AI-2-ANLEITUNG.txt  (or  ai-2 guide --lang de )
+
+You can open this file again at any time from Applications > AI-2 Guide,
+or in a terminal with:
+
+  ai-2 guide
+
+Everything below has two ways of doing it, one with the mouse and one in a
+terminal. They do the same thing. Use whichever you prefer.
+
+
+WHAT THIS COMPUTER CAN DO NOW
+
+A language model runs on this machine itself, on the CPU. There is no
+account, no subscription, and nothing you type goes to anyone. When you are
+offline the AI still answers.
+
+How good it is depends on the hardware, and AI-2 already measured it. The AI
+Score (0 to 100) and the model that fits this machine were decided at the
+first login. To see them again:
+
+  ai-2 profile
+
+An old computer gives short, slow answers from a small model. That is normal
+and it is not broken. A small model can also get facts and simple arithmetic
+wrong, so treat it like a fast helper, not an encyclopedia.
+
+
+TALK TO THE AI
+
+  Applications > AI-2 Chat             opens the chat page in the browser
+  Applications > AI-2 Chat (Terminal)  the same AI in a terminal window
+
+On a slow machine or with little memory, prefer the terminal one. It appears
+instantly and leaves all the memory to the AI. It is also the one that works
+over SSH and with a screen reader.
+
+In a terminal:
+
+  ai-2 chat              start the AI and open the chat page
+  ai-2 chat --terminal   chat right there, lightest option
+  ai-2 stop              stop the AI now and free its memory
+
+The AI starts when you ask for it and stops by itself after a while without
+use, so it is not eating memory in the background. The browser page says
+"Not Secure" because it is served by this computer at 127.0.0.1. Nothing
+leaves the machine, so there is nothing to secure.
+
+
+IF SOMETHING IS NOT SET UP
+
+The guided setup runs by itself at your first login. If you closed it, or
+you want to run it again after adding memory or a disk, run:
+
+  ai-2 wizard
+
+It scans the computer, tunes it, measures the AI Score, and offers to
+download the model that fits. Three questions, a few minutes.
+
+Models:
+
+  ai-2 model list        what is on this computer, and what else exists
+  ai-2 recommend         the model that fits this machine
+  ai-2 model pull        download it
+  ai-2 model rm <id>     delete one to free disk space
+
+Models are big files. They live in /var/lib/ai2/models when AI-2 was set up
+by an administrator, otherwise in ~/.local/share/ai2/models.
+
+
+ADD SOFTWARE
+
+AI-2 ships only what it needs, so the system stays small and fast on an old
+machine. Everything else is one step away, from the same signed
+repositories, at no cost.
+
+With a window:
+
+  Applications > Add/Remove Software
+
+Search for what you want, tick it, click Apply. It asks for your password
+because installing software changes the whole system.
+
+In a terminal:
+
+  ai-2 install            list the common things AI-2 leaves out
+  ai-2 install office     LibreOffice
+  ai-2 install printing   printing, and it enables the print service for you
+  ai-2 install htop       any package name also works
+
+The short names cover office, pdf, media, photos, image-editor, browser,
+archives, printing, scanner and usb-disks. Anything else you name is passed
+straight to the system package manager, which is pacman, so
+`sudo pacman -S <name>` does the same job if you already know it.
+
+Two notes for small machines. LibreOffice and GIMP are large, both to
+download and to run; check you have the disk space first with `df -h /`.
+And software you install this way is not made by AI-2, it comes from Artix
+and Arch Linux, so its own help pages are the ones to read.
+
+
+UPDATE THE SYSTEM
+
+AI-2 is a rolling release. There are no versions to upgrade between and no
+reinstall, ever. You update, and the computer is current. The AI-2 tool, the
+AI engine, the model list, the desktop and the kernel all update together in
+one step.
+
+When updates are waiting you get a notification, and a one-line reminder the
+next time you open a terminal. Nothing is ever installed behind your back.
+
+With a window:
+
+  Applications > Software Updates
+
+In a terminal:
+
+  ai-2 update
+
+That is `sudo pacman -Syu` with a friendlier face, and it prints the exact
+command before running it, so you can also type that yourself.
+
+Advice worth following:
+
+- Update when you have time and a stable connection. It is one operation,
+  and interrupting it halfway is the one way to make a mess.
+- Update the whole thing. Updating single packages on a rolling release is
+  how systems break. `ai-2 update` never does that.
+- On a laptop, plug it in first.
+- If it complains about keys or signatures, run
+  `sudo pacman -Sy artix-keyring ai2-keyring` and update again.
+- Read what it prints at the end. It is rare, but sometimes a package needs
+  a manual step and that is where it says so.
+
+
+WHEN SOMETHING IS WRONG
+
+  ai-2 doctor    checks the engine, the model, the tuning and the services
+  ai-2 report    writes ~/ai2-report.txt to attach to a bug report
+
+The report contains hardware details, checks and log tails. It does not
+contain anything you typed to the AI.
+
+If the AI will not start, the usual causes are a model that was never
+downloaded (run `ai-2 wizard`) and a disk that is full (`df -h /`).
+
+
+ACCESSIBILITY
+
+  ai-2 accessibility         is a screen reader running, and what is set up
+  ai-2 accessibility setup   install Orca, speech-dispatcher and espeak-ng,
+                             turn on the screen reader and its Super+Alt+S
+                             shortcut
+
+With a screen reader running, `ai-2 chat` opens the terminal chat instead of
+the browser page, because that page is the AI engine's own and not ours to
+fix. For answers read out loud:
+
+  ai-2 chat --terminal --speak
+
+
+REMOTE ACCESS
+
+An installed AI-2 keeps remote access off. If someone you trust needs to
+work on this computer from theirs, on your own network, turn it on with:
+
+  sudo ln -s /etc/runit/sv/sshd /run/runit/service/
+
+It stays on until the next reboot. Leave it off the rest of the time.
+
+
+HELP
+
+  ai-2 --help            every command, and every command has its own --help
+  https://github.com/ProWoos-Devs/ai-2/wiki      AI-2 documentation
+  https://github.com/ProWoos-Devs/ai-2/issues    bugs and ideas
+  https://wiki.artixlinux.org                    the system underneath
+
+AI-2 is free software, MIT license. Artix Linux components keep their own
+licenses, the AI engine (llama.cpp) is MIT, and models keep the license of
+their authors.

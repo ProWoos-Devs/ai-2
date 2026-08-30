@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=AI-2 Guide
+Name[es]=Guía de AI-2
+Name[de]=AI-2 Anleitung
+GenericName=Guide for this computer
+GenericName[es]=Guía de este ordenador
+GenericName[de]=Anleitung für diesen Computer
+Comment=What this computer can do, talking to the AI, adding software, updating
+Comment[es]=Qué puede hacer este ordenador, hablar con la IA, instalar programas, actualizar
+Comment[de]=Was dieser Computer kann, mit der KI reden, Programme installieren, aktualisieren
+Exec=ai-2 guide --open
+Icon=ai2
+Terminal=false
+Categories=Utility;Documentation;
+Keywords=guide;help;manual;readme;
+Keywords[es]=guia;ayuda;manual;
+Keywords[de]=anleitung;hilfe;handbuch;

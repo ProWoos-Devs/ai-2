@@ -360,18 +360,22 @@ class Wizard:
                         "  In the browser:      ai-2 chat              (or the 'AI-2 Chat' entry in the menu)\n"
                         "  For programs (API):  ai-2 serve             OpenAI-compatible, http://127.0.0.1:8080/\n"
                         "  This setup again:    ai-2 wizard\n"
-                        "  The guide:           /usr/share/doc/ai2/START-HERE.txt"))
+                        "  More programs:       ai-2 install           (or 'Add/Remove Software' in the menu)\n"
+                        "  Update everything:   ai-2 update            (or 'Software Updates' in the menu)\n"
+                        "  The guide:           ai-2 guide             (or 'AI-2 Guide' in the menu)"))
         else:
             self.say(tr("  To talk to the AI:   ai-2 chat              (browser; or the 'AI-2 Chat' entry in the menu)\n"
                         "  In the terminal:     ai-2 chat --terminal   (lightest, works over SSH)\n"
                         "  For programs (API):  ai-2 serve             OpenAI-compatible, http://127.0.0.1:8080/\n"
                         "  This setup again:    ai-2 wizard\n"
-                        "  The guide:           /usr/share/doc/ai2/START-HERE.txt"))
+                        "  More programs:       ai-2 install           (or 'Add/Remove Software' in the menu)\n"
+                        "  Update everything:   ai-2 update            (or 'Software Updates' in the menu)\n"
+                        "  The guide:           ai-2 guide             (or 'AI-2 Guide' in the menu)"))
         # Updates: the system and the model catalog can move on; check now if online.
         if have_internet():
             self._check_updates()
         else:
-            self.say(tr("\n  When you are online, AI-2 checks for updates; you can also run  sudo pacman -Syu  any time."))
+            self.say(tr("\n  When you are online, AI-2 checks for updates; you can also run  ai-2 update  any time."))
         if pending:
             self.report["stopped_at"] = 4
             self._save_report()
@@ -389,7 +393,7 @@ class Wizard:
         AI-2 tool, the engine and the model catalog all update through pacman."""
         import shutil
         if not shutil.which("checkupdates"):
-            self.say(tr("\n  Updates: keep AI-2 (and its models list) current with  sudo pacman -Syu"))
+            self.say(tr("\n  Updates: keep AI-2 (and its models list) current with  ai-2 update"))
             return
         try:
             out = subprocess.run(["checkupdates"], capture_output=True, text=True, timeout=60).stdout
@@ -398,9 +402,9 @@ class Wizard:
         n = len([ln for ln in out.splitlines() if ln.strip()])
         if n:
             self.say(tr("\n  Updates: {n} available (AI-2, the engine and the models list update this way).\n"
-                        "           Install them with:  sudo pacman -Syu").format(n=n))
+                        "           Install them with:  ai-2 update").format(n=n))
         else:
-            self.say(tr("\n  Updates: the system is current. Check any time with  sudo pacman -Syu"))
+            self.say(tr("\n  Updates: the system is current. Check any time with  ai-2 update"))
 
     def _download(self, model: dict) -> str:
         dest = model_dir()

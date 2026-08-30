@@ -1,0 +1,20 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Software Updates
+Name[es]=Actualizaciones de software
+Name[de]=Software-Aktualisierungen
+GenericName=Update this computer
+GenericName[es]=Actualizar este ordenador
+GenericName[de]=Diesen Computer aktualisieren
+Comment=Update AI-2, the AI engine and the whole system in one step
+Comment[es]=Actualiza AI-2, el motor de IA y todo el sistema en un solo paso
+Comment[de]=AI-2, die KI-Engine und das ganze System in einem Schritt aktualisieren
+Exec=pamac-manager --updates
+TryExec=pamac-manager
+Icon=system-software-update
+Terminal=false
+Categories=System;PackageManager;
+Keywords=update;upgrade;packages;pacman;
+Keywords[es]=actualizar;actualizaciones;paquetes;
+Keywords[de]=aktualisieren;update;pakete;

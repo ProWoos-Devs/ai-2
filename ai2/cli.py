@@ -653,8 +653,62 @@ def cmd_update_check(args) -> int:
         return 0
     if args.notify:
         updates.notify(count)
-    print(f"{count} update(s) available. Update with:  sudo pacman -Syu"
+    print(f"{count} update(s) available. Update with:  ai-2 update"
           if count else "The system is current.")
+    return 0
+
+
+def cmd_update(args) -> int:
+    """Update everything. AI-2, the AI engine, the model catalog and the rest
+    of the system come from the same rolling repositories, so there is one
+    update and this is it."""
+    from . import software
+    if args.gui:
+        if software.open_gui(updates=True):
+            print("Opened Add/Remove Software on its updates page.")
+            return 0
+        print("The graphical package manager is not installed on this computer. "
+              "Add it with:  ai-2 install pamac\nUpdating here instead.\n")
+    return software.update()
+
+
+def cmd_install(args) -> int:
+    """Install software by plain-language short name or by package name."""
+    from . import software
+    if args.list:
+        print(software.render_catalog())
+        return 0
+    if args.gui:
+        if software.open_gui():
+            print("Opened Add/Remove Software.")
+            return 0
+        print("The graphical package manager is not installed on this computer. "
+              "Add it with:  ai-2 install pamac\nInstalling here instead.\n")
+    return software.install(args.what, init_system=detect().init_system)
+
+
+def cmd_guide(args) -> int:
+    """The guide for this installed computer: what it can do, how to add
+    software, how to update, where to get help."""
+    from . import guide
+    _as_invoking_user()
+    if args.place_desktop:
+        written = guide.place_on_desktop(lang=args.lang)
+        if written:
+            print(f"Guide placed on the desktop: {written}")
+        return 0
+    path = guide.guide_path(args.lang)
+    if path is None:
+        print("The AI-2 guide is not installed on this computer "
+              "(it belongs to the ai-2 package, in /usr/share/doc/ai2/).", file=sys.stderr)
+        return 1
+    if args.path:
+        print(path)
+        return 0
+    if args.open and guide.open_in_editor(args.lang):
+        print(f"Opened {path}")
+        return 0
+    print(guide.read(args.lang) or "")
     return 0
 
 
@@ -774,6 +828,27 @@ def main(argv: list[str] | None = None) -> int:
     p_a11y.add_argument("action", nargs="?", choices=["setup"],
                         help="setup = install the reader stack (sudo asks once) and wire Orca autostart, the assistive-technologies flag and the Super+Alt+S shortcut for the current user")
     p_a11y.set_defaults(func=cmd_accessibility)
+
+    p_up = sub.add_parser("update", help="update AI-2, the AI engine and the whole system (one command, rolling release)")
+    p_up.add_argument("--gui", action="store_true",
+                      help="open the graphical Add/Remove Software on its updates page instead")
+    p_up.set_defaults(func=cmd_update)
+
+    p_inst = sub.add_parser("install", help="install software AI-2 leaves out (office, printing, media, ...) or any package")
+    p_inst.add_argument("what", nargs="*", help="short names from 'ai-2 install --list', or package names")
+    p_inst.add_argument("--list", action="store_true", help="show the short names and what they install")
+    p_inst.add_argument("--gui", action="store_true",
+                        help="open the graphical Add/Remove Software instead")
+    p_inst.set_defaults(func=cmd_install)
+
+    p_guide = sub.add_parser("guide", help="the AI-2 guide for this computer: what it does, adding software, updating")
+    p_guide.add_argument("--lang", choices=sorted(("en", "es", "de")),
+                         help="guide language (default: the system language)")
+    p_guide.add_argument("--open", action="store_true", help="open it in the desktop text editor")
+    p_guide.add_argument("--path", action="store_true", help="print the file path only")
+    p_guide.add_argument("--place-desktop", action="store_true",
+                         help="copy it to the desktop once (what the first login does)")
+    p_guide.set_defaults(func=cmd_guide)
 
     p_logo = sub.add_parser("logo", help="print the AI-2 logo")
     p_logo.set_defaults(func=cmd_logo)

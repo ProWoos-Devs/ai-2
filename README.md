@@ -75,6 +75,12 @@ ai-2 stop            # stop the local AI and free its memory
 ai-2 doctor          # check engine, model, tuning, services, repository key
 ai-2 report          # write ~/ai2-report.txt to attach to a bug report
 ai-2 wizard          # the guided setup, re-runnable any time
+ai-2 install         # list the common things AI-2 leaves out (office, printing, media, ...)
+ai-2 install office  # install by short name, or by package name: ai-2 install htop
+                     # a daemon's service is enabled too (printing is useless with cupsd off)
+ai-2 update          # update AI-2, the engine, the model catalog and the system in one step
+                     # --gui on either opens pamac, the graphical Add/Remove Software
+ai-2 guide           # the guide for the installed computer, in the system language
 ai-2 logo            # the mark, in the size the terminal allows
 ```
 

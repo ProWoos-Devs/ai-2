@@ -9,7 +9,8 @@ import re
 from ai2 import i18n
 from ai2.benchmark import STAR_LABELS, feel
 
-SOURCES = [pathlib.Path("ai2/wizard.py"), pathlib.Path("ai2/chatterm.py")]
+SOURCES = [pathlib.Path("ai2/wizard.py"), pathlib.Path("ai2/chatterm.py"),
+           pathlib.Path("ai2/updates.py")]
 
 FEEL_STRINGS = [feel(t) for t in (1, 3, 8, 20)]
 

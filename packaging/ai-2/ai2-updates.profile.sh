@@ -8,7 +8,7 @@ if [ -f "${XDG_STATE_HOME:-$HOME/.local/state}/ai2/updates.json" ]; then
     if [ ! /var/lib/pacman/local -nt "$_ai2_upd" ] && [ -n "$(find "$_ai2_upd" -mtime -2 2>/dev/null)" ]; then
         _ai2_n=$(sed -n 's/.*"count": *\([0-9][0-9]*\).*/\1/p' "$_ai2_upd" 2>/dev/null)
         if [ -n "$_ai2_n" ] && [ "$_ai2_n" -gt 0 ] 2>/dev/null; then
-            echo "AI-2: $_ai2_n update(s) available. Update with:  sudo pacman -Syu"
+            echo "AI-2: $_ai2_n update(s) available. Update with:  ai-2 update"
         fi
         unset _ai2_n
     fi
