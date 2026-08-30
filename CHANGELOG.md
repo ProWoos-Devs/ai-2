@@ -2,6 +2,18 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## ISO 20260830 (2026-08-30), tag `iso-20260830`
+Ships `ai-2` 0.8.0 and adds **pamac** to the image, so a freshly installed machine has both a guide to read and a window for installing software and updating. 1,968,680,960 bytes (1.833 GiB, still inside GitHub's 2 GiB asset limit), sha256 `19967d20bb6ebd96ffeee36257594731de1d0e1091460492765a8d72c9d39b12`.
+
+Verified by a complete QEMU install (erase disk, BIOS) and first boot:
+- `AI-2-GUIDE.txt` on the desktop after the first login, and Applications > System carrying both "Add/Remove Software" and "Software Updates".
+- The wizard's closing block showing the three new lines (more programs, update everything, the guide).
+- **pamac's polkit authentication works under runit and elogind**, which was the one real risk in shipping it: `pamac install` printed `==== AUTHENTICATING FOR org.manjaro.pamac.commit ====`, took the user's password, and completed the transaction (refreshing `ai2.db` on the way, so the signed repo is reached from the installed system).
+- `ai-2 install printing` installed cups, system-config-printer and cups-runit, then enabled the service: the `runsvdir/default/cupsd` symlink exists and `sv status` reports `run: cupsd: (pid 2185)`.
+- pamac's update tray is hidden and not running (our pacman hook applied it during the rootfs build, so it ships that way rather than being fixed on first boot).
+
+The image also grew by ~13 MB for a reason unrelated to any of this: Artix moved appstream 1.1.6 to 1.2.0, which added a libvips dependency (libvips, cfitsio, fftw, imath, libcgif, libimagequant, openexr, openjph, ~75 MiB installed). pamac itself is 4.54 MiB installed, all of its other dependencies were already on the image.
+
 ## [0.8.0] - 2026-08-30
 ### Added
 - A guide for the **installed** system, and a way to reach it. START-HERE.txt was written for the USB stick and stopped being the right document the moment the machine rebooted, and nothing on the installed desktop pointed at any document at all. `AI-2-GUIDE.txt` (with `AI-2-GUIA.txt` and `AI-2-ANLEITUNG.txt`) covers the computer the user now has: what it can do, talking to the AI, adding software, updating, what to do when something is wrong, accessibility, remote access. It lands on the desktop at the first login in the system language, sits in the menu as "AI-2 Guide", and prints with `ai-2 guide` (`--open` for the text editor, `--lang` to pick a language), so it is readable over SSH and through a screen reader.
