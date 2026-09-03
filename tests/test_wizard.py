@@ -176,9 +176,25 @@ def test_downloads_test_model_when_missing(env, monkeypatch):
     rc, w, out = run(env, yes=True)
     assert rc == 0
     ids = [c[1] for c in env["calls"] if c[0] == "download"]
-    assert ids[0] == wz.smallest_model()["id"]
+    assert ids[0] == wz.benchmark_model()["id"]
 
 
 def test_format_score_has_bar_and_stars():
     out = wz.format_score(SCORE)
     assert "[###.......]" in out and "★☆☆☆☆  Chat" in out
+
+
+def test_failed_download_leaves_the_score_pending(env, monkeypatch):
+    """Online, but the benchmark download dies (network drop, checksum, disk
+    full): the wizard must not declare itself done and write the marker."""
+    from ai2.state import setup_done_path
+    monkeypatch.setattr(wz, "find_benchmark_model", lambda: None)
+
+    def failing_download(model, dest, progress=None):
+        raise RuntimeError("download incomplete")
+    monkeypatch.setattr(wz, "download_model", failing_download)
+    rc, w, out = run(env, yes=True)
+    assert "score" in w.report["pending"]
+    assert not w.report.get("completed")
+    assert "Download failed" in out
+    assert rc == 1

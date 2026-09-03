@@ -281,6 +281,18 @@ def _shutdown(proc) -> int:
         return proc.wait(timeout=10)
 
 
+def _poll_url(host: str, port: int) -> str:
+    """The wrapper's own poll of llama-server's /slots. A wildcard bind is
+    reached through loopback, and an IPv6 literal must be bracketed in a URL:
+    `http://::1:8080/` is not a URL and urlopen refuses it, which made a
+    `--host ::1` server look permanently down and get shut down as idle
+    (2026-09-03 review)."""
+    poll_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+    if ":" in poll_host:
+        poll_host = f"[{poll_host}]"
+    return f"http://{poll_host}:{port}/slots"
+
+
 def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
           host: str = "127.0.0.1", port: int = 8080,
           idle_timeout_s: int | None = 600, api_key: str | None = None,
@@ -319,7 +331,7 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
     started = time.monotonic()
     last_busy = started
     seen_up = False
-    poll_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+    poll_url = _poll_url(host, port)
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     try:
         while True:
@@ -332,7 +344,7 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
                 continue
             now = time.monotonic()
             try:
-                req = urllib.request.Request(f"http://{poll_host}:{port}/slots", headers=headers)
+                req = urllib.request.Request(poll_url, headers=headers)
                 with urllib.request.urlopen(req, timeout=2) as r:
                     slots = json.load(r)
                 seen_up = True

@@ -181,3 +181,24 @@ def test_status_mentions_setup_when_incomplete(monkeypatch, capsys):
     monkeypatch.setattr(a11y, "spd_available", lambda: False)
     assert a11y.status() == 0
     assert "ai-2 accessibility setup" in capsys.readouterr().out
+
+
+def test_reader_probe_continues_past_a_failing_candidate(monkeypatch):
+    """One failed pgrep (fork EAGAIN on a tight box, a timeout) must not hide
+    the next candidate: espeakup running with a failed orca probe is a reader."""
+    import subprocess
+    from types import SimpleNamespace
+
+    def run(cmd, **kw):
+        if cmd[-1] == "orca":
+            raise OSError("fork failed")
+        return SimpleNamespace(returncode=0 if cmd[-1] == "espeakup" else 1)
+    monkeypatch.setattr(a11y.subprocess, "run", run)
+    assert a11y.reader_active() is True
+
+    def run2(cmd, **kw):
+        if cmd[-1] == "pipewire":
+            raise subprocess.TimeoutExpired(cmd, 5)
+        return SimpleNamespace(returncode=0 if cmd[-1] == "pulseaudio" else 1)
+    monkeypatch.setattr(a11y.subprocess, "run", run2)
+    assert a11y.audio_server_running() is True

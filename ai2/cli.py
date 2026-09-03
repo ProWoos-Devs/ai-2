@@ -440,8 +440,7 @@ def cmd_serve(args) -> int:
               "--api-key KEY (or AI2_API_KEY) so other devices must authenticate, or "
               "pass --insecure if this network is trusted.", file=sys.stderr)
         return 1
-    if serverstate.read_server():
-        running = serverstate.read_server()
+    if running := serverstate.read_server():
         print(f"error: a server is already running (pid {running['pid']}, model "
               f"{running['model'] or '?'}, port {running['port']}). Stop it with: ai-2 stop",
               file=sys.stderr)
@@ -515,6 +514,7 @@ def cmd_chat(args) -> int:
         print(f"The AI is already running with {running['model']}, not {args.model}. "
               f"Stop it first:  ai-2 stop", file=sys.stderr)
         return 1
+    started_here = False
     if not _server_ready(url):
         runtime_dir = find_runtime(hw.cpu_variant)
         model = _catalog_entry(args.model) if args.model else _usable_model(hw)
@@ -548,8 +548,15 @@ def cmd_chat(args) -> int:
             print(f"error: the server did not come up within {args.wait} s "
                   f"(see {os.path.join(state_dir, 'serve.log')})", file=sys.stderr)
             return 1
-    idle = args.idle_timeout if args.idle_timeout is not None else runtime_defaults(args.model)["idle_timeout_s"]
-    print(f"Chat with the AI at {url}  (it stops by itself after {idle} s without use; ai-2 stop ends it now)")
+        started_here = True
+    if started_here:
+        # Only this invocation knows what timeout it started the server with
+        # (0 means keep running, as for `ai-2 serve`).
+        idle = args.idle_timeout if args.idle_timeout is not None else runtime_defaults(model["id"])["idle_timeout_s"]
+        how = f"it stops by itself after {idle} s without use" if idle else "it keeps running"
+    else:
+        how = "it was already running"
+    print(f"Chat with the AI at {url}  ({how}; ai-2 stop ends it now)")
     running_id = (serverstate.read_server() or {}).get("model") or (args.model or "")
     running_model = _catalog_entry(running_id) if running_id else None
     if running_model and is_starter(running_model):

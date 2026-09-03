@@ -34,7 +34,7 @@ def test_ai_score_curve():
 
 def test_capability_stars_cpu_only():
     # ~2 tok/s, no GPU: chat usable (2), coding poor (1), image/video zero.
-    caps = capability_stars(2.04, max_vram_mb=0, ram_gib=4)
+    caps = capability_stars(2.04, max_vram_mb=0)
     assert caps["chat"] == 2
     assert caps["coding"] == 1
     assert caps["image_generation"] == 0
@@ -42,7 +42,7 @@ def test_capability_stars_cpu_only():
 
 
 def test_capability_stars_gpu():
-    caps = capability_stars(30.0, max_vram_mb=12000, ram_gib=32)
+    caps = capability_stars(30.0, max_vram_mb=12000)
     assert caps["chat"] == 5
     assert caps["image_generation"] >= 4
     assert caps["video"] >= 1
@@ -50,7 +50,7 @@ def test_capability_stars_gpu():
 
 def test_summarize_shape():
     r = parse_llama_bench(RMM_OUTPUT)
-    s = summarize(r, max_vram_mb=0, ram_gib=4)
+    s = summarize(r, max_vram_mb=0)
     assert s["ai_score"] == 30
     assert s["tg_tps"] == 2.04
     assert set(s["capabilities"]) >= {"chat", "coding", "image_generation", "video"}
@@ -74,7 +74,7 @@ def test_parse_json_output():
 
 def test_summary_carries_metadata_and_feel():
     from ai2.benchmark import BenchResult, feel
-    data = summarize(BenchResult(tg_tps=2.04, pp_tps=2.38, threads=2, build="abc", tg_stddev=0.03), 0, 4)
+    data = summarize(BenchResult(tg_tps=2.04, pp_tps=2.38, threads=2, build="abc", tg_stddev=0.03), 0)
     assert data["bench_version"] == 2 and data["runtime_build"] == "abc" and data["kernel"]
     assert data["feel"].startswith("slow but usable")
     assert feel(1.5).startswith("patience") and feel(20) == "fluent"

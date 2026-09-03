@@ -9,7 +9,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 
-from . import __version__, serverstate
+from . import __version__, serverstate, updates
 from .detect import Hardware
 from .models import load_catalog, recommend
 from .runtime import find_model_file, find_runtime, model_dir, runtime_package
@@ -196,9 +196,13 @@ def check_keyring() -> Check:
 def check_updates() -> Check:
     if not shutil.which("checkupdates"):
         return Check(INFO, "Updates", "checkupdates not installed (pacman-contrib)")
-    out = _run(["checkupdates"], timeout=60)
-    n = len([l for l in out.splitlines() if l.strip()])
-    return Check(INFO, "Updates", f"{n} package update(s) available; sudo pacman -Syu" if n else "system is current")
+    # Shared with the login hint and the desktop bubble: reads checkupdates'
+    # exit code (1 is a failure, not "nothing to do") and warms their cache.
+    st = updates.load_state() if updates.state_is_fresh(1) else updates.check_now(timeout_s=60)
+    if st is None:
+        return Check(INFO, "Updates", "could not check (offline, or the mirror did not answer); later: ai-2 update")
+    n = st.get("count", 0)
+    return Check(INFO, "Updates", f"{n} package update(s) available; run: ai-2 update" if n else "system is current")
 
 
 def run_checks(hw: Hardware, backend=None) -> list[Check]:

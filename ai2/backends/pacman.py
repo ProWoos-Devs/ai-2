@@ -17,9 +17,12 @@ class PacmanBackend:
     def is_installed(self, pkg: str) -> bool | None:
         if not self.available():
             return None
-        return subprocess.run(
-            ["pacman", "-Q", pkg], capture_output=True, text=True
-        ).returncode == 0
+        try:
+            return subprocess.run(
+                ["pacman", "-Q", pkg], capture_output=True, text=True, timeout=10
+            ).returncode == 0
+        except subprocess.TimeoutExpired:
+            return None      # a stalled local-db read is "unknown", not "missing"
 
     def install_cmd(self, pkgs: list[str]) -> list[str]:
         return ["pacman", "-S", "--noconfirm", "--needed", *pkgs]

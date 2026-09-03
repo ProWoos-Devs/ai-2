@@ -57,6 +57,7 @@
   "\n  Updates: keep AI-2 (and its models list) current with  ai-2 update": "\n  Updates: halte AI-2 (und seine Modellliste) mit  ai-2 update  aktuell",
   "\n  Updates: {n} available (AI-2, the engine and the models list update this way).\n           Install them with:  ai-2 update": "\n  Updates: {n} verfügbar (AI-2, der Motor und die Modellliste aktualisieren sich so).\n           Installiere sie mit:  ai-2 update",
   "\n  Updates: the system is current. Check any time with  ai-2 update": "\n  Updates: das System ist aktuell. Prüfe es jederzeit mit  ai-2 update",
+  "\n  Updates: could not check right now. Any time:  ai-2 update": "\n  Updates: konnte gerade nicht geprüft werden. Jederzeit:  ai-2 update",
   "\nShow this setup again at the next login?": "\nDiese Einrichtung bei der nächsten Anmeldung wieder zeigen?",
   "  Downloading {label} ({mb} MB) to {dest}/ ...": "  Lade {label} ({mb} MB) nach {dest}/ herunter ...",
   "  Saved {path}": "  Gespeichert unter {path}",

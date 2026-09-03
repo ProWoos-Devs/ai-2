@@ -7,6 +7,16 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 - **One menu, Applications > AI-2.** The four AI-2 entries (Chat, Chat (Terminal), Guide, Software Updates) were tagged `Utility;Office;` and `System;`, so XFCE filed them under Accessories, Office and System, and a user reading "Applications > AI-2 Chat" in the guide found nothing at the top level (rafaminu-pc, 2026-09-03). Every entry now carries the single `X-AI2` category and a merged menu file (`/etc/xdg/menus/applications-merged/ai2.menu` plus `ai2.directory`) gathers them into one submenu right after Accessories. The directory is the one garcon 4.20 actually reads for `xfce-applications.menu`; under the spec-suggested `xfce-applications-merged/` the entries land in "Other", checked with garcon itself. The live stick's "Remote help (SSH)" joins the submenu.
 - **pamac is a hard dependency of `ai-2`** instead of an optional one. A machine installed before ISO 20260830, or one that never pulled the optional package, had a guide promising "Add/Remove Software" and a Software Updates entry that hid itself. Updating to 0.9.0 installs pamac (4.54 MiB on our image, everything else it needs is already there).
 - The three guides and the three START-HERE texts now name the real paths: Applications > AI-2 > ... for AI-2's own entries and Applications > System > Add/Remove Software for pamac's.
+### Fixed
+Eleven findings from a whole-tree review of the `ai2` package (2026-09-03), all small, none a crash:
+- The screen-reader and audio-server probes gave up on the first failed `pgrep` instead of trying the next candidate, so a hiccup probing orca hid a running espeakup, and one on pipewire hid pulseaudio.
+- The wizard declared itself done (and wrote the setup marker) when the benchmark model's download failed while online; the score is now left pending and the wizard comes back.
+- `ai-2 stop` on a state file without a pid would have sent SIGTERM to its own process group, the terminal included; pids below 1 are now "no server". After its 30 s deadline `ai-2 stop` also escalates to SIGKILL (the process group when the wrapper leads one) before dropping the record, so a second `ai-2 stop` never says nothing is running while the model still holds RAM.
+- `ai-2 doctor` reported "system is current" when checkupdates failed (exit 1, offline), and was the one place suggesting `sudo pacman -Syu`; the wizard's closing update line had the same exit-code blindness. Both now go through the same check the login hint and the desktop bubble use, which also warms that cache.
+- `ai-2 serve --host ::1` built an unbracketed IPv6 poll URL, so the wrapper never saw its own server as up and shut it down as idle about 25 minutes in regardless of traffic.
+- `ai-2 chat` said "stops after 0 s" for `--idle-timeout 0` and quoted the default timeout when a server was already running; it now says what it knows.
+- `ai-2 serve` read the server record twice in a row (a narrow race that turned a clean error into a traceback), the package backends' `pacman -Q` / `dpkg -s` queries had no timeout, `capability_stars` carried a `ram_gib` argument it never read, and the wizard kept a duplicate of `models.benchmark_model` that only a test called.
+
 
 ## [0.8.1] - 2026-08-30
 ### Changed

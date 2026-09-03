@@ -119,7 +119,7 @@ def _stars(value: float, thresholds: list[float]) -> int:
     return sum(1 for t in thresholds if value >= t)
 
 
-def capability_stars(tg_tps: float, max_vram_mb: int, ram_gib: int) -> dict[str, int]:
+def capability_stars(tg_tps: float, max_vram_mb: int) -> dict[str, int]:
     """Per-capability 0-5 star ratings. Text capabilities come from measured
     generation speed; image/video need a GPU the text benchmark can't exercise,
     so they are gated on VRAM (honestly 0 on a CPU-only box)."""
@@ -139,11 +139,11 @@ def capability_stars(tg_tps: float, max_vram_mb: int, ram_gib: int) -> dict[str,
     return stars
 
 
-def summarize(result: BenchResult, max_vram_mb: int, ram_gib: int) -> dict:
+def summarize(result: BenchResult, max_vram_mb: int) -> dict:
     import platform
     import time
     score = ai_score(result.tg_tps)
-    stars = capability_stars(result.tg_tps, max_vram_mb, ram_gib)
+    stars = capability_stars(result.tg_tps, max_vram_mb)
     return {
         "bench_version": 2,
         "ai_score": score,
@@ -195,7 +195,7 @@ def measure(hw, model_path: str, runtime_dir: str, threads: int | None = None) -
     catalog = load_catalog()
     params_b = bench_params_b(model_path, catalog)
     rec = recommend(hw.ram_mib, result.tg_tps, params_b, catalog)
-    data = summarize(result, max_vram, hw.ram_nominal_gib) | {
+    data = summarize(result, max_vram) | {
         "cpu_variant": hw.cpu_variant,
         "bench_params_b": params_b,
         "recommended_model": rec["local"]["id"] if rec["local"] else None,

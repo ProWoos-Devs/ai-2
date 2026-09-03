@@ -37,6 +37,10 @@ def clear_server() -> None:
 
 
 def _alive(pid: int) -> bool:
+    if pid <= 0:
+        # kill(0, sig) is the caller's own process group and kill(-1, sig) is
+        # everything; a state file without a pid must never lead there.
+        return False
     try:
         os.kill(pid, 0)
         return True
@@ -59,8 +63,12 @@ def read_server() -> dict | None:
     return data
 
 
-def stop_server(timeout_s: float = 30.0) -> bool:
-    """SIGTERM the recorded server. Returns True if one was running."""
+def stop_server(timeout_s: float = 30.0, kill_after_s: float = 10.0) -> bool:
+    """SIGTERM the recorded server, SIGKILL it if it is still there after
+    timeout_s (the wrapper's own shutdown can wedge behind a model load in
+    uninterruptible I/O), and only then drop the record, so a second `ai-2
+    stop` never says "nothing running" while the RAM is still held. Returns
+    True if one was running."""
     import time
     data = read_server()
     if not data:
@@ -74,5 +82,18 @@ def stop_server(timeout_s: float = 30.0) -> bool:
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline and _alive(pid):
         time.sleep(0.5)
+    if _alive(pid):
+        # The wrapper leads its own process group when `ai-2 chat` started it
+        # (start_new_session); killing the group takes llama-server with it.
+        try:
+            if os.getpgid(pid) == pid:
+                os.killpg(pid, signal.SIGKILL)
+            else:
+                os.kill(pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        deadline = time.monotonic() + kill_after_s
+        while time.monotonic() < deadline and _alive(pid):
+            time.sleep(0.2)
     clear_server()
     return True

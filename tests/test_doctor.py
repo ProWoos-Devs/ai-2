@@ -33,3 +33,17 @@ def test_report_has_no_home_path(monkeypatch, tmp_path):
     text = doctor.report_text(hw, [doctor.Check(doctor.OK, "A", "fine")])
     assert "== Hardware" in text and "test cpu" in text
     assert str(tmp_path) not in text
+
+
+def test_update_check_does_not_call_a_failed_check_current(tmp_path, monkeypatch):
+    """checkupdates exits 1 when it cannot check (offline, mirror down); that
+    is "unknown", not "system is current", and the hint is ai-2 update."""
+    from tests.test_updates import _fake_checkupdates
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\nexit 1\n")
+    c = doctor.check_updates()
+    assert "could not check" in c.detail and "current" not in c.detail
+    _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\necho 'a 1-1 -> 1-2'\necho 'b 1-1 -> 1-2'\n")
+    c = doctor.check_updates()
+    assert c.detail.startswith("2 package update(s)") and "ai-2 update" in c.detail
+    assert "pacman -Syu" not in c.detail

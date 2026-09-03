@@ -25,6 +25,7 @@ import urllib.request
 from typing import Callable
 
 from . import branding
+from . import updates
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
@@ -51,14 +52,6 @@ def have_internet(url: str = INTERNET_PROBE, timeout: float = 5.0) -> bool:
             return urlparse(resp.url).hostname == urlparse(url).hostname
     except Exception:
         return False
-
-
-def smallest_model(catalog: list[dict] | None = None) -> dict:
-    """The standard benchmark model: the catalog entry flagged `benchmark`
-    (every AI Score is measured on the same workload), else the smallest."""
-    catalog = catalog or load_catalog()
-    flagged = [m for m in catalog if m.get("benchmark")]
-    return flagged[0] if flagged else min(catalog, key=lambda m: m["file_mb"])
 
 
 def format_score(data: dict) -> str:
@@ -275,6 +268,7 @@ class Wizard:
                     bench_path = self._download(bench)
                 except Exception as exc:
                     self.say(tr("  Download failed: {exc}.").format(exc=exc))
+                    self.report["pending"].append("score")
             else:
                 self.say(tr("  No internet right now (or a network login page is in the way)."))
                 if ready:
@@ -395,14 +389,15 @@ class Wizard:
         if not shutil.which("checkupdates"):
             self.say(tr("\n  Updates: keep AI-2 (and its models list) current with  ai-2 update"))
             return
-        try:
-            out = subprocess.run(["checkupdates"], capture_output=True, text=True, timeout=60).stdout
-        except (OSError, subprocess.SubprocessError):
-            out = ""
-        n = len([ln for ln in out.splitlines() if ln.strip()])
-        if n:
+        # The one implementation of "are updates waiting", shared with the
+        # login hint and the desktop bubble: it reads checkupdates' exit code
+        # (1 is a failure, not "nothing to do") and warms the cache they read.
+        st = updates.load_state() if updates.state_is_fresh(1) else updates.check_now(timeout_s=60)
+        if st is None:
+            self.say(tr("\n  Updates: could not check right now. Any time:  ai-2 update"))
+        elif st.get("count"):
             self.say(tr("\n  Updates: {n} available (AI-2, the engine and the models list update this way).\n"
-                        "           Install them with:  ai-2 update").format(n=n))
+                        "           Install them with:  ai-2 update").format(n=st["count"]))
         else:
             self.say(tr("\n  Updates: the system is current. Check any time with  ai-2 update"))
 

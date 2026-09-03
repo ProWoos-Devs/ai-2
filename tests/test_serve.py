@@ -146,3 +146,44 @@ def test_usable_model_prefers_recommended_when_present(monkeypatch):
     monkeypatch.setattr(models, "best_present_model",
                         lambda cat, ram: (_ for _ in ()).throw(AssertionError("must not be called")))
     assert cli._usable_model(_hw()) is rec
+
+
+# --- 2026-09-03 review: poll URL, pid guard, stop escalation ------------------
+
+def test_poll_url_brackets_ipv6_and_loops_back_wildcards():
+    assert runtime._poll_url("127.0.0.1", 8080) == "http://127.0.0.1:8080/slots"
+    assert runtime._poll_url("0.0.0.0", 8080) == "http://127.0.0.1:8080/slots"
+    assert runtime._poll_url("::", 8080) == "http://127.0.0.1:8080/slots"
+    assert runtime._poll_url("::1", 8080) == "http://[::1]:8080/slots"
+    assert runtime._poll_url("192.168.1.5", 8081) == "http://192.168.1.5:8081/slots"
+
+
+def test_alive_never_signals_pid_zero_or_negative(monkeypatch):
+    """kill(0, sig) is the caller's own process group; a state file without a
+    pid must be treated as "no server", not as "everyone"."""
+    def boom(*a):
+        raise AssertionError("os.kill must not be called")
+    monkeypatch.setattr(serverstate.os, "kill", boom)
+    assert serverstate._alive(0) is False
+    assert serverstate._alive(-1) is False
+
+
+def test_stop_server_escalates_to_sigkill(tmp_path, monkeypatch):
+    """A wrapper that ignores SIGTERM (wedged shutdown) is killed after the
+    deadline, and only then is the record dropped."""
+    import subprocess
+    import sys
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    stubborn = subprocess.Popen(
+        [sys.executable, "-c", "import signal, sys, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+                               "print('ready', flush=True); time.sleep(600)"],
+        start_new_session=True, stdout=subprocess.PIPE, text=True)
+    try:
+        assert stubborn.stdout.readline().strip() == "ready"   # handler installed
+        serverstate.write_server(stubborn.pid, "t", "/x/m.gguf", 8080, "127.0.0.1")
+        assert serverstate.stop_server(timeout_s=1, kill_after_s=5) is True
+        assert stubborn.wait(timeout=5) == -9
+        assert serverstate.read_server() is None
+    finally:
+        if stubborn.poll() is None:
+            stubborn.kill()

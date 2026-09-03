@@ -32,7 +32,7 @@ def reader_active() -> bool:
                               stderr=subprocess.DEVNULL, timeout=5).returncode == 0:
                 return True
         except (OSError, subprocess.TimeoutExpired):
-            return False
+            continue            # one failed probe must not hide the next candidate
     return False
 
 
@@ -51,7 +51,7 @@ def audio_server_running() -> bool:
                               stderr=subprocess.DEVNULL, timeout=5).returncode == 0:
                 return True
         except (OSError, subprocess.TimeoutExpired):
-            return False
+            continue            # one failed probe must not hide the next candidate
     return False
 
 
