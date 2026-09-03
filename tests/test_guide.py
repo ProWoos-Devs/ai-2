@@ -27,6 +27,14 @@ def test_every_guide_covers_the_two_questions_it_exists_for():
             assert command in text, f"{name} never mentions {command}"
 
 
+def test_every_guide_points_at_the_ai2_submenu():
+    """The menu entries live under Applications > AI-2 (test_menu.py); a
+    guide that names them anywhere else sends the user to an empty place."""
+    for name in guide.FILES.values():
+        text = (BRANDING / name).read_text(encoding="utf-8")
+        assert text.count("> AI-2 >") >= 3, f"{name} does not name the AI-2 submenu"
+
+
 def test_guides_stay_narrow_enough_for_a_terminal():
     for name in guide.FILES.values():
         for n, line in enumerate((BRANDING / name).read_text(encoding="utf-8").splitlines(), 1):

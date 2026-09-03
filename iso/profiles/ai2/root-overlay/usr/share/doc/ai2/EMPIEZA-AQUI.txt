@@ -108,7 +108,7 @@ preguntas. Si la cierras, vuelve a ejecutarla cuando quieras con:
 
   ai-2 wizard
 
-Después, habla con la IA: Aplicaciones > AI-2 Chat (o  ai-2 chat  en una
+Después, habla con la IA: Aplicaciones > AI-2 > AI-2 Chat (o  ai-2 chat  en una
 terminal). Arranca la IA local y abre la página de chat en el navegador;
 la IA se detiene sola cuando llevas un rato sin usarla. La barra de
 direcciones dice "No seguro" porque la página la sirve tu propio ordenador
@@ -148,7 +148,7 @@ Todos los comandos tienen --help.
 
 El sistema instalado lleva su propia guía, sobre el ordenador y no sobre
 este pendrive. Aparece en el escritorio en tu primer inicio de sesión,
-está en Aplicaciones > Guía de AI-2, y en una terminal es  ai-2 guide .
+está en Aplicaciones > AI-2 > Guía de AI-2, y en una terminal es  ai-2 guide .
 
 
 INCLUIDO, Y ACTUALIZACIONES
@@ -176,7 +176,7 @@ sistema de impresión, sin cabeceras del kernel. Así la descarga es pequeña
 y el sistema va ligero en máquinas antiguas. Lo que eches de menos está a
 un comando de distancia, por ejemplo:
 
-  Aplicaciones > Añadir/Quitar software    búscalo, márcalo, aplica
+  Aplicaciones > Sistema > Añadir/Quitar software    búscalo, márcalo, aplica
 
 o en una terminal:
 
@@ -190,7 +190,7 @@ ACTUALIZAR
 
 Los paquetes de AI-2 vienen de un repositorio firmado que ya está
 configurado. Se te avisa cuando hay actualizaciones pendientes, y nada se
-instala solo. Actualiza todo el sistema desde Aplicaciones >
+instala solo. Actualiza todo el sistema desde Aplicaciones > AI-2 >
 Actualizaciones de software, o en una terminal:
 
   ai-2 update

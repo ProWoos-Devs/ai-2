@@ -11,5 +11,5 @@ Comment[de]=Rede mit der KI im Browser (startet sie bei Bedarf); auf einem langs
 Exec=ai-2 chat
 Icon=ai2
 Terminal=true
-Categories=Utility;Office;
+Categories=X-AI2;
 Keywords=AI;chat;assistant;LLM;

@@ -11,8 +11,8 @@ Installation; dieser Teil ist erledigt.
 In English: AI-2-GUIDE.txt   (oder  ai-2 guide --lang en )
 En español: AI-2-GUIA.txt    (oder  ai-2 guide --lang es )
 
-Du kannst diese Datei jederzeit wieder öffnen über Anwendungen > AI-2
-Anleitung, oder in einem Terminal mit:
+Du kannst diese Datei jederzeit wieder öffnen über Anwendungen > AI-2 >
+AI-2 Anleitung, oder in einem Terminal mit:
 
   ai-2 guide
 
@@ -40,8 +40,10 @@ nicht als Lexikon.
 
 MIT DER KI REDEN
 
-  Anwendungen > AI-2 Chat             öffnet die Chatseite im Browser
-  Anwendungen > AI-2 Chat (Terminal)  dieselbe KI in einem Terminal
+Alles, was AI-2 dem Menü hinzufügt, steht an einer Stelle, Anwendungen > AI-2.
+
+  Anwendungen > AI-2 > AI-2 Chat             die Chatseite im Browser
+  Anwendungen > AI-2 > AI-2 Chat (Terminal)  dieselbe KI in einem Terminal
 
 Auf einer langsamen Maschine oder mit wenig Speicher nimm besser die
 Terminal-Variante. Sie ist sofort da und lässt der KI den ganzen Speicher.
@@ -90,7 +92,7 @@ aus denselben signierten Paketquellen und kostenlos.
 
 Mit Fenster:
 
-  Anwendungen > Software hinzufügen/entfernen
+  Anwendungen > System > Software hinzufügen/entfernen
 
 Suchen, anhaken, auf Anwenden klicken. Es fragt nach deinem Passwort, weil
 Programme zu installieren das ganze System verändert.
@@ -126,7 +128,7 @@ deinem Rücken installiert.
 
 Mit Fenster:
 
-  Anwendungen > Software-Aktualisierungen
+  Anwendungen > AI-2 > Software-Aktualisierungen
 
 Im Terminal:
 

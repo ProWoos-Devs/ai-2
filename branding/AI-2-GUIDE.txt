@@ -11,8 +11,8 @@ that part is done.
 En español: AI-2-GUIA.txt      (or  ai-2 guide --lang es )
 Auf Deutsch: AI-2-ANLEITUNG.txt  (or  ai-2 guide --lang de )
 
-You can open this file again at any time from Applications > AI-2 Guide,
-or in a terminal with:
+You can open this file again at any time from Applications > AI-2 > AI-2
+Guide, or in a terminal with:
 
   ai-2 guide
 
@@ -39,8 +39,10 @@ wrong, so treat it like a fast helper, not an encyclopedia.
 
 TALK TO THE AI
 
-  Applications > AI-2 Chat             opens the chat page in the browser
-  Applications > AI-2 Chat (Terminal)  the same AI in a terminal window
+Everything AI-2 adds to the menu sits in one place, Applications > AI-2.
+
+  Applications > AI-2 > AI-2 Chat             the chat page in the browser
+  Applications > AI-2 > AI-2 Chat (Terminal)  the same AI in a terminal
 
 On a slow machine or with little memory, prefer the terminal one. It appears
 instantly and leaves all the memory to the AI. It is also the one that works
@@ -87,7 +89,7 @@ repositories, at no cost.
 
 With a window:
 
-  Applications > Add/Remove Software
+  Applications > System > Add/Remove Software
 
 Search for what you want, tick it, click Apply. It asks for your password
 because installing software changes the whole system.
@@ -122,7 +124,7 @@ next time you open a terminal. Nothing is ever installed behind your back.
 
 With a window:
 
-  Applications > Software Updates
+  Applications > AI-2 > Software Updates
 
 In a terminal:
 

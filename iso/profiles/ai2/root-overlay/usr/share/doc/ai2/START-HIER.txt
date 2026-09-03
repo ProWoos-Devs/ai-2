@@ -115,7 +115,7 @@ schließt, starte es jederzeit neu mit:
 
   ai-2 wizard
 
-Dann rede mit der KI: Anwendungen > AI-2 Chat (oder  ai-2 chat  in einem
+Dann rede mit der KI: Anwendungen > AI-2 > AI-2 Chat (oder  ai-2 chat  in einem
 Terminal). Es startet die lokale KI und öffnet die Chat-Seite im Browser;
 die KI hält von selbst an, wenn du sie eine Weile nicht benutzt hast. Die
 Adressleiste sagt "Nicht sicher", weil die Seite von deinem eigenen
@@ -159,7 +159,7 @@ Jeder Befehl hat --help.
 
 Das installierte System hat seine eigene Anleitung, über den Computer und
 nicht über diesen Stick. Sie liegt nach der ersten Anmeldung auf dem
-Schreibtisch, steht unter Anwendungen > AI-2 Anleitung, und im Terminal
+Schreibtisch, steht unter Anwendungen > AI-2 > AI-2 Anleitung, und im Terminal
 ist sie  ai-2 guide .
 
 
@@ -188,7 +188,8 @@ Drucksystem, keine Kernel-Header. So bleibt der Download klein und das
 System leicht auf alten Maschinen. Was dir fehlt, ist einen Befehl
 entfernt, zum Beispiel:
 
-  Anwendungen > Software hinzufügen/entfernen   suchen, anhaken, anwenden
+  Anwendungen > System > Software hinzufügen/entfernen
+      suchen, anhaken, anwenden
 
 oder im Terminal:
 
@@ -203,7 +204,7 @@ AKTUALISIEREN
 Die AI-2-Pakete kommen aus einem signierten Repository, das schon
 eingerichtet ist. Du wirst benachrichtigt, wenn Updates warten, und nichts
 installiert sich von selbst. Aktualisiere das ganze System über
-Anwendungen > Software-Aktualisierungen, oder im Terminal:
+Anwendungen > AI-2 > Software-Aktualisierungen, oder im Terminal:
 
   ai-2 update
 

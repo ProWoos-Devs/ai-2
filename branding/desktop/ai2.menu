@@ -1,0 +1,21 @@
+<!DOCTYPE Menu PUBLIC "-//freedesktop//DTD Menu 1.0//EN"
+  "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd">
+
+<!-- Everything AI-2 adds to the desktop sits in one submenu, Applications >
+     AI-2, so the guides can name a single place. Every AI-2 entry carries the
+     X-AI2 category and nothing else, which is what keeps it out of
+     Accessories and Office (where the earlier Utility;Office categories had
+     scattered them). The file is merged into XFCE's menu from
+     /etc/xdg/menus/applications-merged/, the directory garcon 4.20 actually
+     reads for xfce-applications.menu (verified with garcon itself: under
+     xfce-applications-merged/ the entries fall into "Other"). -->
+<Menu>
+    <Name>Xfce</Name>
+    <Menu>
+        <Name>AI-2</Name>
+        <Directory>ai2.directory</Directory>
+        <Include>
+            <Category>X-AI2</Category>
+        </Include>
+    </Menu>
+</Menu>

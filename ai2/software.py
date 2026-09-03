@@ -144,7 +144,7 @@ def render_catalog() -> str:
         "  ai-2 install htop           any other package name works too",
         "",
         "The same thing with a window and a search box: Applications > "
-        "Add/Remove Software.",
+        "System > Add/Remove Software.",
     ]
     return "\n".join(lines)
 

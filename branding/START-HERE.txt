@@ -101,7 +101,7 @@ minutes, three questions. If you close it, run it again any time with:
 
   ai-2 wizard
 
-Then talk to the AI: Applications > AI-2 Chat (or  ai-2 chat  in a
+Then talk to the AI: Applications > AI-2 > AI-2 Chat (or  ai-2 chat  in a
 terminal). It starts the local AI and opens the chat page in the browser;
 the AI stops by itself when you have not used it for a while. The address
 bar says "Not Secure" because the page is served by your own computer at
@@ -140,7 +140,7 @@ Every command has --help.
 
 The installed system carries its own guide, about the computer rather
 than about this stick. It lands on the desktop at your first login, it is
-in Applications > AI-2 Guide, and in a terminal it is  ai-2 guide .
+in Applications > AI-2 > AI-2 Guide, and in a terminal it is  ai-2 guide .
 
 
 INCLUDED, AND UPDATES
@@ -166,7 +166,7 @@ the AI engine. No office suite, no media players, no printing stack, no
 kernel headers. That keeps the download small and the system light on
 old machines. Anything you miss is one command away, for example:
 
-  Applications > Add/Remove Software     search it, tick it, apply
+  Applications > System > Add/Remove Software    search it, tick it, apply
 
 or in a terminal:
 
@@ -180,7 +180,7 @@ UPDATING
 
 AI-2 packages come from a signed repository that is already configured.
 You are told when updates are waiting, and nothing installs itself. Update
-the whole system from Applications > Software Updates, or in a terminal:
+the whole system from Applications > AI-2 > Software Updates, or in a terminal:
 
   ai-2 update
 

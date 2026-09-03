@@ -2,6 +2,12 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.0] - 2026-09-03
+### Changed
+- **One menu, Applications > AI-2.** The four AI-2 entries (Chat, Chat (Terminal), Guide, Software Updates) were tagged `Utility;Office;` and `System;`, so XFCE filed them under Accessories, Office and System, and a user reading "Applications > AI-2 Chat" in the guide found nothing at the top level (rafaminu-pc, 2026-09-03). Every entry now carries the single `X-AI2` category and a merged menu file (`/etc/xdg/menus/applications-merged/ai2.menu` plus `ai2.directory`) gathers them into one submenu right after Accessories. The directory is the one garcon 4.20 actually reads for `xfce-applications.menu`; under the spec-suggested `xfce-applications-merged/` the entries land in "Other", checked with garcon itself. The live stick's "Remote help (SSH)" joins the submenu.
+- **pamac is a hard dependency of `ai-2`** instead of an optional one. A machine installed before ISO 20260830, or one that never pulled the optional package, had a guide promising "Add/Remove Software" and a Software Updates entry that hid itself. Updating to 0.9.0 installs pamac (4.54 MiB on our image, everything else it needs is already there).
+- The three guides and the three START-HERE texts now name the real paths: Applications > AI-2 > ... for AI-2's own entries and Applications > System > Add/Remove Software for pamac's.
+
 ## [0.8.1] - 2026-08-30
 ### Changed
 - The update notification stays on screen until it is dismissed. It used to take xfce4-notifyd's default lifetime and disappear after about ten seconds, which was merely annoying while the only way to act on it was typing a command, and became wasteful in 0.8.0 when the bubble gained a button that does the whole job in one click. One had already fired unseen on a real machine (rafaminu-pc, 2026-08-26).

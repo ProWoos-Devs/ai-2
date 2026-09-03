@@ -13,5 +13,5 @@ Comment[de]=Chat im Terminal: am schnellsten und leichtesten, empfohlen auf schw
 Exec=ai-2 chat --terminal
 Icon=ai2
 Terminal=true
-Categories=Utility;Office;
+Categories=X-AI2;
 Keywords=AI;chat;assistant;LLM;terminal;

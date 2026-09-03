@@ -11,8 +11,8 @@ ya está hecha.
 In English: AI-2-GUIDE.txt      (o  ai-2 guide --lang en )
 Auf Deutsch: AI-2-ANLEITUNG.txt  (o  ai-2 guide --lang de )
 
-Puedes volver a abrir este archivo cuando quieras desde Aplicaciones > Guía
-de AI-2, o en una terminal con:
+Puedes volver a abrir este archivo cuando quieras desde Aplicaciones > AI-2
+> Guía de AI-2, o en una terminal con:
 
   ai-2 guide
 
@@ -40,8 +40,10 @@ ayudante rápido, no como una enciclopedia.
 
 HABLAR CON LA IA
 
-  Aplicaciones > AI-2 Chat             abre la página de chat en el navegador
-  Aplicaciones > AI-2 Chat (terminal)  la misma IA en una terminal
+Todo lo que AI-2 añade al menú está en un solo sitio, Aplicaciones > AI-2.
+
+  Aplicaciones > AI-2 > AI-2 Chat             el chat en el navegador
+  Aplicaciones > AI-2 > AI-2 Chat (terminal)  la misma IA en una terminal
 
 En una máquina lenta o con poca memoria, usa mejor la versión de terminal.
 Aparece al instante y deja toda la memoria para la IA. Es también la que
@@ -88,7 +90,7 @@ mismos repositorios firmados y sin coste.
 
 Con ventana:
 
-  Aplicaciones > Añadir/Quitar software
+  Aplicaciones > Sistema > Añadir/Quitar software
 
 Busca lo que quieras, márcalo y pulsa Aplicar. Te pide la contraseña porque
 instalar programas cambia todo el sistema.
@@ -124,7 +126,7 @@ espaldas.
 
 Con ventana:
 
-  Aplicaciones > Actualizaciones de software
+  Aplicaciones > AI-2 > Actualizaciones de software
 
 En una terminal:
 
