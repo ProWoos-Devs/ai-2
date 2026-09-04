@@ -68,3 +68,54 @@ def test_chat_notes_starter_model(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "starter model" in out and "ai-2 model list" in out
     serverstate.clear_server()
+
+
+def _pick_setup(tmp_path, monkeypatch):
+    """Two catalog models on disk (gemma3-270m + qwen2.5-0.5b), no score."""
+    d, m = _setup(tmp_path, monkeypatch)
+    g = next(x for x in load_catalog() if x["id"] == "gemma3-270m")
+    (d / g["file"]).write_bytes(b"g" * 4096)
+    monkeypatch.setattr(cli, "_recommended_model", lambda hw: g)
+    monkeypatch.setattr(cli, "_server_ready", lambda url, timeout=2.0: True)
+    return d
+
+
+def test_chat_model_flag_without_value_picks_from_a_list(tmp_path, monkeypatch, capsys):
+    """`ai-2 chat --model` (no value) lists the models on disk and takes a number."""
+    from ai2 import serverstate
+    _pick_setup(tmp_path, monkeypatch)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    answers = iter(["7", "2"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    # the server is "already running" with the picked model, so chat just prints the URL
+    serverstate.write_server(os.getpid(), "qwen2.5-0.5b", "/x/q.gguf", 8080, "127.0.0.1")
+    assert cli.main(["chat", "--model", "--no-browser"]) == 0
+    out = capsys.readouterr().out
+    assert "1) Gemma 3 270M" in out and "[recommended]" in out
+    assert "2) Qwen2.5 0.5B" in out
+    assert "not a choice: 7" in out
+    assert "Chat with the AI" in out
+    serverstate.clear_server()
+
+
+def test_chat_picker_refuses_a_different_running_model(tmp_path, monkeypatch, capsys):
+    from ai2 import serverstate
+    _pick_setup(tmp_path, monkeypatch)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "qwen2.5-0.5b")
+    serverstate.write_server(os.getpid(), "gemma3-270m", "/x/g.gguf", 8080, "127.0.0.1")
+    assert cli.main(["chat", "--model", "--no-browser"]) == 1
+    assert "already running with gemma3-270m, not qwen2.5-0.5b" in capsys.readouterr().err
+    serverstate.clear_server()
+
+
+def test_picker_enter_takes_the_default_and_needs_a_tty(tmp_path, monkeypatch, capsys):
+    from ai2.detect import Hardware
+    _pick_setup(tmp_path, monkeypatch)
+    hw = Hardware(ram_mib=3800, ram_nominal_gib=4, logical_cores=2, flags=set())
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    assert cli._pick_model(hw)["id"] == "gemma3-270m"
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    assert cli._pick_model(hw) is None
+    assert "--model gemma3-270m | qwen2.5-0.5b" in capsys.readouterr().err

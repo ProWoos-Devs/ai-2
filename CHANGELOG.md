@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Added
+- `ai-2 chat --model` (short form `-m`) and `ai-2 serve --model` with no value show a numbered list of the models on this computer and let you pick one (Enter takes the recommended one). Found on rafaminu-pc 2026-09-04: the score-picked Gemma 3 270M could not answer "what are your capabilities", the Qwen2.5 0.5B already on disk could, and switching meant knowing the catalog id.
+
 ## [0.9.0] - 2026-09-03
 ### Changed
 - **One menu, Applications > AI-2.** The four AI-2 entries (Chat, Chat (Terminal), Guide, Software Updates) were tagged `Utility;Office;` and `System;`, so XFCE filed them under Accessories, Office and System, and a user reading "Applications > AI-2 Chat" in the guide found nothing at the top level (rafaminu-pc, 2026-09-03). Every entry now carries the single `X-AI2` category and a merged menu file (`/etc/xdg/menus/applications-merged/ai2.menu` plus `ai2.directory`) gathers them into one submenu right after Accessories. The directory is the one garcon 4.20 actually reads for `xfce-applications.menu`; under the spec-suggested `xfce-applications-merged/` the entries land in "Other", checked with garcon itself. The live stick's "Remote help (SSH)" joins the submenu.

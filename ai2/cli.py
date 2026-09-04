@@ -262,6 +262,51 @@ def _catalog_entry(model_id: str) -> dict | None:
     return next((m for m in load_catalog() if m["id"] == model_id), None)
 
 
+PICK_MODEL = "?"   # `--model` given with no value: ask interactively
+
+
+def _pick_model(hw) -> dict | None:
+    """Numbered menu of the catalog models on disk; Enter takes the default
+    (the one serve/chat would use anyway). Numbers rather than arrow keys so
+    it works in any terminal, over SSH and with a screen reader."""
+    have = [m for m in installed_models(load_catalog()) if m["id"]]
+    if not have:
+        print("error: no catalog model on this computer. Run 'ai-2 wizard' or 'ai-2 model pull'.",
+              file=sys.stderr)
+        return None
+    if not sys.stdin.isatty():
+        print("error: --model without a value needs a terminal to choose from; name one: "
+              "--model " + " | ".join(m["id"] for m in have), file=sys.stderr)
+        return None
+    default = _usable_model(hw)
+    rec = _recommended_model(hw)
+    running = serverstate.read_server()
+    default_n = next((i for i, m in enumerate(have, 1) if default and m["id"] == default["id"]), 1)
+    print("Models on this computer:")
+    for i, m in enumerate(have, 1):
+        marks = []
+        if rec and m["id"] == rec["id"]:
+            marks.append("recommended")
+        if running and os.path.realpath(running.get("model_path", "")) == os.path.realpath(m["path"]):
+            marks.append("loaded")
+        print(f"  {i}) {m['label']}  ({m['id']}, {m['size_mb']} MB)"
+              + (f"  [{', '.join(marks)}]" if marks else ""))
+    while True:
+        try:
+            answer = input(f"Choose 1-{len(have)} [{default_n}]: ").strip()
+        except EOFError:
+            print()
+            return None
+        if not answer:
+            return have[default_n - 1]["catalog"]
+        if answer.isdigit() and 1 <= int(answer) <= len(have):
+            return have[int(answer) - 1]["catalog"]
+        by_id = next((m for m in have if m["id"] == answer), None)
+        if by_id:
+            return by_id["catalog"]
+        print(f"  not a choice: {answer}")
+
+
 def cmd_runtime_install(args) -> int:
     hw = detect()
     pkg = runtime_package(hw.cpu_variant)
@@ -413,7 +458,12 @@ def cmd_serve(args) -> int:
         print(f"error: no llama.cpp runtime for '{hw.cpu_variant}'. Run 'ai-2 runtime install'.",
               file=sys.stderr)
         return 1
-    if args.model:
+    if args.model == PICK_MODEL:
+        model = _pick_model(hw)
+        if model is None:
+            return 1
+        args.model = model["id"]
+    elif args.model:
         model = _catalog_entry(args.model)
         if model is None:
             print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
@@ -509,6 +559,11 @@ def cmd_chat(args) -> int:
     import time
     hw = detect()
     url = f"http://127.0.0.1:{args.port}/"
+    if args.model == PICK_MODEL:
+        picked = _pick_model(hw)
+        if picked is None:
+            return 1
+        args.model = picked["id"]
     running = serverstate.read_server()
     if running and args.model and running.get("model") and running["model"] != args.model:
         print(f"The AI is already running with {running['model']}, not {args.model}. "
@@ -785,7 +840,8 @@ def main(argv: list[str] | None = None) -> int:
     p_m_ver.set_defaults(func=cmd_model_verify)
 
     p_serve = sub.add_parser("serve", help="run llama-server on demand with the recommended model")
-    p_serve.add_argument("--model", help="catalog id (default: the recommended model)")
+    p_serve.add_argument("-m", "--model", nargs="?", const=PICK_MODEL,
+                         help="catalog id (default: the recommended model); with no value, choose from a list")
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8080)
     p_serve.add_argument("--ctx", type=int, default=None, help="context size (default: the tier's, else 2048)")
@@ -798,7 +854,8 @@ def main(argv: list[str] | None = None) -> int:
     p_chat = sub.add_parser("chat", help="start the local AI (if needed) and chat: browser page by default, --terminal for the lightest client")
     p_chat.add_argument("--terminal", action="store_true",
                         help="chat in this terminal instead of the browser (fastest, minimal memory, works over SSH)")
-    p_chat.add_argument("--model", help="catalog id (default: the recommended model)")
+    p_chat.add_argument("-m", "--model", nargs="?", const=PICK_MODEL,
+                         help="catalog id (default: the recommended model); with no value, choose from a list")
     p_chat.add_argument("--port", type=int, default=8080)
     p_chat.add_argument("--idle-timeout", type=int, default=None,
                         help="stop the AI after this many idle seconds (default: the tier's, else 600; a chat page left open does not count as use)")
