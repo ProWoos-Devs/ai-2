@@ -65,6 +65,7 @@ ai-2 model rm <id>   # delete a model to free disk space
 ai-2 model verify    # check downloaded models against the catalog checksums
 ai-2 chat            # start the local AI if needed and open the chat page in the browser
 ai-2 chat --terminal # the same chat in the terminal: fastest, minimal memory, works over SSH
+                     # --model with no value lists the models on disk and lets you pick one (-m)
                      # (recommended on low-end PCs; used automatically when there is no display)
                      # --speak reads the answers aloud; output is whole sentences, screen-reader friendly
 ai-2 accessibility   # screen-reader status; `setup` installs and wires Orca and spoken chat

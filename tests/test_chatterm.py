@@ -96,3 +96,26 @@ def test_stream_reply_against_real_server():
         assert got == "Hello"
     finally:
         server.shutdown()
+
+
+def test_repl_opens_every_conversation_with_the_system_message():
+    seen = []
+
+    def stream(url, messages):
+        seen.append([dict(m) for m in messages])
+        yield "ok"
+
+    it = iter(["hello", "/new", "again"])
+
+    def ask(prompt):
+        try:
+            return next(it)
+        except StopIteration:
+            raise EOFError
+
+    rc = chatterm.repl("http://x/", stream=stream, ask=ask, say=lambda *a, **k: None,
+                       system="You are the assistant of AI-2.")
+    assert rc == 0
+    assert [m["role"] for m in seen[0]] == ["system", "user"]
+    assert seen[0][0]["content"] == "You are the assistant of AI-2."
+    assert [m["role"] for m in seen[1]] == ["system", "user"]   # /new keeps the persona

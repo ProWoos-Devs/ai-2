@@ -6,7 +6,7 @@ import os
 import sys
 from dataclasses import asdict
 
-from . import __version__, branding
+from . import __version__, branding, persona
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
@@ -509,9 +509,10 @@ def cmd_serve(args) -> int:
     sampling = sampling_args(model)
     if sampling:
         print("Sampling as the model card recommends: " + " ".join(sampling))
+    extra = sampling + persona.ui_config_args(persona.system_prompt(model["label"]))
     return serve(runtime_dir, path, threads, ctx=ctx, host=args.host,
                  port=args.port, idle_timeout_s=idle, api_key=api_key, model_id=model["id"],
-                 extra_args=sampling)
+                 extra_args=extra)
 
 
 def _server_ready(url: str, timeout: float = 2.0) -> bool:
@@ -635,8 +636,10 @@ def cmd_chat(args) -> int:
             speaker = a11y.Speaker()
         streaming = args.stream or os.environ.get("AI2_CHAT_STREAM") == "1"
         try:
+            label = running_model["label"] if running_model else "a small language model"
             return repl(url, streaming=streaming,
-                        speak=speaker.speak if speaker else None)
+                        speak=speaker.speak if speaker else None,
+                        system=persona.system_prompt(label))
         finally:
             if speaker:
                 speaker.close()

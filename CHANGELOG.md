@@ -4,6 +4,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 ### Added
+- The AI is told what it is. A short system prompt (`ai2/persona.py`) names AI-2, the model, what it can do and that it runs offline; the browser page gets it as the web UI's default system message (`llama-server --ui-config`, applied on a browser's first visit, a browser with saved chat settings keeps them) and the terminal chat opens every conversation with it. Before, "what are your capabilities" got the vendor's boilerplate ("I am a large language model trained by Google").
 - `ai-2 chat --model` (short form `-m`) and `ai-2 serve --model` with no value show a numbered list of the models on this computer and let you pick one (Enter takes the recommended one). Found on rafaminu-pc 2026-09-04: the score-picked Gemma 3 270M could not answer "what are your capabilities", the Qwen2.5 0.5B already on disk could, and switching meant knowing the catalog id.
 
 ## [0.9.0] - 2026-09-03

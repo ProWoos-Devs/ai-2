@@ -93,11 +93,12 @@ def sentences(pieces):
 
 
 def repl(url: str, stream=stream_reply, ask=input, say=print,
-         streaming: bool = False, speak=None) -> int:
+         streaming: bool = False, speak=None, system: str | None = None) -> int:
     """Chat until Ctrl-C/Ctrl-D. Ctrl-C during an answer only stops that
     answer. Sentence-per-line output is the default (readable by screen
     readers, locally and over SSH); `streaming=True` restores token-by-token
     output. `speak` is a callable given each output line (spoken chat).
+    `system` is sent as the system message that opens every conversation.
     `stream`, `ask`, `say` and `speak` are injectable for tests."""
     def out(text: str) -> None:
         say(text)
@@ -105,7 +106,10 @@ def repl(url: str, stream=stream_reply, ask=input, say=print,
             speak(text)
 
     out(tr("Chat in this terminal. Enter sends, Ctrl-C or Ctrl-D leaves, /new starts a fresh conversation."))
-    messages: list[dict] = []
+    def fresh() -> list[dict]:
+        return [{"role": "system", "content": system}] if system else []
+
+    messages = fresh()
     while True:
         try:
             line = ask("\n> ").strip()
@@ -115,7 +119,7 @@ def repl(url: str, stream=stream_reply, ask=input, say=print,
         if not line:
             continue
         if line == "/new":
-            messages = []
+            messages = fresh()
             out(tr("New conversation."))
             continue
         messages.append({"role": "user", "content": line})
