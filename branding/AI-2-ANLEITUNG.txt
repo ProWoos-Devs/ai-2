@@ -178,6 +178,35 @@ unserer Hand. Damit Antworten vorgelesen werden:
   ai-2 chat --terminal --speak
 
 
+EINE GRÖSSERE KI ANDERSWO
+
+Der KI-Score ist ehrlich: auf einem langsamen Computer sind die lokalen
+Modelle klein, und ihre Antworten auch. Es gibt zwei Wege, von diesem
+Computer aus mit einem größeren zu reden.
+
+Ein anderer Computer im Haus. Auf dem stärkeren:
+
+  ai-2 serve --host 0.0.0.0 --api-key WÄHLE-EINEN-SCHLÜSSEL
+
+dann auf diesem:
+
+  ai-2 remote set http://JENER-COMPUTER:8080 --api-key WÄHLE-EINEN-SCHLÜSSEL
+  ai-2 chat --remote
+
+Ein API-Anbieter, für den du einen Schlüssel hast (jeder OpenAI-kompatible
+Dienst):
+
+  ai-2 remote set https://ANBIETER/v1 --api-key DEIN-SCHLÜSSEL --model MODELL
+  ai-2 chat --remote
+
+Nichts verlässt diesen Computer, wenn du es nicht verlangst. Der Chat nutzt
+die Gegenstelle nur mit --remote, oder immer nach  ai-2 remote default on
+(dann führt --local zurück zur eigenen KI dieses Computers). Jeder
+Fern-Chat sagt zuerst, wohin die Nachrichten gehen. Der Schlüssel liegt in
+einer Datei, die nur du lesen kannst. ai-2 remote show, test und clear tun,
+was sie sagen.
+
+
 FERNZUGRIFF
 
 Ein installiertes AI-2 hat den Fernzugriff aus. Wenn jemand, dem du traust,

@@ -15,11 +15,13 @@ from __future__ import annotations
 import json
 
 
-def system_prompt(model_label: str = "a small language model") -> str:
+def system_prompt(model_label: str = "a small language model", local: bool = True) -> str:
+    where = ("running on this computer itself, offline; nothing the user writes leaves the machine"
+             if local else
+             "running on another computer that this one talks to over the network")
     return (
         "You are the assistant of AI-2, a Linux system that gives old computers an AI brain. "
-        f"You are {model_label}, running on this computer itself, offline; nothing the user "
-        "writes leaves the machine. You can answer questions, explain things, write and "
+        f"You are {model_label}, {where}. You can answer questions, explain things, write and "
         "improve text, summarize and translate. You cannot browse the internet, open files, "
         "see images or run commands. Answer briefly and plainly, in the language the user "
         "writes in. If you are not sure, say so."

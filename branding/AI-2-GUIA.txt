@@ -174,6 +174,34 @@ está en nuestra mano arreglarla. Para que lea las respuestas en voz alta:
   ai-2 chat --terminal --speak
 
 
+UNA IA MÁS GRANDE EN OTRO SITIO
+
+La puntuación de IA es honesta: en un ordenador lento los modelos locales
+son pequeños, y sus respuestas también. Hay dos formas de hablar con uno
+más grande desde este ordenador.
+
+Otro ordenador de la casa. En el más potente, ejecuta:
+
+  ai-2 serve --host 0.0.0.0 --api-key ELIGE-UNA-CLAVE
+
+y en este:
+
+  ai-2 remote set http://ESE-ORDENADOR:8080 --api-key ELIGE-UNA-CLAVE
+  ai-2 chat --remote
+
+Un proveedor de API del que tengas clave (cualquier servicio compatible
+con OpenAI):
+
+  ai-2 remote set https://PROVEEDOR/v1 --api-key TU-CLAVE --model MODELO
+  ai-2 chat --remote
+
+Nada sale de este ordenador si no lo pides. El chat usa el remoto solo con
+--remote, o siempre tras  ai-2 remote default on  (entonces --local vuelve
+a la IA propia de este ordenador). Cada chat remoto empieza diciendo adónde
+van los mensajes. La clave se guarda en un archivo que solo tú puedes leer.
+ai-2 remote show, test y clear hacen lo que dicen.
+
+
 ACCESO REMOTO
 
 Un AI-2 instalado tiene el acceso remoto desactivado. Si alguien de

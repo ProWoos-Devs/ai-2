@@ -86,5 +86,6 @@
   "AI-2 and the system update together. Open Software Updates, or run  ai-2 update  in a terminal.": "AI-2 und das System werden zusammen aktualisiert. Öffne Software-Aktualisierungen, oder führe  ai-2 update  in einem Terminal aus.",
   "AI-2 and the system update together. In a terminal, run:  ai-2 update": "AI-2 und das System werden zusammen aktualisiert. Führe im Terminal aus:  ai-2 update",
   "Open Software Updates": "Software-Aktualisierungen öffnen",
-  "Update with:  ai-2 update": "Aktualisieren mit:  ai-2 update"
+  "Update with:  ai-2 update": "Aktualisieren mit:  ai-2 update",
+  "  Another computer on your network or an API key can run it:  ai-2 remote set <url>   then   ai-2 chat --remote": "  Ein anderer Computer in deinem Netz oder ein API-Schlüssel kann es ausführen:  ai-2 remote set <url>   dann   ai-2 chat --remote"
 }

@@ -37,12 +37,17 @@ def delta_text(payload: str) -> str:
         return ""
 
 
-def stream_reply(url: str, messages: list[dict]):
+def stream_reply(url: str, messages: list[dict], headers: dict | None = None,
+                 model: str | None = None):
     """POST the conversation, yield the reply as it generates. Sampling is
-    left to the server's own defaults (the tier/model set them)."""
-    body = json.dumps({"messages": messages, "stream": True}).encode()
+    left to the server's own defaults (the tier/model set them). `headers`
+    and `model` are for a remote endpoint (API key, the model it must use)."""
+    payload = {"messages": messages, "stream": True}
+    if model:
+        payload["model"] = model
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(url.rstrip("/") + "/v1/chat/completions", data=body,
-                                 headers={"Content-Type": "application/json"})
+                                 headers=dict(headers or {"Content-Type": "application/json"}))
     with urllib.request.urlopen(req, timeout=READ_TIMEOUT_S) as resp:
         for payload in sse_events(resp):
             piece = delta_text(payload)

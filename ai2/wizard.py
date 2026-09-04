@@ -310,12 +310,14 @@ class Wizard:
             local = rec["local"]
             if local is None:
                 self.say(tr("  No local model is a good fit for this machine; use a remote model instead."))
+                self.say(tr("  Another computer on your network or an API key can run it:  ai-2 remote set <url>   then   ai-2 chat --remote"))
             else:
                 self.say(tr("  Best fit: {label} ({params}B, {quant}), {reason}.")
                          .format(label=local['label'], params=local['params_b'],
                                  quant=local['quant'], reason=rec['reason']))
                 if rec["remote_suggested"]:
                     self.say(tr("  Anything larger is better used remotely from this machine."))
+                    self.say(tr("  Another computer on your network or an API key can run it:  ai-2 remote set <url>   then   ai-2 chat --remote"))
                 self.report["model"] = local["id"]
                 if find_model_file(local["file"]) is None:
                     if have_internet() and self.ask(

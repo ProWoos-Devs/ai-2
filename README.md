@@ -68,6 +68,9 @@ ai-2 chat --terminal # the same chat in the terminal: fastest, minimal memory, w
                      # --model with no value lists the models on disk and lets you pick one (-m)
                      # (recommended on low-end PCs; used automatically when there is no display)
                      # --speak reads the answers aloud; output is whole sentences, screen-reader friendly
+ai-2 chat --remote   # the same chat with a bigger AI elsewhere (ai-2 remote); says where messages go
+ai-2 remote set URL  # another computer running ai-2 serve, or an API provider (--api-key, --model, --default)
+ai-2 remote show     # also: test (reach it, list its models), default on|off, clear
 ai-2 accessibility   # screen-reader status; `setup` installs and wires Orca and spoken chat
 ai-2 serve           # llama-server on demand with the recommended model, OpenAI-compatible
                      # API on http://127.0.0.1:8080, exits when idle (the tier sets how long);

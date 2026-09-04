@@ -172,6 +172,33 @@ fix. For answers read out loud:
   ai-2 chat --terminal --speak
 
 
+A BIGGER AI SOMEWHERE ELSE
+
+The AI Score is honest: on a slow computer the local models are small and
+so are their answers. There are two ways to talk to a bigger one from this
+computer.
+
+Another computer in the house. On the stronger one, run:
+
+  ai-2 serve --host 0.0.0.0 --api-key CHOOSE-A-KEY
+
+then on this one:
+
+  ai-2 remote set http://THAT-COMPUTER:8080 --api-key CHOOSE-A-KEY
+  ai-2 chat --remote
+
+An API provider you have a key for (any OpenAI-compatible service):
+
+  ai-2 remote set https://PROVIDER/v1 --api-key YOUR-KEY --model MODEL-NAME
+  ai-2 chat --remote
+
+Nothing leaves this computer unless you ask. The chat uses the remote only
+with --remote, or always after  ai-2 remote default on  (then --local goes
+back to this computer's own AI). Every remote chat starts by saying where
+the messages go. The key is kept in a file only you can read.
+ai-2 remote show, test and clear do what they say.
+
+
 REMOTE ACCESS
 
 An installed AI-2 keeps remote access off. If someone you trust needs to

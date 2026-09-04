@@ -6,7 +6,7 @@ import os
 import sys
 from dataclasses import asdict
 
-from . import __version__, branding, persona
+from . import __version__, branding, persona, remote
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
@@ -152,9 +152,11 @@ def _print_recommendation(rec: dict) -> None:
               f"({local['params_b']}B {local['quant']})")
     else:
         print("\nNo local model is a good fit for this machine.")
-    if rec["remote_suggested"]:
+    if rec["remote_suggested"] or not local:
         print("  For anything larger, use remote inference, this machine can hold it "
               "but can't run it fast enough locally.")
+        print("  Another computer on your network (ai-2 serve --host 0.0.0.0 --api-key KEY there) "
+              "or an API key can run it:\n    ai-2 remote set <url> [--api-key KEY]   then   ai-2 chat --remote")
 
 
 def cmd_recommend(args) -> int:
@@ -559,6 +561,15 @@ def cmd_chat(args) -> int:
     import subprocess
     import time
     hw = detect()
+    cfg = remote.load()
+    if args.remote and cfg is None:
+        print("error: no remote AI configured. Set one up with:  ai-2 remote set <url> [--api-key KEY]",
+              file=sys.stderr)
+        return 1
+    if cfg is not None and (args.remote or (cfg.get("default") and not args.local)):
+        return _chat_remote(args, cfg)
+    if cfg is not None and not args.local:
+        print(f"(a remote AI is configured, {remote.describe(cfg)}; ai-2 chat --remote uses it)")
     url = f"http://127.0.0.1:{args.port}/"
     if args.model == PICK_MODEL:
         picked = _pick_model(hw)
@@ -650,6 +661,115 @@ def cmd_chat(args) -> int:
         except FileNotFoundError:
             print("Open that address in your browser.")
     return 0
+
+
+def _chat_remote(args, cfg: dict) -> int:
+    """Chat with the configured remote AI. Says where the messages go first.
+    A llama-server remote has a chat page of its own, so the browser opens
+    it directly; anything else (an API provider) is a terminal chat."""
+    import functools
+    import os
+    import subprocess
+    from . import a11y
+    from .chatterm import repl, stream_reply
+    print(f"Talking to {remote.describe(cfg)}. Your messages leave this computer.")
+    info = remote.probe(cfg)
+    if not info["ok"]:
+        print(f"error: cannot reach {cfg['url']}: {info['error']}  (ai-2 remote test)", file=sys.stderr)
+        return 1
+    if cfg.get("model") and info["models"] and cfg["model"] not in info["models"]:
+        print(f"warning: the remote does not list model {cfg['model']}; it lists "
+              + ", ".join(info["models"][:5]))
+    reader = not args.terminal and not args.no_browser and a11y.reader_active()
+    headless = not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY")
+    if not (args.terminal or reader or args.no_browser or headless) and info["web_ui"]:
+        print(f"Chat with the AI at {cfg['url']}/  (the remote's own chat page"
+              + (f"; enter the API key {remote.masked_key(cfg)} in its settings" if cfg.get("api_key") else "")
+              + ")")
+        try:
+            subprocess.Popen(["xdg-open", cfg["url"] + "/"], stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        except FileNotFoundError:
+            print("Open that address in your browser.")
+        return 0
+    if not args.terminal and not info["web_ui"] and not args.no_browser:
+        print("This remote has no chat page of its own, so chatting right here.")
+    speaker = None
+    if args.speak:
+        if not a11y.speech_available():
+            print("Spoken chat needs a speech engine. Set one up with:  ai-2 accessibility setup")
+            return 1
+        speaker = a11y.Speaker()
+    label = cfg.get("model") or (info["models"][0] if info["models"] else "a language model")
+    stream = functools.partial(stream_reply, headers=remote.headers(cfg), model=cfg.get("model"))
+    streaming = args.stream or os.environ.get("AI2_CHAT_STREAM") == "1"
+    try:
+        return repl(cfg["url"], stream=stream, streaming=streaming,
+                    speak=speaker.speak if speaker else None,
+                    system=persona.system_prompt(label, local=False))
+    finally:
+        if speaker:
+            speaker.close()
+
+
+def cmd_remote(args) -> int:
+    action = args.remote_cmd
+    if action == "set":
+        key = args.api_key
+        if args.api_key_stdin:
+            key = sys.stdin.readline().strip()
+            if not key:
+                print("error: no API key on stdin", file=sys.stderr)
+                return 1
+        p = remote.save(args.url, key, args.model, args.default)
+        cfg = remote.load()
+        print(f"Remote AI: {remote.describe(cfg)}, API key {remote.masked_key(cfg)}, saved in {p} (mode 600).")
+        print("ai-2 chat uses it " + ("by default now (ai-2 chat --local for this computer's own AI)."
+                                      if cfg["default"] else "with --remote (ai-2 remote default on to always use it)."))
+        info = remote.probe(cfg)
+        if info["ok"]:
+            print("Reachable." + (f" Models: {', '.join(info['models'][:8])}" if info["models"] else "")
+                  + (" Has a chat page." if info["web_ui"] else ""))
+        else:
+            print(f"warning: not reachable right now: {info['error']}")
+        return 0
+    cfg = remote.load()
+    if action == "show":
+        if cfg is None:
+            print("No remote AI configured. Set one up with:  ai-2 remote set <url> [--api-key KEY]")
+            return 0
+        print(f"Remote AI: {remote.describe(cfg)}")
+        print(f"API key:   {remote.masked_key(cfg)}")
+        print(f"Default:   {'yes, ai-2 chat talks to it (--local for this computer)' if cfg.get('default') else 'no, only with ai-2 chat --remote'}")
+        print(f"File:      {remote.path()}")
+        return 0
+    if action == "test":
+        if cfg is None:
+            print("error: no remote AI configured", file=sys.stderr)
+            return 1
+        info = remote.probe(cfg)
+        if not info["ok"]:
+            print(f"{cfg['url']}: NOT reachable: {info['error']}")
+            return 1
+        print(f"{cfg['url']}: reachable" + (", has a chat page (llama-server)" if info["web_ui"] else ""))
+        if info["models"]:
+            print("Models: " + ", ".join(info["models"][:20]))
+        if cfg.get("model") and info["models"] and cfg["model"] not in info["models"]:
+            print(f"warning: model {cfg['model']} is not in that list")
+            return 1
+        return 0
+    if action == "default":
+        cfg = remote.set_default(args.state == "on")
+        if cfg is None:
+            print("error: no remote AI configured", file=sys.stderr)
+            return 1
+        print("ai-2 chat now talks to " + (f"{cfg['url']} (--local for this computer's own AI)" if cfg["default"]
+                                           else "this computer's own AI (--remote for the remote one)"))
+        return 0
+    if action == "clear":
+        print("Removed." if remote.clear() else "Nothing configured.")
+        return 0
+    return 1
 
 
 def cmd_doctor(args) -> int:
@@ -868,7 +988,27 @@ def main(argv: list[str] | None = None) -> int:
                         help="speak the answers aloud through speech-dispatcher (with --terminal)")
     p_chat.add_argument("--stream", action="store_true",
                         help="terminal chat prints token by token instead of whole sentences (also AI2_CHAT_STREAM=1)")
+    p_chat.add_argument("--remote", action="store_true",
+                        help="talk to the remote AI set with 'ai-2 remote set' instead of this computer's own")
+    p_chat.add_argument("--local", action="store_true",
+                        help="this computer's own AI even when the remote is the default")
     p_chat.set_defaults(func=cmd_chat)
+
+    p_remote = sub.add_parser("remote", help="a bigger AI on another computer or an API provider, for chat --remote")
+    r_sub = p_remote.add_subparsers(dest="remote_cmd", metavar="action")
+    p_r_set = r_sub.add_parser("set", help="save the address (and key) of the remote AI")
+    p_r_set.add_argument("url", help="http://host:8080 (another computer running ai-2 serve) or a provider's base URL")
+    p_r_set.add_argument("--api-key", help="bearer token; prefer --api-key-stdin to keep it out of the shell history")
+    p_r_set.add_argument("--api-key-stdin", action="store_true", help="read the API key from the first line of stdin")
+    p_r_set.add_argument("--model", help="model name the remote expects (needed by API providers)")
+    p_r_set.add_argument("--default", action="store_true", help="make ai-2 chat use it unless --local is given")
+    p_r_set.set_defaults(func=cmd_remote)
+    r_sub.add_parser("show", help="what is configured").set_defaults(func=cmd_remote)
+    r_sub.add_parser("test", help="reach it and list its models").set_defaults(func=cmd_remote)
+    p_r_def = r_sub.add_parser("default", help="on: ai-2 chat talks to the remote; off: only with --remote")
+    p_r_def.add_argument("state", choices=["on", "off"])
+    p_r_def.set_defaults(func=cmd_remote)
+    r_sub.add_parser("clear", help="forget the remote AI and its key").set_defaults(func=cmd_remote)
 
     p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")
     p_doc.set_defaults(func=cmd_doctor)
@@ -924,7 +1064,7 @@ def main(argv: list[str] | None = None) -> int:
     if not hasattr(args, "func"):
         # `ai-2`, `ai-2 model`, `ai-2 runtime` with nothing after it: list what
         # is available instead of argparse's "arguments are required" error.
-        {None: parser, "model": p_model, "runtime": p_rt}[args.command].print_help()
+        {None: parser, "model": p_model, "runtime": p_rt, "remote": p_remote}[args.command].print_help()
         return 0
     return args.func(args)
 
