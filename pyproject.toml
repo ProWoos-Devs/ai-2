@@ -22,4 +22,4 @@ version = {attr = "ai2.__version__"}
 include = ["ai2*"]
 
 [tool.setuptools.package-data]
-ai2 = ["data/tiers/*.yml", "data/*.yml", "data/i18n/*.json"]
+ai2 = ["data/tiers/*.yml", "data/profiles/*.yml", "data/*.yml", "data/i18n/*.json"]

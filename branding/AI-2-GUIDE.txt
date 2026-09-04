@@ -36,6 +36,14 @@ An old computer gives short, slow answers from a small model. That is normal
 and it is not broken. A small model can also get facts and simple arithmetic
 wrong, so treat it like a fast helper, not an encyclopedia.
 
+What it can be used for, judged for this very machine:
+
+  ai-2 workflow                  chat, translation, documents, each marked
+                                 ready, needs setup, or too slow here
+  ai-2 workflow info documents   what one needs and how to use it
+  ai-2 workflow install documents  downloads its models and prints the
+                                 packages to install
+
 
 TALK TO THE AI
 

@@ -352,13 +352,17 @@ def cmd_model_pull(args) -> int:
             print("error: no recommendation yet. Run 'ai-2 benchmark' first, or name a "
                   "model: ai-2 model pull <id>", file=sys.stderr)
             return 1
+    return _pull_model(model, force=args.force)
+
+
+def _pull_model(model: dict, force: bool = False) -> int:
     existing = find_model_file(model["file"])
     if existing:
         print(f"{model['label']} already present at {existing}")
         return 0
     dest = model_dir()
     problem = download_preflight(model, dest)
-    if problem and not args.force:
+    if problem and not force:
         print(f"error: {problem}. Free some space, or pass --force to try anyway.", file=sys.stderr)
         return 1
     print(f"Downloading {model['label']} ({model['file_mb']} MB) to {dest}/ ...")
@@ -772,6 +776,63 @@ def cmd_remote(args) -> int:
     return 1
 
 
+def cmd_workflow(args) -> int:
+    """What this computer can be used for: profiles gated by the tier's
+    grants and the AI Score's stars, with the remote AI as the way out."""
+    from . import workflows
+    hw = detect()
+    score = _load_score()
+    catalog = load_catalog()
+    profiles = workflows.load_profiles()
+    rec = _recommended_model(hw) if score else None
+    cfg = remote.load()
+
+    def ev(p):
+        return workflows.evaluate(p, hw, score, rec, cfg, find_model_file, catalog)
+
+    action = args.workflow_cmd or "list"
+    if action == "list":
+        print(workflows.render_list([ev(p) for p in profiles]))
+        return 0
+    if action == "status":
+        print(workflows.render_status([ev(p) for p in profiles]))
+        return 0
+    profile = workflows.get_profile(args.name, profiles)
+    if profile is None:
+        print(f"error: no workflow '{args.name}' (names: {', '.join(p['id'] for p in profiles)})",
+              file=sys.stderr)
+        return 1
+    r = ev(profile)
+    if action == "info":
+        print(workflows.render_info(r))
+        return 0
+    # install: models pulled, packages printed (read-only toward the system)
+    if r["verdict"] == "unavailable":
+        print(f"error: {r['why']}", file=sys.stderr)
+        return 1
+    if r["verdict"] == "unknown":
+        print("error: run  ai-2 benchmark  first, the score decides what fits", file=sys.stderr)
+        return 1
+    models, pacman_line = workflows.install_plan(r)
+    rc = 0
+    if r["verdict"] == "slow":
+        print(f"Note: {r['why']}. Setting it up anyway.")
+    for m in models:
+        rc = _pull_model(m) or rc
+    if pacman_line:
+        print("Packages this workflow needs, not installed by ai-2 in this version; run:")
+        print(f"  {pacman_line}")
+    if not models and not pacman_line:
+        print("Nothing to download or install.")
+    if r["verdict"] == "remote":
+        print(f"On this computer it runs through the remote AI: {r['why'].split('; ', 1)[-1]}")
+    if profile.get("usage"):
+        print("How to use it:")
+        for u in profile["usage"]:
+            print(f"  {u}")
+    return rc
+
+
 def cmd_doctor(args) -> int:
     """Read-only health check of the AI-2 setup on this machine."""
     from .doctor import render, run_checks, verdict
@@ -1009,6 +1070,18 @@ def main(argv: list[str] | None = None) -> int:
     p_r_def.add_argument("state", choices=["on", "off"])
     p_r_def.set_defaults(func=cmd_remote)
     r_sub.add_parser("clear", help="forget the remote AI and its key").set_defaults(func=cmd_remote)
+
+    p_wf = sub.add_parser("workflow", help="what this computer can be used for (chat, translation, documents), honestly gated by the AI Score")
+    wf_sub = p_wf.add_subparsers(dest="workflow_cmd", metavar="action")
+    wf_sub.add_parser("list", help="every workflow and whether it works here").set_defaults(func=cmd_workflow)
+    p_wf_info = wf_sub.add_parser("info", help="what a workflow needs and how to use it")
+    p_wf_info.add_argument("name")
+    p_wf_info.set_defaults(func=cmd_workflow)
+    p_wf_inst = wf_sub.add_parser("install", help="download its models; packages are printed as a pacman line, not installed")
+    p_wf_inst.add_argument("name")
+    p_wf_inst.set_defaults(func=cmd_workflow)
+    wf_sub.add_parser("status", help="workflows ready on this computer").set_defaults(func=cmd_workflow)
+    p_wf.set_defaults(func=cmd_workflow)
 
     p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")
     p_doc.set_defaults(func=cmd_doctor)

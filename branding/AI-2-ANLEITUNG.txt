@@ -37,6 +37,15 @@ Das ist normal und nicht kaputt. Ein kleines Modell kann sich auch bei
 Fakten und einfachem Rechnen irren, behandle es also als schnellen Helfer,
 nicht als Lexikon.
 
+Wofür er sich eignet, beurteilt für genau diesen Rechner:
+
+  ai-2 workflow                  Chat, Übersetzung, Dokumente, jeweils als
+                                 bereit, einzurichten oder hier zu langsam
+                                 markiert
+  ai-2 workflow info documents   was eines braucht und wie man es benutzt
+  ai-2 workflow install documents  lädt seine Modelle und nennt die
+                                 Pakete, die zu installieren sind
+
 
 MIT DER KI REDEN
 

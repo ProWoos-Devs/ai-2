@@ -63,6 +63,8 @@ ai-2 model pull      # download the recommended model (or: ai-2 model pull <id>)
 ai-2 model list      # models on this computer and in the catalog
 ai-2 model rm <id>   # delete a model to free disk space
 ai-2 model verify    # check downloaded models against the catalog checksums
+ai-2 workflow        # what this computer can be used for (chat, translation, documents), gated by the score
+ai-2 workflow install <name>  # download its models; packages printed as a pacman line, not installed
 ai-2 chat            # start the local AI if needed and open the chat page in the browser
 ai-2 chat --terminal # the same chat in the terminal: fastest, minimal memory, works over SSH
                      # --model with no value lists the models on disk and lets you pick one (-m)
@@ -102,7 +104,7 @@ Three orthogonal pillars. The Adaptation Engine detects hardware, assigns one of
 
 **Workflows request capabilities; tiers grant a subset; runtimes execute what was granted.** RAM alone over-promises, so the AI Score measured by `ai-2 benchmark`, not the tier, gates which model is recommended.
 
-Everything is declarative. Tier definitions live in `ai2/data/tiers/*.yml`, the model catalog in `ai2/data/models.yml`, workflow profiles in `profiles/`. The engine is deliberately small (Python 3.11+, PyYAML only).
+Everything is declarative. Tier definitions live in `ai2/data/tiers/*.yml`, the model catalog in `ai2/data/models.yml`, workflow profiles in `ai2/data/profiles/*.yml`. The engine is deliberately small (Python 3.11+, PyYAML only).
 
 ## Layout
 

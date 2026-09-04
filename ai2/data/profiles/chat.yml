@@ -1,0 +1,18 @@
+# Workflow profile, see translation.yml for the format. Chat is what the
+# machine already does after the wizard; this profile documents it and lets
+# `ai-2 workflow list` say honestly whether it is usable here.
+id: chat
+description: Talk to the AI, ask questions, write and improve text
+requests: [chat]
+minimum: {chat: 1}
+remote: true
+tiers:
+  tiny:
+    llama_server: {ctx: 1024}
+  light:
+    llama_server: {ctx: 2048}
+  standard:
+    llama_server: {ctx: 2048}
+usage:
+  - "ai-2 chat              the chat page in the browser (Applications > AI-2 > AI-2 Chat)"
+  - "ai-2 chat --terminal   the same AI in a terminal, lightest"

@@ -1,0 +1,24 @@
+# Workflow profile, see translation.yml for the format. Turn a scan or a PDF
+# into text (OCR, no AI involved) and ask the AI about it. Package names
+# checked against the Artix world repository 2026-09-04: tesseract 5 + the
+# English, Spanish and German data, poppler for pdftotext, img2pdf.
+id: documents
+description: Read scanned pages and PDFs, then ask the AI about them
+requests: [ocr, doc_qa]
+minimum: {ocr: 1, doc_qa: 1}
+remote: true
+tiers:
+  tiny:
+    packages: [tesseract, tesseract-data-eng, tesseract-data-spa, tesseract-data-deu, poppler, img2pdf]
+    llama_server: {ctx: 1024}
+  light:
+    packages: [tesseract, tesseract-data-eng, tesseract-data-spa, tesseract-data-deu, poppler, img2pdf]
+    llama_server: {ctx: 2048}
+  standard:
+    packages: [tesseract, tesseract-data-eng, tesseract-data-spa, tesseract-data-deu, poppler, img2pdf]
+    llama_server: {ctx: 2048}
+usage:
+  - "tesseract scan.png page -l eng      a scanned image to page.txt (spa, deu for Spanish, German)"
+  - "pdftotext file.pdf file.txt         a PDF to text"
+  - "ai-2 chat --terminal                paste a paragraph of the text and ask about it"
+  - "On a small model keep to one paragraph at a time; the context is short."

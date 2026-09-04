@@ -28,7 +28,8 @@ CATALOG_REQUIRED = {"id", "label", "params_b", "quant", "file_mb",
                     "license"}
 CATALOG_OPTIONAL = {"benchmark", "sampling", "spec_type_measured"}
 SAMPLING_KEYS = {"temp", "top_k", "top_p", "min_p", "repeat_penalty"}
-PROFILE_KEYS = {"id", "description", "requests", "tiers"}
+PROFILE_REQUIRED = {"id", "description", "requests", "minimum", "remote", "tiers"}
+PROFILE_KEYS = PROFILE_REQUIRED | {"usage"}
 PROFILE_TIER_KEYS = {"packages", "models", "llama_server"}
 
 
@@ -39,9 +40,9 @@ def _tier_files():
 
 
 def _profile_files():
-    d = pathlib.Path("profiles")
-    return sorted((p.name, yaml.safe_load(p.read_text()))
-                  for p in d.glob("*.yml"))
+    d = importlib.resources.files("ai2").joinpath("data/profiles")
+    return sorted((e.name, yaml.safe_load(e.read_text()))
+                  for e in d.iterdir() if e.name.endswith(".yml"))
 
 
 def test_tier_files_have_valid_shape():
@@ -124,13 +125,18 @@ def test_profile_files_have_valid_shape():
     assert profiles, "profiles/ has no .yml files"
     for name, data in profiles:
         where = f"profiles/{name}"
-        assert set(data) == PROFILE_KEYS, f"{where}: keys {set(data) ^ PROFILE_KEYS}"
+        assert PROFILE_REQUIRED <= set(data) <= PROFILE_KEYS, f"{where}: keys {set(data) ^ PROFILE_KEYS}"
         assert data["id"] == name.removesuffix(".yml"), f"{where}: id != filename"
         assert isinstance(data["description"], str) and data["description"], where
         requests = data["requests"]
         assert isinstance(requests, list) and requests, where
         unknown = set(requests) - set(STAR_LABELS)
         assert not unknown, f"{where}: requests unknown capabilities {unknown}"
+        minimum = data["minimum"]
+        assert isinstance(minimum, dict) and set(minimum) <= set(requests), f"{where}: minimum names a capability not requested"
+        assert all(isinstance(v, int) and 0 <= v <= 5 for v in minimum.values()), f"{where}: minimum stars 0-5"
+        assert isinstance(data["remote"], bool), f"{where}: remote must be true/false"
+        assert all(isinstance(u, str) and u for u in data.get("usage", [])), f"{where}: usage lines"
         assert isinstance(data["tiers"], dict) and data["tiers"], where
         for tier_id, block in data["tiers"].items():
             assert tier_id in tiers, f"{where}: unknown tier {tier_id!r}"

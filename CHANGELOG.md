@@ -2,6 +2,12 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Added
+- **`ai-2 workflow list | info | install | status`, the Workflow Engine's first user-facing piece.** Three profiles ship in `ai2/data/profiles/` (chat, translation, documents): each requests capabilities, the tier grants a subset, and the AI Score's per-capability stars must clear the profile's `minimum`. Verdicts are honest and never a bare refusal: ready, needs setup, via remote AI (a profile with `remote: true` on a machine with `ai-2 remote` set up), too slow here (with `ai-2 remote set` named as the way out), not on this tier. `install` is read-only toward the system in this version: it downloads the models and prints the exact `sudo pacman -S --needed` line for the packages. Translation is LLM-only (no argos-translate packaging); documents = tesseract + eng/spa/deu data + poppler + img2pdf, names verified against the Artix world repo. Decisions of 2026-09-04 in `000/20260825-workflow-engine-plan.md`.
+### Changed
+- The reference profile moved from `profiles/` to `ai2/data/profiles/` so it ships in the package, and its schema gained `minimum`, `remote` and `usage`.
+
 ## [0.10.0] - 2026-09-04
 ### Added
 - **Remote inference, the sentence `ai-2 recommend` has printed since 0.1.0 finally has something behind it.** `ai-2 remote set <url> [--api-key KEY | --api-key-stdin] [--model NAME] [--default]` saves an OpenAI-compatible endpoint (another computer running `ai-2 serve --host 0.0.0.0 --api-key KEY`, or an API provider) in `~/.config/ai2/remote.json` (mode 600); `show`, `test`, `default on|off`, `clear`. `ai-2 chat --remote` talks to it: a llama-server remote gets its own chat page opened in the browser, anything else is the terminal chat with the key and model on the request. Never silent: a remote is used only with `--remote` or after `remote default on` (`--local` goes back), and every remote chat starts by saying where the messages go. The wizard and `ai-2 recommend` point at it whenever the score says "use remote". Guide section in the three languages.

@@ -1,0 +1,22 @@
+# Workflow profile. A profile REQUESTS capabilities; the assigned tier GRANTS a
+# subset; the AI Score's per-capability stars must clear the profile's
+# MINIMUM; when they do not and the profile allows it, the remote AI
+# (ai-2 remote) does the work instead. Per-tier blocks may only narrow, never
+# exceed, what the tier grants (tests/test_schemas.py enforces this).
+id: translation
+description: Translate text between languages, offline
+requests: [translation]
+minimum: {translation: 1}
+remote: true
+# LLM-only for now (decision 2026-09-04): the Qwen models translate well and
+# argos-translate is not in the Artix repositories.
+tiers:
+  tiny:
+    llama_server: {ctx: 1024}
+  light:
+    llama_server: {ctx: 2048}
+  standard:
+    llama_server: {ctx: 2048}
+usage:
+  - "ai-2 chat --terminal   then type:  Translate to Spanish: <your text>"
+  - "Short texts translate best on a small model; paste one paragraph at a time."

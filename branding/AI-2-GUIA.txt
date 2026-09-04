@@ -37,6 +37,15 @@ Eso es normal y no está averiado. Un modelo pequeño también puede
 equivocarse en datos y en cuentas sencillas, así que trátalo como un
 ayudante rápido, no como una enciclopedia.
 
+Para qué sirve, juzgado para esta máquina en concreto:
+
+  ai-2 workflow                  chat, traducción, documentos, cada uno
+                                 marcado como listo, por configurar o
+                                 demasiado lento aquí
+  ai-2 workflow info documents   qué necesita uno y cómo se usa
+  ai-2 workflow install documents  descarga sus modelos e indica los
+                                 paquetes que instalar
+
 
 HABLAR CON LA IA
 
