@@ -2,6 +2,12 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Changed
+- **Tier tuning is recovery-safe and reversible** (public PR #2). The manifest records the original enabled/disabled state of every service AI-2 touches (v2, v1 manifests migrate), so `init --revert` re-enables what a tier policy disabled and never disables a service that was on before AI-2; recovery state is written before the root-level change, files and the manifest atomically; an already-enabled provider is not re-claimed; a tier change reconciles zram and zswap both ways (the boot helper disables stale zswap on zram tiers).
+- **Persistent tiers keep the server** (public PR #4). Standard and above declare `service: persistent` and now resolve to no idle timeout: `ai-2 chat` leaves the server loaded until `ai-2 stop`. Tiny and Light keep their timeouts. Creator drops the `gpu_offload: auto` setting nothing read; README states the packaged runtimes are CPU-only today. Guides qualified accordingly.
+- README: install with `pacman -Syu` (a bare `-Sy <pkg>` is a partial upgrade); Status section brought up to date (public PR #3, README part; its PKGBUILD changes were not taken, fakeroot is needed by checkupdates and pamac stays a hard dependency by the 2026-09-03 decision).
+
 ## [0.11.0] - 2026-09-04
 ### Added
 - **`ai-2 workflow list | info | install | status`, the Workflow Engine's first user-facing piece.** Three profiles ship in `ai2/data/profiles/` (chat, translation, documents): each requests capabilities, the tier grants a subset, and the AI Score's per-capability stars must clear the profile's `minimum`. Verdicts are honest and never a bare refusal: ready, needs setup, via remote AI (a profile with `remote: true` on a machine with `ai-2 remote` set up), too slow here (with `ai-2 remote set` named as the way out), not on this tier. `install` is read-only toward the system in this version: it downloads the models and prints the exact `sudo pacman -S --needed` line for the packages. Translation is LLM-only (no argos-translate packaging); documents = tesseract + eng/spa/deu data + poppler + img2pdf, names verified against the Artix world repo. Decisions of 2026-09-04 in `000/20260825-workflow-engine-plan.md`.

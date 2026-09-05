@@ -64,8 +64,10 @@ Im Terminal:
   ai-2 chat --terminal   direkt dort chatten, am leichtesten
   ai-2 stop              die KI jetzt beenden und ihren Speicher freigeben
 
-Die KI startet, wenn du sie anforderst, und beendet sich nach einer Weile
-ohne Nutzung von selbst, sie frisst also keinen Speicher im Hintergrund. Die
+Die KI startet, wenn du sie anforderst. Auf einer kleinen Maschine (Stufen
+Tiny und Light) beendet sie sich nach einer Weile ohne Nutzung von selbst,
+sie frisst also keinen Speicher im Hintergrund; ab der Stufe Standard bleibt
+sie geladen, bis  ai-2 stop  kommt. Die
 Browserseite sagt "Nicht sicher", weil dieser Computer sie selbst unter
 127.0.0.1 ausliefert. Nichts verlässt die Maschine, es gibt also nichts zu
 sichern.

@@ -62,8 +62,10 @@ In a terminal:
   ai-2 chat --terminal   chat right there, lightest option
   ai-2 stop              stop the AI now and free its memory
 
-The AI starts when you ask for it and stops by itself after a while without
-use, so it is not eating memory in the background. The browser page says
+The AI starts when you ask for it. On a small machine (Tiny and Light tiers)
+it stops by itself after a while without use, so it is not eating memory in
+the background; on the Standard tier and above it stays loaded until
+ai-2 stop. The browser page says
 "Not Secure" because it is served by this computer at 127.0.0.1. Nothing
 leaves the machine, so there is nothing to secure.
 

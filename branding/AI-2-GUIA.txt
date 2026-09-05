@@ -64,10 +64,12 @@ En una terminal:
   ai-2 chat --terminal   chatea ahí mismo, lo más ligero
   ai-2 stop              para la IA ahora y libera su memoria
 
-La IA arranca cuando la pides y se para sola tras un rato sin uso, así que
-no se queda comiendo memoria de fondo. La página del navegador dice "No es
-seguro" porque la sirve este mismo ordenador en 127.0.0.1. Nada sale de la
-máquina, así que no hay nada que proteger.
+La IA arranca cuando la pides. En una máquina pequeña (niveles Tiny y Light)
+se para sola tras un rato sin uso, así que no se queda comiendo memoria de
+fondo; en el nivel Standard y superiores sigue cargada hasta  ai-2 stop.
+La página del navegador dice "No es seguro" porque la sirve este mismo
+ordenador en 127.0.0.1. Nada sale de la máquina, así que no hay nada que
+proteger.
 
 
 SI ALGO NO ESTÁ CONFIGURADO
