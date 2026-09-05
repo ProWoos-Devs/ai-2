@@ -42,7 +42,7 @@ Server = https://github.com/ProWoos-Devs/ai2-packages/releases/download/x86_64
 Then:
 
 ```
-sudo pacman -Sy ai2-keyring ai-2
+sudo pacman -Syu ai2-keyring ai-2
 sudo pacman -S ai2-llama-cpp-baseline    # or -noavx / -avx2, ai-2 detect tells you which
 sudo ai-2 init --apply                   # or just: ai-2 wizard
 ```
@@ -115,7 +115,7 @@ Everything is declarative. Tier definitions live in `ai2/data/tiers/*.yml`, the 
 
 ## Status
 
-Early, usable, tested on one old laptop and in QEMU. The ISO (lean by design, 1.85 GB) boots and installs (BIOS/MBR verified on the 2011 laptop and in QEMU), a setup wizard runs at the first login, `ai-2 chat` opens a local chat page. Next, `ai-2 doctor`, workflow profiles, a Plymouth splash. Bugs and ideas: https://github.com/ProWoos-Devs/ai-2/issues
+Early and usable, tested on two older AMD laptops and through complete QEMU installs. The ISO (lean by design, 1.85 GB) boots and installs in BIOS/MBR and UEFI/GPT modes, a setup wizard runs at the first login, and local and explicitly configured remote chat are available. Hardware detection, tier tuning, AI Score benchmarking, model recommendations, health reports and the first read-only workflow profiles are implemented. Current validation details live in the [Wiki](https://github.com/ProWoos-Devs/ai-2/wiki/Validated-Hardware); bugs and ideas belong in [Issues](https://github.com/ProWoos-Devs/ai-2/issues).
 
 ## License
 

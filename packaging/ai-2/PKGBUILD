@@ -13,8 +13,7 @@ pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstati
 arch=('any')
 url="https://github.com/ProWoos-Devs/AI-2"
 license=('MIT')
-depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pacman-contrib' 'fakeroot'
-         'pamac')
+depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pacman-contrib')
 checkdepends=('python-pytest')
 optdepends=('pciutils: GPU detection via lspci'
             'zramen: compressed swap, installed by ai-2 init --apply on low-RAM tiers'
@@ -23,6 +22,7 @@ optdepends=('pciutils: GPU detection via lspci'
             'ai2-llama-cpp-noavx: CPU inference runtime for SSE4.x CPUs without AVX2'
             'ai2-llama-cpp-avx2: CPU inference runtime for AVX2 CPUs'
             'xfce4-terminal: terminal window for the first-login setup wizard'
+            'pamac: graphical package management and updates'
             'libnotify: desktop notification when system updates are waiting')
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')
