@@ -47,7 +47,7 @@ PKGCACHE="$HOME/ai2-pkg-cache"
 mkdir -p "$PKGCACHE"
 pacman -Sy --noconfirm >/dev/null
 pacman -Sw --noconfirm --cachedir "$PKGCACHE" broadcom-wl >/dev/null
-WL=$(pacman -Sp broadcom-wl | xargs -n1 basename | head -1)
+WL=$(basename "$(pacman -Sp broadcom-wl | grep -m1 "broadcom-wl-")")   # no head: SIGPIPE + pipefail aborted the stage
 [ -f "$PKGCACHE/$WL" ] || { echo "broadcom-wl package file not found in $PKGCACHE"; exit 1; }
 mkdir -p "$DST/live-overlay/usr/share/ai2/pkgs"
 cp "$PKGCACHE/$WL" "$DST/live-overlay/usr/share/ai2/pkgs/"
