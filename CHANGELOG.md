@@ -2,7 +2,7 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.11.1] - 2026-09-05
 ### Fixed
 - **The update bubble now fires on a machine that is never logged out.** The desktop autostart ran `ai-2 update-check` once, three minutes after login, and never again; rafaminu-pc sat through a whole day and two releases without a check (2026-09-04). `ai-2 update-check --every HOURS` keeps checking for the life of the session (the autostart uses `--every 6` with `--max-age 20`, so a real check runs about once a day) and on those later rounds raises the bubble only when a fresh check found something, so a bubble still on screen is not stacked.
 ### Changed
