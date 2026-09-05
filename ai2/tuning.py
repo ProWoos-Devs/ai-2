@@ -5,7 +5,10 @@ planning."""
 from __future__ import annotations
 
 import os
+import shutil
+import stat
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -50,28 +53,53 @@ class Action:
     run: Callable[[], None]
     commands: list[list[str]] = field(default_factory=list)
     writes: str | None = None          # file this action writes (for the manifest / revert)
-    enables: str | None = None         # service this action enables (for revert)
+    service: str | None = None         # service whose state this action changes
+    service_target: bool | None = None # desired enabled state for that service
 
 
 def _write_file_action(path: str, content: str, description: str) -> Action:
     def run():
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        # First touch of a file AI-2 did not create: keep the original next to it.
-        if os.path.isfile(path) and not os.path.exists(path + BACKUP_SUFFIX):
-            with open(path) as src:
-                old = src.read()
-            if "Managed by AI-2" not in old:
-                with open(path + BACKUP_SUFFIX, "w") as dst:
-                    dst.write(old)
-        with open(path, "w") as fh:
-            fh.write(content)
+        mode = 0o644
+        owner = None
+        try:
+            current = os.stat(path)
+            mode = stat.S_IMODE(current.st_mode)
+            owner = (current.st_uid, current.st_gid)
+        except OSError:
+            pass
+        fd, tmp = tempfile.mkstemp(prefix=".ai2-", dir=os.path.dirname(path), text=True)
+        try:
+            with os.fdopen(fd, "w") as fh:
+                fh.write(content)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.chmod(tmp, mode)
+            if owner is not None:
+                os.chown(tmp, *owner)
+            os.replace(tmp, path)
+        finally:
+            try:
+                os.remove(tmp)
+            except FileNotFoundError:
+                pass
     return Action(description=description, run=run, writes=path)
 
 
-def _cmd_action(cmd: list[str], description: str, enables: str | None = None) -> Action:
+def _cmd_action(cmd: list[str], description: str, service: str | None = None,
+                service_target: bool | None = None) -> Action:
     def run():
         subprocess.run(cmd, check=True)
-    return Action(description=description, run=run, commands=[cmd], enables=enables)
+    return Action(description=description, run=run, commands=[cmd], service=service,
+                  service_target=service_target)
+
+
+def _service_action(backend, service: str, enabled: bool, description: str) -> Action | None:
+    """Return an action only when a service transition is actually required."""
+    if backend.is_enabled(service) is enabled:
+        return None
+    cmd = backend.enable_cmd(service) if enabled else backend.disable_cmd(service)
+    return _cmd_action(cmd, description, service=service, service_target=enabled)
 
 
 def _missing(pkg_backend, pkgs: list[str]) -> list[str]:
@@ -135,18 +163,29 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
                 provider["conf_path"], _zramen_conf(algorithm, size_percent),
                 f"configure zram ({algorithm}, {size_percent}% of RAM) in {provider['conf_path']}",
             ))
-            actions.append(_cmd_action(
-                backend.enable_cmd(provider["service"]),
-                f"enable zram swap service '{provider['service']}' ({backend.name})",
-                enables=provider["service"],
-            ))
+            action = _service_action(
+                backend, provider["service"], True,
+                f"enable zram swap service '{provider['service']}' ({backend.name})")
+            if action:
+                actions.append(action)
+    elif backend.name in ZRAM_PROVIDERS:
+        # Reconcile a previous Tiny/Light configuration when moving to zswap.
+        provider = ZRAM_PROVIDERS[backend.name]
+        action = _service_action(
+            backend, provider["service"], False,
+            f"disable zram swap service '{provider['service']}' ({backend.name}); "
+            f"tier uses {mechanism or 'no compressed swap'}")
+        if action:
+            actions.append(action)
 
     # Settings that live in sysfs (zswap parameters, MGLRU) are applied by
     # /usr/lib/ai2/boot-tuning.sh from /etc/ai2/memory.conf, at every boot via
     # the ai2-boot one-shot service and once right now.
     boot_conf = {}
+    if mechanism in ("zram", "zswap"):
+        # The boot helper also disables stale zswap when switching back to zram.
+        boot_conf["mechanism"] = mechanism
     if mechanism == "zswap":
-        boot_conf["mechanism"] = "zswap"
         boot_conf["compressor"] = memory.get("compressor", "zstd")
         boot_conf["zpool"] = memory.get("allocator", "zsmalloc")
     if memory.get("mglru_min_ttl_ms"):
@@ -160,9 +199,11 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
             f"write {STATE_DIR}/memory.conf ({what})",
         ))
         if os.path.isfile(BOOT_TUNING):
-            actions.append(_cmd_action(backend.enable_cmd("ai2-boot"),
-                                       f"enable boot-time memory tuning service 'ai2-boot' ({backend.name})",
-                                       enables="ai2-boot"))
+            action = _service_action(
+                backend, "ai2-boot", True,
+                f"enable boot-time memory tuning service 'ai2-boot' ({backend.name})")
+            if action:
+                actions.append(action)
             actions.append(_cmd_action([BOOT_TUNING], "apply the memory settings now"))
         else:
             actions.append(Action(description=f"{BOOT_TUNING} not installed (ai-2 package too old), "
@@ -178,6 +219,7 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
             actions.append(_cmd_action(
                 backend.disable_cmd(service),
                 f"disable service {service} ({backend.name})",
+                service=service, service_target=False,
             ))
         elif enabled is None:
             actions.append(Action(
@@ -195,11 +237,11 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
                     pkg_backend.install_cmd(missing),
                     f"install OOM guard: {' '.join(missing)} ({pkg_backend.name})",
                 ))
-            actions.append(_cmd_action(
-                backend.enable_cmd(provider["service"]),
-                f"enable OOM guard service '{provider['service']}' ({backend.name})",
-                enables=provider["service"],
-            ))
+            action = _service_action(
+                backend, provider["service"], True,
+                f"enable OOM guard service '{provider['service']}' ({backend.name})")
+            if action:
+                actions.append(action)
 
     runtime = config.get("runtime") or {}
     if runtime.get("provider") == "llama.cpp":
@@ -249,16 +291,46 @@ def _load_manifest() -> dict:
     import json
     try:
         with open(MANIFEST_PATH) as fh:
-            return json.load(fh)
+            manifest = json.load(fh)
+            # v1 recorded only services AI-2 enabled, whose original state was
+            # therefore disabled. Disabled services could not be recovered.
+            states = manifest.setdefault("service_states", {})
+            for service in manifest.pop("services", []):
+                states.setdefault(service, False)
+            manifest.setdefault("files", [])
+            return manifest
     except (OSError, ValueError):
-        return {"files": [], "services": []}
+        return {"version": 2, "files": [], "service_states": {}}
 
 
 def _save_manifest(m: dict) -> None:
     import json
     os.makedirs(STATE_DIR, exist_ok=True)
-    with open(MANIFEST_PATH, "w") as fh:
-        json.dump(m, fh, indent=1)
+    fd, tmp = tempfile.mkstemp(prefix=".manifest-", dir=STATE_DIR, text=True)
+    try:
+        with os.fdopen(fd, "w") as fh:
+            json.dump(m, fh, indent=1)
+            fh.write("\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, MANIFEST_PATH)
+    finally:
+        try:
+            os.remove(tmp)
+        except FileNotFoundError:
+            pass
+
+
+def _prepare_file(path: str) -> None:
+    """Preserve the first pre-AI-2 version before the manifest claims a file."""
+    backup = path + BACKUP_SUFFIX
+    if not os.path.isfile(path) or os.path.exists(backup):
+        return
+    with open(path) as src:
+        managed = "Managed by AI-2" in src.read()
+    if not managed:
+        shutil.copy2(path, backup)
 
 
 def revert(backend) -> list[str]:
@@ -269,10 +341,14 @@ def revert(backend) -> list[str]:
         raise PermissionError("reverting requires root, re-run with sudo")
     m = _load_manifest()
     done = []
-    for svc in m.get("services", []):
-        if backend.is_enabled(svc):
-            subprocess.run(backend.disable_cmd(svc), check=False)
-            done.append(f"disabled service {svc}")
+    for svc, originally_enabled in m.get("service_states", {}).items():
+        current = backend.is_enabled(svc)
+        if current is None or current is originally_enabled:
+            continue
+        cmd = backend.enable_cmd(svc) if originally_enabled else backend.disable_cmd(svc)
+        result = subprocess.run(cmd, check=False)
+        if result.returncode == 0:
+            done.append(f"{'enabled' if originally_enabled else 'disabled'} service {svc}")
     for path in m.get("files", []):
         backup = path + BACKUP_SUFFIX
         if os.path.exists(backup):
@@ -288,12 +364,23 @@ def revert(backend) -> list[str]:
     return done
 
 
-def apply_plan(actions: list[Action]) -> None:
+def apply_plan(actions: list[Action], backend=None) -> None:
     if os.geteuid() != 0:
         raise PermissionError("applying the plan requires root, re-run with sudo")
     manifest = _load_manifest()
     for i, action in enumerate(actions, 1):
         try:
+            # Record recoverability before mutation: SIGTERM or power loss after
+            # action.run() must not leave an untracked root-level change.
+            if action.writes and action.writes not in manifest["files"]:
+                _prepare_file(action.writes)
+                manifest["files"].append(action.writes)
+                _save_manifest(manifest)
+            if action.service and action.service not in manifest["service_states"]:
+                before = backend.is_enabled(action.service) if backend else None
+                if before is not None:
+                    manifest["service_states"][action.service] = before
+                    _save_manifest(manifest)
             action.run()
         except subprocess.CalledProcessError as exc:
             raise RuntimeError(f"step {i} failed ({action.description}): command "
@@ -302,8 +389,3 @@ def apply_plan(actions: list[Action]) -> None:
         except OSError as exc:
             raise RuntimeError(f"step {i} failed ({action.description}): {exc}; "
                                f"steps 1-{i - 1} were applied") from exc
-        if action.writes and action.writes not in manifest["files"]:
-            manifest["files"].append(action.writes)
-        if action.enables and action.enables not in manifest["services"]:
-            manifest["services"].append(action.enables)
-        _save_manifest(manifest)

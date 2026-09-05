@@ -17,6 +17,10 @@ if [ "$mechanism" = "zswap" ] && [ -d /sys/module/zswap/parameters ]; then
     put /sys/module/zswap/parameters/compressor "$(get compressor)"
     put /sys/module/zswap/parameters/zpool "$(get zpool)"
     put /sys/module/zswap/parameters/enabled 1
+elif [ "$mechanism" = "zram" ] && [ -d /sys/module/zswap/parameters ]; then
+    # A tier change from Standard+ back to Tiny/Light must not leave both
+    # compressed-swap mechanisms active.
+    put /sys/module/zswap/parameters/enabled 0
 fi
 
 ttl=$(get mglru_min_ttl_ms)

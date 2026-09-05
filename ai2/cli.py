@@ -133,7 +133,7 @@ def cmd_init(args) -> int:
         print("\nDry run, nothing changed. Re-run with --apply as root to execute.")
         return 0
     try:
-        apply_plan(plan)
+        apply_plan(plan, backend)
     except (PermissionError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

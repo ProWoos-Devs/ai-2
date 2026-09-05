@@ -212,7 +212,7 @@ class Wizard:
                 rc = 0
                 if os.geteuid() == 0:
                     try:
-                        apply_plan(plan)
+                        apply_plan(plan, backend)
                     except Exception as exc:
                         self.say(tr("  Tuning failed: {exc}").format(exc=exc))
                         rc = 1
