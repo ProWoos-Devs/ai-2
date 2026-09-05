@@ -90,9 +90,9 @@ Models:
 Models are big files. They live in /var/lib/ai2/models when AI-2 was set up
 by an administrator, otherwise in ~/.local/share/ai2/models.
 
-WiFi on a Broadcom chip (many 2008-2012 laptops): the stick has the driver,
-and the installer copies it to the new system when it sees the chip. If
-WiFi still does not work, connect by cable once and run:
+WiFi on a Broadcom chip (many 2008-2012 laptops): most work with the
+driver built into the kernel. If yours does not, connect by cable once
+and run:
 
   ai-2 install broadcom-wifi
 

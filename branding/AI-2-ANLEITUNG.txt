@@ -94,9 +94,9 @@ Modelle:
 Modelle sind große Dateien. Sie liegen in /var/lib/ai2/models, wenn AI-2 von
 einem Administrator eingerichtet wurde, sonst in ~/.local/share/ai2/models.
 
-WLAN mit Broadcom-Chip (viele Laptops von 2008-2012): der Stick hat den
-Treiber, und der Installer kopiert ihn ins neue System, wenn er den Chip
-sieht. Geht das WLAN trotzdem nicht, einmal per Kabel verbinden und:
+WLAN mit Broadcom-Chip (viele Laptops von 2008-2012): die meisten laufen
+mit dem Treiber im Kernel. Wenn deiner nicht, einmal per Kabel verbinden
+und:
 
   ai-2 install broadcom-wifi
 

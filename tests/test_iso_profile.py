@@ -1,34 +1,24 @@
-"""The ISO profile's Broadcom contract (2026-09-05): broadcom-wl lives on the
-live stick only, and the installer job that copies it to a Broadcom machine
-is wired into both Calamares configurations."""
+"""The ISO profile's Broadcom contract (decision 2026-09-05, option 3): no
+broadcom-wl anywhere (Artix's prebuilt package lags its kernel and its dkms
+replacement drags in 600 MiB), and no installer job for it. Broadcom chips
+the in-kernel drivers do not cover get `ai-2 install broadcom-wifi`."""
 import pathlib
-import subprocess
 
 import yaml
 
 ISO = pathlib.Path("iso/profiles/ai2")
 
 
-def test_broadcom_wl_is_live_only():
+def test_no_broadcom_wl_on_the_image():
     prof = yaml.safe_load((ISO / "profile.yaml").read_text())
     assert "broadcom-wl" not in prof["rootfs"]["packages"]
-    assert "broadcom-wl" in prof["livefs"]["packages"]
+    assert "broadcom-wl" not in prof["livefs"]["packages"]
 
 
-def test_broadcom_installer_job_is_wired_after_the_keyring():
+def test_no_broadcom_installer_job():
     for cfg in ("offline", "online"):
-        settings = yaml.safe_load((ISO / "live-overlay/etc/calamares-{}/settings.conf".format(cfg)).read_text())
-        ids = {i["id"]: i for i in settings["instances"]}
-        assert ids["broadcom"]["config"] == "shellprocess@broadcom.conf", cfg
-        execs = next(step["exec"] for step in settings["sequence"] if "exec" in step)
-        assert execs.index("shellprocess@broadcom") == execs.index("shellprocess@keyring") + 1, cfg
-        conf = yaml.safe_load((ISO / "live-overlay/etc/calamares-{}/modules/shellprocess@broadcom.conf".format(cfg)).read_text())
-        assert conf["dontChroot"] is True and conf["script"] == ["/usr/share/ai2/broadcom-install.sh ${ROOT}"]
-
-
-def test_installer_job_script_parses_and_is_executable():
-    script = ISO / "live-overlay/usr/share/ai2/broadcom-install.sh"
-    assert script.stat().st_mode & 0o111
-    assert subprocess.run(["sh", "-n", str(script)]).returncode == 0
-    text = script.read_text()
-    assert "0x028000" in text and "0x14e4" in text and "exit 0" in text
+        settings = (ISO / f"live-overlay/etc/calamares-{cfg}/settings.conf").read_text()
+        assert "broadcom" not in settings, cfg
+        assert not list((ISO / f"live-overlay/etc/calamares-{cfg}/modules").glob("*broadcom*")), cfg
+    assert not (ISO / "live-overlay/usr/share/ai2/broadcom-install.sh").exists()
+    assert "broadcom" not in pathlib.Path("iso/stage-profile.sh").read_text()

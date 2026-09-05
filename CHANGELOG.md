@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.1] - 2026-09-05
+### Changed
+- **Broadcom, final shape (decision 2026-09-05, supersedes the 0.13.0 installer job).** `broadcom-wl` is gone from the live stick as well, and the Calamares job that copied it into the target is removed. The QEMU install of the never-released ISO 20260905 showed why: Artix's prebuilt `broadcom-wl` (built 2026-08-22) carries a module for kernel 7.1.9 while the repos ship kernel 7.2.2, so the driver was dead weight on the stick and in the target alike, and the package is abandoned upstream in favor of dkms. Broadcom chips that the in-kernel brcm80211/b43 drivers do not cover get WiFi with `ai-2 install broadcom-wifi` after connecting by cable once; the wizard says so on such a machine and the guides are worded accordingly. `ai-2 update` (0.12.0) still cleans up installs from older ISOs.
+
 ## [0.13.0] - 2026-09-05
 ### Changed
 - **Broadcom, steps 2 to 4 of the plan.** `broadcom-wl` leaves the installed package set and stays on the live stick only (ISO profile). The stage script also puts the prebuilt package FILE on the live medium (`/usr/share/ai2/pkgs/`), and a new Calamares job (`shellprocess@broadcom`, right after the keyring job, offline and online configs) installs it into the target only when sysfs shows a Broadcom WiFi device (class 0x028000, vendor 0x14e4), so such a laptop has WiFi at first boot with no download; `ai-2 update` (0.12.0) then carries it over to the dkms driver. Machines without the chip never carry the package again. Test hook: `touch /run/ai2-force-broadcom` on the live system.
