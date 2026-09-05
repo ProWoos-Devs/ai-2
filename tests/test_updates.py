@@ -64,6 +64,37 @@ def test_cli_update_check(tmp_path, monkeypatch, capsys):
     assert sent == [1]
 
 
+def test_cli_update_check_every_keeps_going_and_notifies_only_fresh_finds(tmp_path, monkeypatch, capsys):
+    """The autostart loop: login round notifies from the cache, later rounds
+    only when a fresh check ran (a bubble still up is not stacked), and a
+    check after `pacman -Syu` that finds nothing stays quiet."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    sent, checks, slept = [], [], []
+    monkeypatch.setattr(updates, "notify", lambda n: sent.append(n) or True)
+    fresh = iter([True, True, False, False])          # cache fresh, fresh, stale, stale
+    monkeypatch.setattr(updates, "state_is_fresh", lambda h: next(fresh))
+    counts = iter([3, 0])                             # fresh checks: 3 pending, then current
+    def check_now():
+        checks.append(1)
+        return {"count": next(counts), "packages": []}
+    monkeypatch.setattr(updates, "check_now", check_now)
+    monkeypatch.setattr(updates, "load_state", lambda: {"count": 2, "packages": []})
+    def sleep(s):
+        slept.append(s)
+        if len(slept) == 4:
+            raise KeyboardInterrupt
+    import argparse
+    args = argparse.Namespace(notify=True, max_age=20.0, every=6.0)
+    try:
+        cli.cmd_update_check(args, sleep=sleep)
+    except KeyboardInterrupt:
+        pass
+    assert slept == [21600] * 4
+    assert sent == [2, 3]          # login reminder from the cache; then only the fresh find
+    assert len(checks) == 2        # two stale rounds ran a real check
+
+
 class _Recorder:
     """Stands in for notify-send: records the argv it was called with and
     answers with whatever the test wants on stdout."""

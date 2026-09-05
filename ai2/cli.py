@@ -884,24 +884,36 @@ def cmd_stop(args) -> int:
     return 0
 
 
-def cmd_update_check(args) -> int:
+def cmd_update_check(args, sleep=None) -> int:
     """The shared passive update check: refresh the cached count (at most once
     per --max-age hours) and optionally raise a desktop notification. The
-    login-shell hint (/etc/profile.d/ai2-updates.sh) reads the same cache."""
+    login-shell hint (/etc/profile.d/ai2-updates.sh) reads the same cache.
+
+    With --every HOURS it keeps going for the life of the session (the
+    desktop autostart uses this), because a check that runs once at login
+    never runs on a machine that is never logged out (rafaminu-pc, up for a
+    day with two releases published and nothing announced, 2026-09-04). On
+    those later rounds the bubble is raised only when a FRESH check found
+    something, so a bubble still on screen is not stacked every round."""
+    import time
     from . import updates
-    if args.max_age and updates.state_is_fresh(args.max_age):
-        st = updates.load_state() or {}
-    else:
-        st = updates.check_now() or updates.load_state() or {}
-    count = st.get("count")
-    if count is None:
-        print("No update information (offline, or checkupdates missing).")
-        return 0
-    if args.notify:
-        updates.notify(count)
-    print(f"{count} update(s) available. Update with:  ai-2 update"
-          if count else "The system is current.")
-    return 0
+    sleep = sleep or time.sleep
+    first = True
+    while True:
+        cached = bool(args.max_age) and updates.state_is_fresh(args.max_age)
+        st = (updates.load_state() or {}) if cached else (updates.check_now() or updates.load_state() or {})
+        count = st.get("count")
+        if count is None:
+            print("No update information (offline, or checkupdates missing).", flush=True)
+        else:
+            if args.notify and count and (first or not cached):
+                updates.notify(count)
+            print(f"{count} update(s) available. Update with:  ai-2 update"
+                  if count else "The system is current.", flush=True)
+        if not args.every:
+            return 0
+        first = False
+        sleep(args.every * 3600)
 
 
 def cmd_update(args) -> int:
@@ -1101,6 +1113,8 @@ def main(argv: list[str] | None = None) -> int:
     p_upd.add_argument("--notify", action="store_true", help="send a desktop notification when updates are pending")
     p_upd.add_argument("--max-age", type=float, default=0, metavar="HOURS",
                        help="reuse a cached result younger than this many hours (0 = always check)")
+    p_upd.add_argument("--every", type=float, default=0, metavar="HOURS",
+                       help="keep checking every this many hours for the life of the session (the desktop autostart does; later rounds notify only when a fresh check finds something)")
     p_upd.set_defaults(func=cmd_update_check)
 
     p_a11y = sub.add_parser("accessibility",

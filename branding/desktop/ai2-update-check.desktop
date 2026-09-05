@@ -2,8 +2,8 @@
 Type=Application
 Version=1.0
 Name=AI-2 update check
-Comment=Once a day, tell the user when system updates are waiting (no automatic installs)
-Exec=sh -c "sleep 180; ai-2 update-check --notify --max-age 20"
+Comment=Tell the user when system updates are waiting, at login and then daily for the life of the session (no automatic installs)
+Exec=sh -c "sleep 180; exec ai-2 update-check --notify --max-age 20 --every 6"
 Icon=ai2
 Terminal=false
 NoDisplay=true
