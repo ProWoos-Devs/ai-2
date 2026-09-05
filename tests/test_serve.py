@@ -64,6 +64,10 @@ def test_runtime_defaults_follow_the_tier(tmp_path):
     assert tiny["idle_timeout_s"] == 300 and tiny["ctx"] == 1024
     light = runtime_defaults(None, tiers, tier_id="light")
     assert light["idle_timeout_s"] == 600 and light["ctx"] == 2048
+    standard = runtime_defaults(None, tiers, tier_id="standard")
+    assert standard["service"] == "persistent" and standard["idle_timeout_s"] == 0
+    workstation = runtime_defaults(None, tiers, tier_id="workstation")
+    assert workstation["service"] == "persistent" and workstation["idle_timeout_s"] == 0
     assert runtime_defaults(None, tiers, tier_id=None) == {"idle_timeout_s": 600, "ctx": 2048, "service": "on-demand"}
 
 

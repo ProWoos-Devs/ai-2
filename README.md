@@ -102,6 +102,8 @@ ai-2 logo            # the mark, in the size the terminal allows
 
 Three orthogonal pillars. The Adaptation Engine detects hardware, assigns one of six capability tiers (Tiny, Light, Standard, Creator, Studio, Workstation), and applies the corresponding configuration. The Workflow Engine describes what the user wants to do, as declarative YAML profiles. The Runtime Engine executes models; the local runtime is llama.cpp, selected per CPU class, with persistent heavyweight daemons avoided on low-memory tiers.
 
+The packaged llama.cpp runtime is CPU-only today. GPU acceleration is planned, but AI-2 does not yet select or configure a CUDA, Vulkan or ROCm runtime.
+
 **Workflows request capabilities; tiers grant a subset; runtimes execute what was granted.** RAM alone over-promises, so the AI Score measured by `ai-2 benchmark`, not the tier, gates which model is recommended.
 
 Everything is declarative. Tier definitions live in `ai2/data/tiers/*.yml`, the model catalog in `ai2/data/models.yml`, workflow profiles in `ai2/data/profiles/*.yml`. The engine is deliberately small (Python 3.11+, PyYAML only).

@@ -19,7 +19,6 @@ services:
 runtime:
   provider: llama.cpp
   service: persistent
-  gpu_offload: auto
 models:
   - {id: qwen2.5-7b, quant: Q4_K_M, ctx: 8192}
 rag:

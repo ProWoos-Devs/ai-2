@@ -110,7 +110,11 @@ def runtime_defaults(model_id: str | None = None, tiers: dict[str, Tier] | None 
         return out
     config = resolve_config(tier, tiers)
     rt = config.get("runtime") or {}
-    if rt.get("idle_timeout_s"):
+    if rt.get("service") == "persistent" and "idle_timeout_s" not in rt:
+        # A persistent tier keeps the detached serve wrapper alive until the
+        # user runs `ai-2 stop`; on-demand tiers retain their explicit timeout.
+        out["idle_timeout_s"] = 0
+    elif rt.get("idle_timeout_s"):
         out["idle_timeout_s"] = int(rt["idle_timeout_s"])
     if rt.get("service"):
         out["service"] = rt["service"]
