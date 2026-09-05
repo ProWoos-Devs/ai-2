@@ -131,15 +131,85 @@ def test_apply_backs_up_and_revert_restores(tmp_path, monkeypatch):
     actions = [
         tuning._write_file_action(str(existing), "# Managed by AI-2\nx=1\n", "write conf"),
         tuning._write_file_action(str(fresh), "# Managed by AI-2\ny=2\n", "write new"),
-        tuning.Action("enable svc", run=lambda: enabled.add("svc"), enables="svc"),
+        tuning.Action("enable svc", run=lambda: enabled.add("svc"),
+                      service="svc", service_target=True),
     ]
-    tuning.apply_plan(actions)
+    tuning.apply_plan(actions, backend)
     assert (tmp_path / "conf.ai2-orig").read_text() == "user's own settings\n"
     assert existing.read_text().startswith("# Managed by AI-2")
     m = tuning._load_manifest()
-    assert str(existing) in m["files"] and str(fresh) in m["files"] and m["services"] == ["svc"]
+    assert str(existing) in m["files"] and str(fresh) in m["files"]
+    assert m["service_states"] == {"svc": False}
     backend.disable_cmd = lambda s: ["true"]
     done = tuning.revert(backend)
     assert existing.read_text() == "user's own settings\n"
     assert not fresh.exists() and not (tmp_path / "conf.ai2-orig").exists()
     assert any("svc" in d for d in done) and not os.path.exists(tuning.MANIFEST_PATH)
+
+
+def test_revert_records_service_disabled_by_policy(tmp_path, monkeypatch):
+    from ai2 import tuning
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    monkeypatch.setattr(tuning, "STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(tuning, "MANIFEST_PATH", str(tmp_path / "manifest.json"))
+    enabled = {"cupsd"}
+    backend = FakeBackend()
+    backend.is_enabled = lambda service: service in enabled
+    actions = [tuning.Action(
+        "disable cupsd", run=lambda: enabled.discard("cupsd"),
+        service="cupsd", service_target=False,
+    )]
+    tuning.apply_plan(actions, backend)
+    assert tuning._load_manifest()["service_states"] == {"cupsd": True}
+    def run(cmd, check=False):
+        enabled.add(cmd[-1])
+        return type("Result", (), {"returncode": 0})()
+    monkeypatch.setattr(tuning.subprocess, "run", run)
+    done = tuning.revert(backend)
+    assert "cupsd" in enabled
+    assert done == ["enabled service cupsd"]
+
+
+def test_existing_enabled_provider_is_not_added_to_plan():
+    text = render_plan(tiny_plan(FakeBackend(enabled={"zramen", "earlyoom"})))
+    assert "fake-enable zramen" not in text
+    assert "fake-enable earlyoom" not in text
+
+
+def test_standard_reconciles_previous_zram(monkeypatch):
+    from ai2 import tuning
+    monkeypatch.setattr(tuning, "BOOT_TUNING", __file__)
+    tiers = load_tiers()
+    tier = tiers["standard"]
+    hw = Hardware(ram_nominal_gib=8, logical_cores=4, init_system="runit", flags={"avx2"})
+    text = render_plan(build_plan(hw, tier, resolve_config(tier, tiers),
+                                  FakeBackend(enabled={"zramen"}), FakePkgBackend()))
+    assert "fake-disable zramen" in text
+    assert "tier uses zswap" in text
+
+
+def test_v1_manifest_is_migrated(tmp_path, monkeypatch):
+    import json
+    from ai2 import tuning
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps({"files": ["/x"], "services": ["earlyoom"]}))
+    monkeypatch.setattr(tuning, "MANIFEST_PATH", str(path))
+    assert tuning._load_manifest() == {
+        "files": ["/x"], "service_states": {"earlyoom": False}
+    }
+
+
+def test_failed_write_is_already_recoverable(tmp_path, monkeypatch):
+    from ai2 import tuning
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    monkeypatch.setattr(tuning, "STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setattr(tuning, "MANIFEST_PATH", str(tmp_path / "state" / "manifest.json"))
+    target = tmp_path / "target"
+    target.write_text("original\n")
+    action = tuning.Action("fail after preparation", run=lambda: (_ for _ in ()).throw(OSError("boom")),
+                           writes=str(target))
+    import pytest
+    with pytest.raises(RuntimeError):
+        tuning.apply_plan([action], FakeBackend())
+    assert tuning._load_manifest()["files"] == [str(target)]
+    assert (tmp_path / "target.ai2-orig").read_text() == "original\n"
