@@ -45,3 +45,8 @@ def test_studio_and_workstation_share_creator_config(tiers):
 def test_tiny_has_no_persistent_runtime(tiers):
     config = resolve_config(tiers["tiny"], tiers)
     assert config["runtime"] == {"provider": "llama.cpp", "service": "on-demand", "idle_timeout_s": 300}
+
+
+def test_creator_does_not_claim_unimplemented_gpu_offload(tiers):
+    config = resolve_config(tiers["creator"], tiers)
+    assert "gpu_offload" not in config["runtime"]
