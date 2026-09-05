@@ -2,6 +2,14 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## ISO 20260905 (2026-09-05), tag `iso-20260905`
+Ships `ai-2` 0.13.1, the first image since 20260830 (which shipped 0.8.0), so it carries everything from 0.8.1 to 0.13.1: the sticky update bubble and its session-long check, the Applications > AI-2 menu, pamac as a dependency, the model picker, the AI knowing what it is, remote inference, workflow profiles, the reviewed public PRs, and the Broadcom decision in its final shape: **no `broadcom-wl` on the image at all**, neither installed nor on the stick. 1,975,128,064 bytes (1.840 GiB, inside GitHub's 2 GiB asset limit), sha256 `6f57a3a6b973e0e2291e398c3915dab5f2fcb8ff16dc5c4a053c80f72a2e3962`.
+
+Verified by a complete QEMU install (erase disk, BIOS) and first boot:
+- Installed system on kernel 7.2.2 with `ai-2` 0.13.1; `ai-2 doctor` reports "no Broadcom WiFi, no wl packages"; the Calamares log shows only the keyring, label and prune jobs.
+- The first-login wizard opened on the desktop (Light tier on the 4 GB VM), `ai-2 workflow` lists the profiles, `ai-2 install --list` carries `broadcom-wifi`.
+- A first build of this image the same day (never released) still carried the Broadcom installer job; its QEMU install is what showed Artix's prebuilt `broadcom-wl` targets kernel 7.1.9 while the image runs 7.2.2, and led to the 0.13.1 decision.
+
 ## [0.13.1] - 2026-09-05
 ### Changed
 - **Broadcom, final shape (decision 2026-09-05, supersedes the 0.13.0 installer job).** `broadcom-wl` is gone from the live stick as well, and the Calamares job that copied it into the target is removed. The QEMU install of the never-released ISO 20260905 showed why: Artix's prebuilt `broadcom-wl` (built 2026-08-22) carries a module for kernel 7.1.9 while the repos ship kernel 7.2.2, so the driver was dead weight on the stick and in the target alike, and the package is abandoned upstream in favor of dkms. Broadcom chips that the in-kernel brcm80211/b43 drivers do not cover get WiFi with `ai-2 install broadcom-wifi` after connecting by cable once; the wizard says so on such a machine and the guides are worded accordingly. `ai-2 update` (0.12.0) still cleans up installs from older ISOs.
