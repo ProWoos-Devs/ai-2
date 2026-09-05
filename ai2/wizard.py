@@ -195,6 +195,21 @@ class Wizard:
                          ram=hw.ram_nominal_gib, gpu=gpu, disk=disk, tier=tier.label,
                          tier_ram=tier.ram_gib, tier_cores=tier.cores))
 
+        # Broadcom WiFi without its driver (an install from an ISO before
+        # 20260905, or the installer job could not run): say so, and offer the
+        # dkms driver when online. Machines without Broadcom hear nothing.
+        from . import broadcom
+        bplan = broadcom.current_plan()
+        if bplan.state == "wl-missing":
+            self.say(tr("  WiFi    Broadcom chip found and its driver (wl) is not installed. If WiFi does "
+                        "not work, install it with:  ai-2 install broadcom-wifi  (about 320 MB, needs a "
+                        "network connection, for example by cable)."))
+            if have_internet() and self.ask(tr("  Install the Broadcom WiFi driver now?"), True):
+                from .software import resolve
+                pkgs, _, _ = resolve(["broadcom-wifi"])
+                if self._sudo(["pacman", "-S", "--needed", "--noconfirm", *pkgs]) != 0:
+                    self.say(tr("  The driver install failed; later:  ai-2 install broadcom-wifi"))
+
         # 2. tune
         self.head(2, "Tune the system for this tier")
         try:

@@ -92,6 +92,13 @@ Modelos:
 Los modelos son archivos grandes. Están en /var/lib/ai2/models cuando AI-2
 lo configuró un administrador, y si no en ~/.local/share/ai2/models.
 
+WiFi con chip Broadcom (muchos portátiles de 2008-2012): la memoria USB
+lleva el controlador y el instalador lo copia al sistema nuevo cuando
+detecta el chip. Si el WiFi aun así no funciona, conecta por cable una vez
+y ejecuta:
+
+  ai-2 install broadcom-wifi
+
 
 INSTALAR PROGRAMAS
 

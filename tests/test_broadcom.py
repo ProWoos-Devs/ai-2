@@ -83,3 +83,18 @@ def test_doctor_reports_the_trap(monkeypatch):
     assert c.status == doctor.WARN and "Fix: f" in c.detail
     monkeypatch.setattr(broadcom, "current_plan", lambda run=None: broadcom.Plan("clean"))
     assert doctor.check_broadcom().status == doctor.OK
+
+
+def test_sysfs_detection_matches_the_installer_rule(tmp_path):
+    for name, cls, vendor, dev in (("0000:01:00.0", "0x020000", "0x10ec", "0x8168"),
+                                   ("0000:02:00.0", "0x028000", "0x14e4", "0x4727"),
+                                   ("0000:03:00.0", "0x028000", "0x168c", "0x0036")):
+        d = tmp_path / name; d.mkdir()
+        (d / "class").write_text(cls + "\n"); (d / "vendor").write_text(vendor + "\n"); (d / "device").write_text(dev + "\n")
+    assert broadcom.broadcom_wifi_devices_sysfs(str(tmp_path)) == ["Broadcom WiFi [14e4:4727]"]
+
+
+def test_broadcom_wifi_short_name_resolves_to_dkms_and_the_kernel_headers(monkeypatch):
+    monkeypatch.setattr(broadcom, "headers_package", lambda run=None: "linux-headers")
+    pkgs, services, matched = software.resolve(["broadcom-wifi"])
+    assert pkgs == ["broadcom-wl-dkms", "linux-headers"] and matched == ["broadcom-wifi"] and services == []

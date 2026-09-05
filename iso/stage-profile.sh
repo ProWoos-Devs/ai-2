@@ -37,7 +37,22 @@ cp -aL "$COMMON/root-overlay/etc/default/." "$DST/root-overlay/etc/default/"
 cp -aL "$COMMON/gtk/root-overlay/usr/." "$DST/root-overlay/usr/"
 cp -a "$SRC/iso/profiles/ai2/root-overlay/." "$DST/root-overlay/"
 
-chmod 755 "$DST/root-overlay/usr/bin/artix-service" "$DST/live-overlay/usr/bin/ai2-install" "$DST/live-overlay/usr/bin/desktop-items" "$DST/live-overlay/usr/share/ai2/label-root.sh"
+chmod 755 "$DST/root-overlay/usr/bin/artix-service" "$DST/live-overlay/usr/bin/ai2-install" "$DST/live-overlay/usr/bin/desktop-items" "$DST/live-overlay/usr/share/ai2/label-root.sh" "$DST/live-overlay/usr/share/ai2/broadcom-install.sh"
+
+# AI-2: the prebuilt broadcom-wl package FILE goes onto the live medium so the
+# installer job (shellprocess@broadcom) can install it into the target on a
+# Broadcom-WiFi machine with no network. Fetched from the same synced repos
+# buildiso uses, so it matches the rootfs kernel of this build.
+PKGCACHE="$HOME/ai2-pkg-cache"
+mkdir -p "$PKGCACHE"
+pacman -Sy --noconfirm >/dev/null
+pacman -Sw --noconfirm --cachedir "$PKGCACHE" broadcom-wl >/dev/null
+WL=$(pacman -Sp broadcom-wl | xargs -n1 basename | head -1)
+[ -f "$PKGCACHE/$WL" ] || { echo "broadcom-wl package file not found in $PKGCACHE"; exit 1; }
+mkdir -p "$DST/live-overlay/usr/share/ai2/pkgs"
+cp "$PKGCACHE/$WL" "$DST/live-overlay/usr/share/ai2/pkgs/"
+[ -f "$PKGCACHE/$WL.sig" ] && cp "$PKGCACHE/$WL.sig" "$DST/live-overlay/usr/share/ai2/pkgs/"
+echo "Staged $WL for the Broadcom installer job"
 
 # The ai-2 tool + llama.cpp runtimes come from the signed [ai2] repo now
 # (profile.yaml lists them). buildiso must be run with -w so this pacman.conf,

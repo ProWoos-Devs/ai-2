@@ -2,6 +2,12 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.0] - 2026-09-05
+### Changed
+- **Broadcom, steps 2 to 4 of the plan.** `broadcom-wl` leaves the installed package set and stays on the live stick only (ISO profile). The stage script also puts the prebuilt package FILE on the live medium (`/usr/share/ai2/pkgs/`), and a new Calamares job (`shellprocess@broadcom`, right after the keyring job, offline and online configs) installs it into the target only when sysfs shows a Broadcom WiFi device (class 0x028000, vendor 0x14e4), so such a laptop has WiFi at first boot with no download; `ai-2 update` (0.12.0) then carries it over to the dkms driver. Machines without the chip never carry the package again. Test hook: `touch /run/ai2-force-broadcom` on the live system.
+### Added
+- `ai-2 install broadcom-wifi` = `broadcom-wl-dkms` plus the headers package of the installed kernel (`linux-headers`, `linux-lts-headers`, ...). The wizard names it when it finds a Broadcom WiFi chip without the wl driver and offers to install it when online. Detection falls back to sysfs when pciutils is absent. Guides mention it in the three languages.
+
 ## [0.12.0] - 2026-09-05
 ### Added
 - **Broadcom wl migration for installed systems** (`ai2/broadcom.py`, step 1 of the Broadcom plan). ISOs up to 20260830 install `broadcom-wl`; Artix now ships `broadcom-wl-dkms` with `Replaces: broadcom-wl`, and libalpm looks for a replacer before the package itself, so every such install swaps at its next `-Syu`, pulls 292 MiB of build tools and fails to build for lack of kernel headers (rafaminu-pc, 2026-09-03). `ai-2 update` now runs a preflight: no Broadcom WiFi device (lspci class 0280, vendor 14e4), the wl package is removed first; a Broadcom device, the kernel's headers package joins the upgrade so the dkms build succeeds. `ai-2 doctor` reports the same condition with the fix line. Known limit, stated plainly: a plain `pacman -Syu` or pamac still swaps on an existing install's first update, and the ai-2 package carrying the preflight arrives in that same transaction; the next `ai-2 update` or doctor cleans up.

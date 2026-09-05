@@ -57,6 +57,36 @@ def _probe_lspci(run=subprocess.run) -> str:
         return ""
 
 
+SYSFS_PCI = "/sys/bus/pci/devices"
+
+
+def broadcom_wifi_devices_sysfs(root: str = SYSFS_PCI) -> list[str]:
+    """The same question answered from sysfs, for systems without pciutils
+    (the installer job uses the identical rule): class 0x028000 = wireless
+    network controller, vendor 0x14e4 = Broadcom."""
+    import glob
+    import os
+    found = []
+    for d in sorted(glob.glob(os.path.join(root, "*"))):
+        try:
+            with open(os.path.join(d, "class")) as fh:
+                cls = fh.read().strip()
+            with open(os.path.join(d, "vendor")) as fh:
+                vendor = fh.read().strip()
+            with open(os.path.join(d, "device")) as fh:
+                device = fh.read().strip()
+        except OSError:
+            continue
+        if cls == "0x028000" and vendor == "0x14e4":
+            found.append(f"Broadcom WiFi [14e4:{device[2:]}]")
+    return found
+
+
+def detect_devices(run=subprocess.run) -> list[str]:
+    out = _probe_lspci(run=run)
+    return broadcom_wifi_devices(out) if out else broadcom_wifi_devices_sysfs()
+
+
 def installed(names: tuple[str, ...] | list[str], run=subprocess.run) -> dict[str, bool]:
     if not shutil.which("pacman"):
         return {n: False for n in names}
@@ -107,7 +137,7 @@ def assess(devices: list[str], have: dict[str, bool], headers: str) -> Plan:
 def current_plan(run=subprocess.run) -> Plan:
     headers = headers_package(run=run)
     have = installed((*WL_PACKAGES, headers), run=run)
-    return assess(broadcom_wifi_devices(_probe_lspci(run=run)), have, headers)
+    return assess(detect_devices(run=run), have, headers)
 
 
 def preflight(say, run, sudo: list[str], plan: Plan | None = None) -> list[str] | None:

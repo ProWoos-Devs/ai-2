@@ -59,6 +59,9 @@ CATALOG = [
     {"id": "scanner",
      "what": "Simple Scan: use a scanner",
      "packages": ["simple-scan"]},
+    {"id": "broadcom-wifi",
+     "what": "Broadcom BCM43xx WiFi driver (wl, built for your kernel by dkms) plus the kernel headers it needs",
+     "packages": ["broadcom-wl-dkms", "{kernel-headers}"]},
     {"id": "usb-disks",
      "what": "Read phones, USB sticks and Windows disks in the file manager",
      "packages": ["gvfs", "gvfs-mtp", "ntfs-3g", "exfatprogs"]},
@@ -114,6 +117,9 @@ def resolve(names: list[str], init_system: str = "") -> tuple[list[str], list[st
         service = (item.get("services") or {}).get(init_system)
         if service:
             services.append(service)
+    if "{kernel-headers}" in packages:
+        from . import broadcom
+        packages = [broadcom.headers_package() if p == "{kernel-headers}" else p for p in packages]
     seen: set[str] = set()
     packages = [p for p in packages if not (p in seen or seen.add(p))]
     return packages, services, matched

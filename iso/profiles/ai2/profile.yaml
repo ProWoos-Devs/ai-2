@@ -55,10 +55,12 @@ rootfs:
     - python-yaml
     - zramen
     - earlyoom
-    # AI-2: the proprietary Broadcom wl driver (BCM4311/4312/4322/43225, common
-    # in 2008-2012 laptops) used to live in the live layer only, so WiFi that
-    # worked on the stick vanished after install (review 2026-08-21).
-    - broadcom-wl
+    # AI-2: NO broadcom-wl in the installed set since 0.13.0. Artix's
+    # broadcom-wl-dkms declares Replaces: broadcom-wl, so every install carrying
+    # it swapped to dkms at its first -Syu and dragged in ~600 MiB of build tools
+    # and headers (2026-09-03). It stays on the live stick (livefs below) and the
+    # installer job shellprocess@broadcom installs it into the target only when
+    # the machine has Broadcom WiFi; ai-2 update then handles the dkms move.
   packages-init:
     dinit:
       - pipewire-dinit
@@ -90,6 +92,11 @@ livefs:
   packages:
     - amd-ucode
     - artix-grub-live
+    # AI-2: the proprietary Broadcom wl driver (BCM4311/4312/4322/43225, common
+    # in 2008-2012 laptops): live-only, so WiFi works on the stick; the package
+    # FILE is also staged at /usr/share/ai2/pkgs/ (stage-profile.sh) for the
+    # hardware-aware installer job.
+    - broadcom-wl
     - calamares-extensions
     - gparted
     - intel-ucode

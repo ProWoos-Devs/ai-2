@@ -87,5 +87,8 @@
   "AI-2 and the system update together. In a terminal, run:  ai-2 update": "AI-2 und das System werden zusammen aktualisiert. Führe im Terminal aus:  ai-2 update",
   "Open Software Updates": "Software-Aktualisierungen öffnen",
   "Update with:  ai-2 update": "Aktualisieren mit:  ai-2 update",
-  "  Another computer on your network or an API key can run it:  ai-2 remote set <url>   then   ai-2 chat --remote": "  Ein anderer Computer in deinem Netz oder ein API-Schlüssel kann es ausführen:  ai-2 remote set <url>   dann   ai-2 chat --remote"
+  "  Another computer on your network or an API key can run it:  ai-2 remote set <url>   then   ai-2 chat --remote": "  Ein anderer Computer in deinem Netz oder ein API-Schlüssel kann es ausführen:  ai-2 remote set <url>   dann   ai-2 chat --remote",
+  "  WiFi    Broadcom chip found and its driver (wl) is not installed. If WiFi does not work, install it with:  ai-2 install broadcom-wifi  (about 320 MB, needs a network connection, for example by cable).": "  WLAN    Broadcom-Chip gefunden, sein Treiber (wl) ist nicht installiert. Wenn das WLAN nicht geht, installiere ihn mit:  ai-2 install broadcom-wifi  (etwa 320 MB, braucht eine Netzverbindung, zum Beispiel per Kabel).",
+  "  Install the Broadcom WiFi driver now?": "  Den Broadcom-WLAN-Treiber jetzt installieren?",
+  "  The driver install failed; later:  ai-2 install broadcom-wifi": "  Die Treiberinstallation ist fehlgeschlagen; später:  ai-2 install broadcom-wifi"
 }
