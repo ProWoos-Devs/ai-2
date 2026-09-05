@@ -193,6 +193,19 @@ def check_keyring() -> Check:
                                           "Run: sudo pacman-key --populate ai2")
 
 
+def check_broadcom() -> Check:
+    """The broadcom-wl -> broadcom-wl-dkms replacement trap (ai2/broadcom.py)."""
+    from . import broadcom
+    plan = broadcom.current_plan()
+    if plan.state == "clean":
+        return Check(OK, "Broadcom WiFi driver", "no Broadcom WiFi, no wl packages")
+    if plan.state == "ok-broadcom":
+        return Check(OK, "Broadcom WiFi driver", plan.message)
+    if plan.state == "wl-missing":
+        return Check(INFO, "Broadcom WiFi driver", f"{plan.message} Fix: {plan.fix}")
+    return Check(WARN, "Broadcom WiFi driver", f"{plan.message} Fix: {plan.fix}")
+
+
 def check_updates() -> Check:
     if not shutil.which("checkupdates"):
         return Check(INFO, "Updates", "checkupdates not installed (pacman-contrib)")
@@ -208,7 +221,7 @@ def check_updates() -> Check:
 def run_checks(hw: Hardware, backend=None) -> list[Check]:
     checks = [check_tier(), check_runtime(hw), check_other_runtimes(hw), check_score()]
     checks += check_models(hw)
-    checks += [check_disk(), check_sysctl(), check_zram(), check_mglru()]
+    checks += [check_disk(), check_sysctl(), check_zram(), check_mglru(), check_broadcom()]
     if backend is not None:
         checks.append(check_service(backend, "earlyoom", True))
         tid = installed_tier_id()

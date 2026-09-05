@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Added
+- **Broadcom wl migration for installed systems** (`ai2/broadcom.py`, step 1 of the Broadcom plan). ISOs up to 20260830 install `broadcom-wl`; Artix now ships `broadcom-wl-dkms` with `Replaces: broadcom-wl`, and libalpm looks for a replacer before the package itself, so every such install swaps at its next `-Syu`, pulls 292 MiB of build tools and fails to build for lack of kernel headers (rafaminu-pc, 2026-09-03). `ai-2 update` now runs a preflight: no Broadcom WiFi device (lspci class 0280, vendor 14e4), the wl package is removed first; a Broadcom device, the kernel's headers package joins the upgrade so the dkms build succeeds. `ai-2 doctor` reports the same condition with the fix line. Known limit, stated plainly: a plain `pacman -Syu` or pamac still swaps on an existing install's first update, and the ai-2 package carrying the preflight arrives in that same transaction; the next `ai-2 update` or doctor cleans up.
+
 ## [0.11.1] - 2026-09-05
 ### Fixed
 - **The update bubble now fires on a machine that is never logged out.** The desktop autostart ran `ai-2 update-check` once, three minutes after login, and never again; rafaminu-pc sat through a whole day and two releases without a check (2026-09-04). `ai-2 update-check --every HOURS` keeps checking for the life of the session (the autostart uses `--every 6` with `--max-age 20`, so a real check runs about once a day) and on those later rounds raises the bubble only when a fresh check found something, so a bubble still on screen is not stacked.

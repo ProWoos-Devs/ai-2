@@ -149,10 +149,18 @@ def render_catalog() -> str:
     return "\n".join(lines)
 
 
-def update(say=print, run=subprocess.run) -> int:
+def update(say=print, run=subprocess.run, preflight=None) -> int:
     """Update AI-2, the AI engine, the model catalog and the whole system.
-    One command, because on a rolling release they are one thing."""
-    cmd = _sudo() + ["pacman", "-Syu"]
+    One command, because on a rolling release they are one thing. Before
+    pacman runs, the Broadcom preflight (ai2/broadcom.py) removes a wl driver
+    this machine has no hardware for, or adds the kernel headers a Broadcom
+    machine needs for the dkms build; `preflight` is injectable for tests."""
+    from . import broadcom
+    pre = preflight if preflight is not None else broadcom.preflight
+    extra = pre(say, run, _sudo())
+    if extra is None:
+        return 1
+    cmd = _sudo() + ["pacman", "-Syu", *extra]
     say("Updating AI-2 and the rest of the system. This is the only update there is.")
     say("Running:  " + " ".join(cmd))
     if _sudo():

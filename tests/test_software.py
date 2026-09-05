@@ -111,14 +111,14 @@ def test_install_enables_the_service_it_needs(monkeypatch):
 def test_update_runs_one_full_upgrade(monkeypatch, capsys):
     monkeypatch.setattr(software.os, "geteuid", lambda: 0)
     calls = []
-    assert software.update(run=_runner(calls)) == 0
+    assert software.update(run=_runner(calls), preflight=lambda say, run, sudo: []) == 0
     assert calls == [["pacman", "-Syu"]]
     assert "pacman -Syu" in capsys.readouterr().out
 
 
 def test_update_reports_a_failure(monkeypatch, capsys):
     monkeypatch.setattr(software.os, "geteuid", lambda: 0)
-    assert software.update(run=_runner([], returncode=1)) == 1
+    assert software.update(run=_runner([], returncode=1), preflight=lambda say, run, sudo: []) == 1
     assert "keyring" in capsys.readouterr().out
 
 
