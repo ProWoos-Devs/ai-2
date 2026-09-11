@@ -146,3 +146,20 @@ def test_cli_install_and_update_reach_the_module(monkeypatch):
     assert cli.main(["update"]) == 0
     assert seen["install"] == ["office"]
     assert seen["update"] is True
+
+
+def test_pamac_restart_button_gets_a_reboot_the_user_may_run():
+    """pamac's Restart runs plain `reboot` as the user; runit's reboot is
+    root-only, so the button did nothing (reproduced in a VM 2026-09-11). The
+    package puts a wrapper ahead of /usr/bin in PATH. Checked statically on
+    purpose: executing it on a systemd dev machine would reboot that machine."""
+    import pathlib
+    import subprocess
+    pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text(encoding="utf-8")
+    assert ('install -Dm755 packaging/ai-2/reboot-wrapper.sh "$pkgdir/usr/local/bin/reboot"'
+            in pkgbuild)
+    script = pathlib.Path("packaging/ai-2/reboot-wrapper.sh")
+    text = script.read_text(encoding="utf-8")
+    root_branch = text.index('if [ "$(id -u)" -eq 0 ]; then')
+    assert text.index('exec /usr/bin/reboot "$@"', root_branch) < text.index("loginctl reboot")
+    assert subprocess.run(["sh", "-n", str(script)]).returncode == 0

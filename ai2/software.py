@@ -83,6 +83,29 @@ def gui_available() -> bool:
     return shutil.which(GUI_MANAGER) is not None
 
 
+def gui_running(proc: str = "/proc") -> bool:
+    """True when this user already has the graphical package manager open.
+    The update bubble is pointless then: pamac shows the same updates, and a
+    bubble asking to open a window that is on screen reads as a bug (reported
+    on 2026-09-11). Matched on the process name and the owner, so another
+    user's pamac on a shared machine does not silence this one."""
+    uid = os.getuid()
+    try:
+        pids = [p for p in os.listdir(proc) if p.isdigit()]
+    except OSError:
+        return False
+    for pid in pids:
+        try:
+            with open(os.path.join(proc, pid, "comm")) as fh:
+                if fh.read().strip() != GUI_MANAGER:
+                    continue
+            if os.stat(os.path.join(proc, pid)).st_uid == uid:
+                return True
+        except OSError:
+            continue                  # the process ended while we looked
+    return False
+
+
 def open_gui(updates: bool = False) -> bool:
     """Open the graphical package manager, on its updates page when asked.
     Returns False when it is not installed. Only --updates is passed, the one

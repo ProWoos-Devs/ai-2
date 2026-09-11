@@ -894,11 +894,16 @@ def cmd_update_check(args, sleep=None) -> int:
     never runs on a machine that is never logged out (rafaminu-pc, up for a
     day with two releases published and nothing announced, 2026-09-04). On
     those later rounds the bubble is raised only when a FRESH check found
-    something, so a bubble still on screen is not stacked every round."""
+    something, so a bubble still on screen is not stacked every round.
+
+    No bubble while Software Updates (pamac) is open: it already lists the
+    same updates. That round's bubble is owed, not dropped, so if pamac is
+    closed without updating, the next round still says so; if the user did
+    update, the next check finds nothing and stays quiet."""
     import time
-    from . import updates
+    from . import software, updates
     sleep = sleep or time.sleep
-    first = True
+    owed = True                       # the login round always reminds
     while True:
         cached = bool(args.max_age) and updates.state_is_fresh(args.max_age)
         st = (updates.load_state() or {}) if cached else (updates.check_now() or updates.load_state() or {})
@@ -906,13 +911,18 @@ def cmd_update_check(args, sleep=None) -> int:
         if count is None:
             print("No update information (offline, or checkupdates missing).", flush=True)
         else:
-            if args.notify and count and (first or not cached):
+            due = args.notify and count and (owed or not cached)
+            owed = False
+            if due and software.gui_running():
+                owed = True
+                print("Software Updates is open, so no desktop notification.", flush=True)
+            elif due:
                 updates.notify(count)
             print(f"{count} update(s) available. Update with:  ai-2 update"
                   if count else "The system is current.", flush=True)
         if not args.every:
             return 0
-        first = False
+        owed = owed and count is not None
         sleep(args.every * 3600)
 
 

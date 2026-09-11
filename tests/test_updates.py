@@ -59,6 +59,7 @@ def test_cli_update_check(tmp_path, monkeypatch, capsys):
     _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\necho 'pkg 1-1 -> 2-1'\n")
     sent = []
     monkeypatch.setattr(updates, "notify", lambda n: sent.append(n) or True)
+    _pamac_open(monkeypatch, False)
     assert cli.main(["update-check", "--notify"]) == 0
     assert "1 update(s) available" in capsys.readouterr().out
     assert sent == [1]
@@ -72,6 +73,7 @@ def test_cli_update_check_every_keeps_going_and_notifies_only_fresh_finds(tmp_pa
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     sent, checks, slept = [], [], []
     monkeypatch.setattr(updates, "notify", lambda n: sent.append(n) or True)
+    _pamac_open(monkeypatch, False)
     fresh = iter([True, True, False, False])          # cache fresh, fresh, stale, stale
     monkeypatch.setattr(updates, "state_is_fresh", lambda h: next(fresh))
     counts = iter([3, 0])                             # fresh checks: 3 pending, then current
@@ -93,6 +95,54 @@ def test_cli_update_check_every_keeps_going_and_notifies_only_fresh_finds(tmp_pa
     assert slept == [21600] * 4
     assert sent == [2, 3]          # login reminder from the cache; then only the fresh find
     assert len(checks) == 2        # two stale rounds ran a real check
+
+
+def _pamac_open(monkeypatch, answer):
+    """Pin whether Software Updates counts as open (a list or iterator of
+    answers, one per round), so a pamac window on the machine running the
+    suite cannot change the result."""
+    from ai2 import software
+    answers = iter(answer) if isinstance(answer, list) else None
+    monkeypatch.setattr(software, "gui_running",
+                        (lambda: next(answers)) if answers else (lambda: answer))
+
+
+def test_cli_update_check_stays_quiet_while_software_updates_is_open(tmp_path, monkeypatch, capsys):
+    """Reported 2026-09-11: the bubble asked to open Software Updates while it
+    was already open. That round is skipped, and the bubble is owed: a later
+    round from the cache still reminds once pamac is closed."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    sent, slept = [], []
+    monkeypatch.setattr(updates, "notify", lambda n: sent.append(n) or True)
+    monkeypatch.setattr(updates, "state_is_fresh", lambda h: True)   # every round cached
+    monkeypatch.setattr(updates, "load_state", lambda: {"count": 4, "packages": []})
+    _pamac_open(monkeypatch, [True, True, False])
+    def sleep(s):
+        slept.append(s)
+        if len(slept) == 4:
+            raise KeyboardInterrupt
+    import argparse
+    args = argparse.Namespace(notify=True, max_age=20.0, every=6.0)
+    try:
+        cli.cmd_update_check(args, sleep=sleep)
+    except KeyboardInterrupt:
+        pass
+    assert sent == [4]             # only the round after pamac closed; not repeated after
+    assert capsys.readouterr().out.count("Software Updates is open") == 2
+
+
+def test_gui_running_matches_this_users_pamac_only(tmp_path, monkeypatch):
+    from ai2 import software
+    proc = tmp_path / "proc"
+    for pid, comm in (("101", "xfce4-panel"), ("202", "pamac-manager")):
+        (proc / pid).mkdir(parents=True)
+        (proc / pid / "comm").write_text(comm + "\n")
+    (proc / "self").mkdir()                          # non-numeric entries are skipped
+    assert software.gui_running(str(proc)) is True
+    monkeypatch.setattr(os, "getuid", lambda: os.stat(proc).st_uid + 1)
+    assert software.gui_running(str(proc)) is False  # someone else's pamac
+    assert software.gui_running(str(tmp_path / "missing")) is False
 
 
 class _Recorder:

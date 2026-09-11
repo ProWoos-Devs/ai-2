@@ -2,6 +2,11 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.2] - 2026-09-11
+### Fixed
+- **The update bubble no longer asks to open Software Updates while it is already open.** `ai-2 update-check` now skips the bubble while this user's pamac window is running, since pamac lists the same updates. The skipped bubble is owed, not dropped. If pamac is closed without updating, a later round still reminds, and if the user did update, the next check finds nothing and stays quiet. Reproduced in a QEMU install of ISO 20260905, where the login check raised "19 updates available" on top of the open pamac window.
+- **The Restart button pamac shows after some updates now restarts the computer.** pamac runs plain `reboot` as the logged-in user and ignores the result. On Artix runit, `/usr/bin/reboot` is runit's halt and only root may run it ("init: fatal: unable to create /etc/runit/stopit: access denied"), so the button did nothing. The package installs `/usr/local/bin/reboot`, which comes first in the desktop PATH. For root it runs runit's reboot unchanged, for anyone else it asks elogind (`loginctl reboot`), whose polkit defaults let the active local user restart without a password. Verified in the same VM by applying real updates in pamac and clicking Restart.
+
 ## ISO 20260905 (2026-09-05), tag `iso-20260905`
 Ships `ai-2` 0.13.1, the first image since 20260830 (which shipped 0.8.0), so it carries everything from 0.8.1 to 0.13.1: the sticky update bubble and its session-long check, the Applications > AI-2 menu, pamac as a dependency, the model picker, the AI knowing what it is, remote inference, workflow profiles, the reviewed public PRs, and the Broadcom decision in its final shape: **no `broadcom-wl` on the image at all**, neither installed nor on the stick. 1,975,128,064 bytes (1.840 GiB, inside GitHub's 2 GiB asset limit), sha256 `6f57a3a6b973e0e2291e398c3915dab5f2fcb8ff16dc5c4a053c80f72a2e3962`.
 
