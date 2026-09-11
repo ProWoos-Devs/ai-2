@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.3] - 2026-09-11
+### Fixed
+- **The update bubble closes itself once the updates are installed.** A bubble raised before Software Updates was opened stayed on screen after the update, still saying "19 updates available" over an up-to-date system (seen in a QEMU install of ISO 20260905). The process that holds the bubble now shows it with `notify-send --print-id` and polls pacman's local database every 15 seconds. When a transaction has finished (the database changed and pacman's lock is gone) and a fresh check finds nothing pending, it sends notify-send a SIGINT, whose handler closes the bubble (libnotify 0.8.8 `tools/notify-send.c`). This covers Software Updates, `ai-2 update` and plain pacman alike. Offline the check cannot tell, so the bubble stays and the check is retried five minutes later. Verified in the VM with 20 real updates applied in pamac. The transaction completed at 09:58:10, the check found nothing pending at 09:58:19, and the bubble was gone by 09:58:23. The button still opens Software Updates.
+
 ## [0.13.2] - 2026-09-11
 ### Fixed
 - **The update bubble no longer asks to open Software Updates while it is already open.** `ai-2 update-check` now skips the bubble while this user's pamac window is running, since pamac lists the same updates. The skipped bubble is owed, not dropped. If pamac is closed without updating, a later round still reminds, and if the user did update, the next check finds nothing and stays quiet. Reproduced in a QEMU install of ISO 20260905, where the login check raised "19 updates available" on top of the open pamac window.

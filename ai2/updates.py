@@ -12,12 +12,16 @@ on any failure the old state is kept and nothing is reported.
 import json
 import os
 import shutil
+import signal
 import subprocess
 import time
 
 from .serverstate import state_dir
 
 PACMAN_LOCAL_DB = "/var/lib/pacman/local"
+PACMAN_LOCK = "/var/lib/pacman/db.lck"
+POLL_S = 15            # how often a held bubble looks for a finished update
+RECHECK_S = 300        # after a failed check (offline), try again this much later
 
 
 def state_file() -> str:
@@ -144,26 +148,80 @@ def notify(count: int, fork=os.fork) -> bool:
     return True
 
 
-def show(title: str, body: str, action: str | None, run=None) -> bool:
-    """Send one notification. With an action button notify-send implies
-    --wait, so this blocks for the life of the bubble and returns the clicked
-    action on stdout; there is deliberately no timeout, because any cap would
-    turn a still-visible bubble into a dead one whose button does nothing. The
-    process costs nothing while it waits and ends with the session."""
+def show(title: str, body: str, action: str | None, run=None, popen=None) -> bool:
+    """Send one notification. Without a button notify-send returns at once.
+
+    With a button notify-send implies --wait, so this blocks for the life of
+    the bubble; there is deliberately no timeout, because any cap would turn a
+    still-visible bubble into a dead one whose button does nothing. While it
+    waits it watches for the updates being installed and then closes the
+    bubble (see hold), so "19 updates available" does not stay on screen over
+    an up-to-date system (seen in a VM, 2026-09-11). --print-id makes
+    notify-send print the bubble's id before it starts waiting (flushed,
+    libnotify 0.8.8 tools/notify-send.c); no id means no bubble."""
     run = run or subprocess.run
     cmd = ["notify-send", "--app-name=AI-2", "--icon=ai2", *STICKY]
-    if action:
-        cmd.append("--action=open=" + action)
-    cmd += [title, body]
+    if not action:
+        try:
+            return run(cmd + [title, body], capture_output=True, text=True).returncode == 0
+        except OSError:
+            return False
+    popen = popen or subprocess.Popen
     try:
-        proc = run(cmd, capture_output=True, text=True)
+        proc = popen(cmd + ["--print-id", "--action=open=" + action, title, body],
+                     stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     except OSError:
         return False
-    if proc.returncode != 0:
-        # An older libnotify rejects --action; the plain bubble is the point,
-        # the button was the extra.
-        return show(title, body, None, run=run) if action else False
-    if action and proc.stdout.strip() == "open":
+    if proc.stdout.readline().strip() in ("", "0"):
+        # No bubble. An older libnotify rejects --action (nothing printed),
+        # and a failed show prints id 0 but would still wait forever. The
+        # plain bubble is the point, the button was the extra.
+        if proc.poll() is None:
+            proc.terminate()
+        proc.wait()
+        return show(title, body, None, run=run)
+    closed_by_us = hold(proc)
+    clicked = proc.stdout.read().split()
+    proc.wait()
+    if not closed_by_us and "open" in clicked:
         from . import software
         software.open_gui(updates=True)
     return True
+
+
+def _db_mtime() -> float | None:
+    try:
+        return os.path.getmtime(PACMAN_LOCAL_DB)
+    except OSError:
+        return None
+
+
+def hold(proc, clock=time.time) -> bool:
+    """Wait until the bubble is clicked or dismissed. If a package
+    transaction finishes first (pacman's local db changed and its lock is
+    gone) and a fresh check finds nothing pending, close the bubble. That
+    covers Software Updates, `ai-2 update` and a plain pacman alike.
+
+    The close is a SIGINT: notify-send's own handler then closes its bubble
+    (on_sigint in tools/notify-send.c). Any other signal would leave a bubble
+    whose button does nothing. Offline, the check cannot say, so the bubble
+    stays and the check is retried later. True when this closed the bubble."""
+    seen = _db_mtime()
+    retry_at = 0.0
+    while True:
+        try:
+            proc.wait(timeout=POLL_S)
+            return False
+        except subprocess.TimeoutExpired:
+            pass
+        mtime = _db_mtime()
+        if mtime == seen or os.path.exists(PACMAN_LOCK) or clock() < retry_at:
+            continue
+        st = check_now()
+        if st is None:
+            retry_at = clock() + RECHECK_S
+            continue
+        seen = mtime
+        if st["count"] == 0:
+            proc.send_signal(signal.SIGINT)
+            return True

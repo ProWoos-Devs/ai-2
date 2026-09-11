@@ -199,31 +199,130 @@ def test_the_bubble_never_expires(monkeypatch):
     assert "-t" in rec.calls[0] and "0" in rec.calls[0]
 
 
-def test_show_carries_the_button_and_acts_on_the_click(monkeypatch):
+class _Bubble:
+    """Stands in for a waiting `notify-send --print-id --action`: prints the
+    id, stays "on screen" for `rounds` polls (then acts as clicked or
+    dismissed), and records signals."""
+
+    def __init__(self, stdout="7\n", rounds=0, exits_on_sigint=True):
+        import io
+        self.stdout = io.StringIO(stdout)
+        self.rounds = rounds
+        self.signals = []
+        self.exits_on_sigint = exits_on_sigint
+        self.cmd = None
+        self.returncode = None
+
+    def __call__(self, cmd, *a, **kw):
+        self.cmd = cmd
+        return self
+
+    def wait(self, timeout=None):
+        if self.returncode is None and timeout is not None and self.rounds > 0:
+            self.rounds -= 1
+            raise updates.subprocess.TimeoutExpired("notify-send", timeout)
+        self.returncode = 0
+        return 0
+
+    def poll(self):
+        return self.returncode
+
+    def terminate(self):
+        self.signals.append("TERM")
+        self.returncode = -15
+
+    def send_signal(self, sig):
+        self.signals.append(sig)
+        if sig == updates.signal.SIGINT and self.exits_on_sigint:
+            self.rounds = 0
+
+
+def _pacman(monkeypatch, tmp_path, mtimes, locked=False):
+    """Feed hold() a sequence of local-db mtimes, one per look."""
+    seq = iter(mtimes)
+    last = [None]
+
+    def mtime():
+        last[0] = next(seq, last[0])
+        return last[0]
+    monkeypatch.setattr(updates, "_db_mtime", mtime)
+    lock = tmp_path / "db.lck"
+    if locked:
+        lock.write_text("")
+    elif lock.exists():
+        lock.unlink()
+    monkeypatch.setattr(updates, "PACMAN_LOCK", str(lock))
+
+
+def test_show_carries_the_button_and_acts_on_the_click(monkeypatch, tmp_path):
     from ai2 import software
     opened = []
     monkeypatch.setattr(software, "open_gui", lambda updates=False: opened.append(updates))
-    rec = _Recorder(stdout="open\n")
-    assert updates.show("t", "b", "Open Software Updates", run=rec) is True
-    assert any(a.startswith("--action=open=") for a in rec.calls[0])
+    _pacman(monkeypatch, tmp_path, [1.0])
+    bubble = _Bubble(stdout="7\nopen\n", rounds=2)
+    assert updates.show("t", "b", "Open Software Updates", popen=bubble) is True
+    assert any(a.startswith("--action=open=") for a in bubble.cmd)
+    assert "--print-id" in bubble.cmd
     assert opened == [True], "clicking the button must open the updates page"
+    assert bubble.signals == []
 
 
 def test_show_falls_back_when_actions_are_unsupported():
-    """An old libnotify rejects --action. The plain bubble must still show."""
-    calls = []
+    """An old libnotify rejects --action (no id printed). The plain bubble
+    must still show."""
+    rec = _Recorder()
+    bubble = _Bubble(stdout="")
+    assert updates.show("t", "b", "Open", run=rec, popen=bubble) is True
+    assert len(rec.calls) == 1 and not any(x.startswith("--action=") for x in rec.calls[0])
+    assert "-t" in rec.calls[0], "the fallback bubble must still be sticky"
 
-    def run(cmd, *a, **kw):
-        calls.append(cmd)
 
-        class Proc:
-            returncode = 1 if any(x.startswith("--action=") for x in cmd) else 0
-            stdout = ""
-        return Proc()
+def test_show_does_not_hang_when_the_bubble_failed(monkeypatch):
+    """A failed show prints id 0 and then waits forever: end it, fall back."""
+    rec = _Recorder(returncode=1)
+    bubble = _Bubble(stdout="0\n")
+    bubble.returncode = None
+    assert updates.show("t", "b", "Open", run=rec, popen=bubble) is False
+    assert bubble.signals == ["TERM"]
 
-    assert updates.show("t", "b", "Open", run=run) is True
-    assert len(calls) == 2 and not any(x.startswith("--action=") for x in calls[1])
-    assert "-t" in calls[1], "the fallback bubble must still be sticky"
+
+def test_bubble_closes_itself_once_the_updates_are_installed(monkeypatch, tmp_path):
+    """Asked for 2026-09-11: '19 updates available' stayed on screen after the
+    update in pamac. A finished transaction plus a fresh check that finds
+    nothing closes it, with SIGINT (notify-send's own close path)."""
+    from ai2 import software
+    opened = []
+    monkeypatch.setattr(software, "open_gui", lambda updates=False: opened.append(updates))
+    _pacman(monkeypatch, tmp_path, [1.0, 1.0, 2.0])     # unchanged, then a transaction
+    monkeypatch.setattr(updates, "check_now", lambda: {"count": 0, "packages": []})
+    bubble = _Bubble(rounds=10)
+    assert updates.show("t", "b", "Open", popen=bubble) is True
+    assert bubble.signals == [updates.signal.SIGINT]
+    assert opened == [], "closing the bubble is not a click"
+
+
+def test_bubble_stays_while_pacman_runs_offline_or_updates_remain(monkeypatch, tmp_path):
+    bubble = _Bubble(rounds=3)
+    checks = []
+    monkeypatch.setattr(updates, "check_now", lambda: checks.append(1) or {"count": 0})
+    _pacman(monkeypatch, tmp_path, [1.0, 2.0], locked=True)   # transaction still running
+    assert updates.hold(bubble) is False
+    assert checks == [] and bubble.signals == []
+
+    bubble = _Bubble(rounds=3)
+    monkeypatch.setattr(updates, "check_now", lambda: {"count": 2, "packages": []})
+    _pacman(monkeypatch, tmp_path, [1.0, 2.0])
+    assert updates.hold(bubble) is False                      # something still pending
+    assert bubble.signals == []
+
+    bubble = _Bubble(rounds=4)
+    results = iter([None, {"count": 0}])
+    checks.clear()
+    monkeypatch.setattr(updates, "check_now", lambda: checks.append(1) or next(results))
+    _pacman(monkeypatch, tmp_path, [1.0, 2.0])
+    now = iter([0.0, 0.0, 10.0, 400.0])     # check fails (retry at 300), too soon, retry
+    assert updates.hold(bubble, clock=lambda: next(now)) is True
+    assert len(checks) == 2 and bubble.signals == [updates.signal.SIGINT]
 
 
 def test_notify_forks_a_holder_only_when_there_is_a_button(monkeypatch):
