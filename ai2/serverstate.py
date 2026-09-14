@@ -1,6 +1,8 @@
-"""Where the on-demand server records itself (pid, model, port), so `ai-2 chat`
-can tell which model is loaded, `ai-2 stop` can free the RAM, and `ai-2 doctor`
-can report it. One small JSON file per user in the state dir."""
+"""Where the on-demand servers record themselves (pid, model, port), so `ai-2
+chat` can tell which model is loaded, `ai-2 stop` can free the RAM, and `ai-2
+doctor` can report it. One small JSON file per server per user in the state
+dir: the chat server (the default record, "server") and the embedding server
+`ai-2 doc` starts (EMBED), which loads a different model on another port."""
 
 from __future__ import annotations
 
@@ -8,30 +10,35 @@ import json
 import os
 import signal
 
+CHAT = "server"
+EMBED = "embed"
+LOG_NAMES = {CHAT: "serve.log", EMBED: "embed.log"}
+
 
 def state_dir() -> str:
     base = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
     return os.path.join(base, "ai2")
 
 
-def server_file() -> str:
-    return os.path.join(state_dir(), "server.json")
+def server_file(name: str = CHAT) -> str:
+    return os.path.join(state_dir(), f"{name}.json")
 
 
-def log_file() -> str:
-    return os.path.join(state_dir(), "serve.log")
+def log_file(name: str = CHAT) -> str:
+    return os.path.join(state_dir(), LOG_NAMES.get(name, f"{name}.log"))
 
 
-def write_server(pid: int, model_id: str, model_path: str, port: int, host: str) -> None:
+def write_server(pid: int, model_id: str, model_path: str, port: int, host: str,
+                 name: str = CHAT) -> None:
     os.makedirs(state_dir(), exist_ok=True)
-    with open(server_file(), "w") as fh:
+    with open(server_file(name), "w") as fh:
         json.dump({"pid": pid, "model": model_id, "model_path": model_path,
                    "port": port, "host": host}, fh)
 
 
-def clear_server() -> None:
+def clear_server(name: str = CHAT) -> None:
     try:
-        os.remove(server_file())
+        os.remove(server_file(name))
     except OSError:
         pass
 
@@ -50,34 +57,34 @@ def _alive(pid: int) -> bool:
         return True
 
 
-def read_server() -> dict | None:
+def read_server(name: str = CHAT) -> dict | None:
     """The running server's record, or None (a stale file is removed)."""
     try:
-        with open(server_file()) as fh:
+        with open(server_file(name)) as fh:
             data = json.load(fh)
     except (OSError, ValueError):
         return None
     if not _alive(int(data.get("pid", 0))):
-        clear_server()
+        clear_server(name)
         return None
     return data
 
 
-def stop_server(timeout_s: float = 30.0, kill_after_s: float = 10.0) -> bool:
+def stop_server(timeout_s: float = 30.0, kill_after_s: float = 10.0, name: str = CHAT) -> bool:
     """SIGTERM the recorded server, SIGKILL it if it is still there after
     timeout_s (the wrapper's own shutdown can wedge behind a model load in
     uninterruptible I/O), and only then drop the record, so a second `ai-2
     stop` never says "nothing running" while the RAM is still held. Returns
     True if one was running."""
     import time
-    data = read_server()
+    data = read_server(name)
     if not data:
         return False
     pid = int(data["pid"])
     try:
         os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
-        clear_server()
+        clear_server(name)
         return False
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline and _alive(pid):
@@ -95,5 +102,5 @@ def stop_server(timeout_s: float = 30.0, kill_after_s: float = 10.0) -> bool:
         deadline = time.monotonic() + kill_after_s
         while time.monotonic() < deadline and _alive(pid):
             time.sleep(0.2)
-    clear_server()
+    clear_server(name)
     return True

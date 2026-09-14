@@ -477,10 +477,6 @@ def cmd_serve(args) -> int:
         if model is None:
             print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
             return 1
-        if model.get("kind", "chat") != "chat":
-            print(f"error: {model['label']} is an embedding model, it cannot chat. "
-                  "It is used by: ai-2 doc", file=sys.stderr)
-            return 1
     else:
         model = _usable_model(hw)
         if model is None:
@@ -494,23 +490,40 @@ def cmd_serve(args) -> int:
         return 1
     threads = max(1, hw.logical_cores)
     defaults = runtime_defaults(model["id"])
-    idle_arg = defaults["idle_timeout_s"] if args.idle_timeout is None else args.idle_timeout
+    embedding = model.get("kind", "chat") == "embedding"
+    if embedding:
+        # `ai-2 doc`'s server: embeddings only, its own port and record, and
+        # never resident (the persistent tiers' "keep the chat loaded" does
+        # not extend to a second model nobody is talking to).
+        from . import doc as docmod
+        if args.port == 8080:
+            args.port = docmod.EMBED_PORT
+        ctx = args.ctx or int(model["ctx"])
+        idle_arg = args.idle_timeout if args.idle_timeout is not None else EMBED_IDLE_OR(defaults)
+    else:
+        idle_arg = defaults["idle_timeout_s"] if args.idle_timeout is None else args.idle_timeout
+        ctx = args.ctx or defaults["ctx"]
     idle = None if idle_arg == 0 else idle_arg
-    ctx = args.ctx or defaults["ctx"]
+    record = serverstate.EMBED if embedding else serverstate.CHAT
     api_key = args.api_key or os.environ.get("AI2_API_KEY")
     if args.host not in ("127.0.0.1", "localhost", "::1") and not api_key and not args.insecure:
         print(f"error: binding to {args.host} exposes the AI to the network. Give it "
               "--api-key KEY (or AI2_API_KEY) so other devices must authenticate, or "
               "pass --insecure if this network is trusted.", file=sys.stderr)
         return 1
-    if running := serverstate.read_server():
+    if running := serverstate.read_server(record):
         print(f"error: a server is already running (pid {running['pid']}, model "
               f"{running['model'] or '?'}, port {running['port']}). Stop it with: ai-2 stop",
               file=sys.stderr)
         return 1
-    print(f"Serving {model['label']} with the {hw.cpu_variant} runtime, {threads} threads, "
-          f"ctx {ctx}, on http://{args.host}:{args.port}/ "
-          f"(OpenAI-compatible /v1/chat/completions)")
+    if embedding:
+        print(f"Serving {model['label']} for document retrieval (embeddings only, no chat) with the "
+              f"{hw.cpu_variant} runtime, {threads} threads, chunks up to {ctx} tokens, on "
+              f"http://{args.host}:{args.port}/v1/embeddings")
+    else:
+        print(f"Serving {model['label']} with the {hw.cpu_variant} runtime, {threads} threads, "
+              f"ctx {ctx}, on http://{args.host}:{args.port}/ "
+              f"(OpenAI-compatible /v1/chat/completions)")
     if idle:
         print(f"On demand: exits after {idle} s without requests"
               f"{' (tier ' + installed_tier_id() + ')' if args.idle_timeout is None and installed_tier_id() else ''}. Ctrl-C stops it.")
@@ -519,13 +532,25 @@ def cmd_serve(args) -> int:
     warning = serve_preflight(model)
     if warning:
         print(f"warning: {warning}")
-    sampling = sampling_args(model)
-    if sampling:
-        print("Sampling as the model card recommends: " + " ".join(sampling))
-    extra = sampling + persona.ui_config_args(persona.system_prompt(model["label"]))
+    if embedding:
+        # non-causal models refuse an input longer than the physical batch
+        extra = ["--embeddings", "-b", str(ctx), "-ub", str(ctx)]
+    else:
+        sampling = sampling_args(model)
+        if sampling:
+            print("Sampling as the model card recommends: " + " ".join(sampling))
+        extra = sampling + persona.ui_config_args(persona.system_prompt(model["label"]))
     return serve(runtime_dir, path, threads, ctx=ctx, host=args.host,
                  port=args.port, idle_timeout_s=idle, api_key=api_key, model_id=model["id"],
-                 extra_args=extra)
+                 extra_args=extra, record=record)
+
+
+def EMBED_IDLE_OR(defaults: dict) -> int:
+    """The embedding server's idle timeout: the tier's, capped at doc.EMBED_IDLE_S,
+    and never 'keep running' (0)."""
+    from . import doc as docmod
+    tier_idle = defaults.get("idle_timeout_s") or 0
+    return min(tier_idle, docmod.EMBED_IDLE_S) if tier_idle else docmod.EMBED_IDLE_S
 
 
 def _server_ready(url: str, timeout: float = 2.0) -> bool:
@@ -880,13 +905,18 @@ def cmd_report(args) -> int:
 
 
 def cmd_stop(args) -> int:
-    """Stop the on-demand server started by serve/chat and free its RAM."""
-    running = serverstate.read_server()
-    if not running:
+    """Stop the on-demand servers started by serve/chat/doc and free their RAM."""
+    stopped = 0
+    for name, what in ((serverstate.CHAT, "the AI"), (serverstate.EMBED, "the document index server")):
+        running = serverstate.read_server(name)
+        if not running:
+            continue
+        print(f"Stopping {what} ({running.get('model') or running.get('model_path')}, pid {running['pid']}) ...")
+        serverstate.stop_server(name=name)
+        stopped += 1
+    if not stopped:
         print("No AI-2 server is running.")
         return 0
-    print(f"Stopping the AI ({running.get('model') or running.get('model_path')}, pid {running['pid']}) ...")
-    serverstate.stop_server()
     print("Stopped.")
     return 0
 

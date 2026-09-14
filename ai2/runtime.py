@@ -306,7 +306,7 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
           host: str = "127.0.0.1", port: int = 8080,
           idle_timeout_s: int | None = 600, api_key: str | None = None,
           startup_grace_s: int = 900, model_id: str = "",
-          extra_args: list[str] | None = None) -> int:
+          extra_args: list[str] | None = None, record: str = "server") -> int:
     """Run llama-server in the foreground and stop it after idle_timeout_s
     seconds without any request in flight (the tier's `service: on-demand`
     semantics). Returns the server's exit code.
@@ -346,7 +346,7 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
     # llama-server with all its RAM (found on the 2011 laptop 2026-08-23).
     # Turn SIGTERM into SystemExit so the shutdown path below runs.
     signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(143))
-    serverstate.write_server(os.getpid(), model_id, model_path, port, host)
+    serverstate.write_server(os.getpid(), model_id, model_path, port, host, name=record)
     started = time.monotonic()
     last_busy = started
     seen_up = False
@@ -380,4 +380,4 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
     except (KeyboardInterrupt, SystemExit):
         return _shutdown(proc)
     finally:
-        serverstate.clear_server()
+        serverstate.clear_server(record)
