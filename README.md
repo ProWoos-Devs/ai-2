@@ -43,7 +43,7 @@ Then:
 
 ```
 sudo pacman -Syu ai2-keyring ai-2
-sudo pacman -S ai2-llama-cpp-baseline    # or -noavx / -avx2, ai-2 detect tells you which
+sudo pacman -S ai2-llama-cpp             # the engine; it picks the build for this CPU at start
 sudo ai-2 init --apply                   # or just: ai-2 wizard
 ```
 
@@ -107,7 +107,7 @@ Which machine can be the server is a question for the AI Score, not the tier. On
 
 - `ai-2`, this tool.
 - `ai2-keyring`, the package signing key for pacman.
-- `ai2-llama-cpp-baseline` (pure SSE2, pre-2011 and Llano-class CPUs), `ai2-llama-cpp-noavx` (SSE4.x, no AVX), `ai2-llama-cpp-avx2` (Haswell and later). All three come from one pinned llama.cpp release; every binary is disassembled against its target instruction set before it ships, because a single stray SSE4.1 instruction crashes an old machine.
+- `ai2-llama-cpp`, the engine, one package for every CPU class: llama.cpp from one pinned release, built for plain x86-64, plus one CPU backend module per instruction-set level (x64, sse42, sandybridge, ivybridge, piledriver, haswell, ...); ggml scores the modules against the CPU at start and loads the best, x64 always qualifying. Before it ships, every file that must run on a pure-SSE2 machine is disassembled against that instruction set, and the constructors every module runs at load are checked the same way, because a single stray SSE4.1 instruction crashes an old machine. `ai-2 benchmark` records which module ran.
 
 ## Architecture
 

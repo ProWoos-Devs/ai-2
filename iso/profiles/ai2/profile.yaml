@@ -48,9 +48,7 @@ rootfs:
     # ../../pacman.conf.d/iso-x86_64.conf; buildiso needs -w)
     - ai2-keyring
     - ai-2
-    - ai2-llama-cpp-baseline
-    - ai2-llama-cpp-noavx
-    - ai2-llama-cpp-avx2
+    - ai2-llama-cpp
     - python
     - python-yaml
     - zramen

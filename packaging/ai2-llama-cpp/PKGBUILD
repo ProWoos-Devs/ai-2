@@ -1,126 +1,143 @@
 # Maintainer: Rafael Minuesa <rafael.minuesa@gmail.com>
-# llama.cpp CPU runtimes for AI-2, three ISA variants from one pinned source.
-# Named ai2-llama-cpp-* to stay clear of Arch extra's llama-cpp package.
+# llama.cpp CPU runtime for AI-2: ONE package, the CPU build chosen at start.
 #
-#   baseline  -march=x86-64, pure SSE2 (+popcnt), no SSE4.x/AVX. Pre-2011 and
-#             Llano/K10-class CPUs (proven on the A4-3305M, 2026-08-13).
-#   noavx     SSE4.1/4.2, no AVX. Core 2 late / Nehalem / early Bulldozer.
-#   avx2      AVX2+FMA+F16C, everything Haswell (2013) and later.
+# Until 10398-1 this was three packages (-baseline pure SSE2, -noavx SSE4.2,
+# -avx2 Haswell+), each a full build tree, because ggml assumes SSE4.2 and a
+# stray pinsrq SIGILLs a 2011 A4-3305M (proven 2026-08-13). Since then the
+# same pinned source is built ONCE with GGML_BACKEND_DL + GGML_CPU_ALL_VARIANTS,
+# the way upstream's releases and Arch's ggml package are built: every
+# executable and library is compiled for plain x86-64, and the CPU backend
+# comes as one libggml-cpu-<variant>.so per instruction-set level (x64,
+# sse42, sandybridge, ivybridge, piledriver, haswell, ... at b10398). At
+# start, ggml dlopens every variant, asks each for a score (0 when the CPU
+# lacks a feature it was compiled for; x64 always scores 1) and keeps the
+# best. So a cloned disk or a CPU swap needs no reinstall, and the ISO ships
+# the common libraries once instead of three times.
 #
-# GGML_NATIVE=OFF everywhere; the flags below ARE the contract, and check()
-# disassembles every binary against the variant's ISA (see isa-check.sh)
-# because ggml assumes SSE4.2 and a stray pinsrq SIGILLs a baseline machine.
+# What the objdump gate (isa-check.sh) still guarantees: everything but the
+# AVX-class variants is clean for the pure-SSE2 machine, libggml-cpu-sse42.so
+# is clean for the no-AVX machine. What it cannot see: the AVX-class variants
+# are exempt by name, so for them the runtime score is the only guard, and
+# b10398's score checks CPUID only, never OSXSAVE (llama.cpp issue 28328, a
+# KVM guest booted with clearcpuid=xsave picked haswell and SIGILLed; bare
+# metal is not exposed). The second gate, isa-check.sh ctors, disassembles
+# every constructor a variant runs at dlopen (the PR 11780 class: a static
+# __m128i initializer in an AVX variant ran on a non-AVX machine before the
+# score could say no) and requires it clean for the pure-SSE2 machine.
 #
-# Each variant installs flat into /usr/lib/ai2/runtimes/llama.cpp-<variant>/
-# (executables + shared libs side by side, $ORIGIN rpath), which is what
-# ai2/runtime.py looks up. Nothing lands in /usr/bin.
+# Everything installs flat into /usr/lib/ai2/runtimes/llama.cpp/ ($ORIGIN
+# rpath), which is where ai2/runtime.py looks first. GGML_BACKEND_DIR is that
+# directory too, so the loader finds the variants wherever the executable is
+# started from. Nothing lands in /usr/bin.
 
-pkgbase=ai2-llama-cpp
-pkgname=(ai2-llama-cpp-baseline ai2-llama-cpp-noavx ai2-llama-cpp-avx2)
+pkgname=ai2-llama-cpp
 _tag=b10398
 pkgver=${_tag#b}
 pkgrel=1
-pkgdesc="llama.cpp CPU inference runtime for AI-2"
+pkgdesc="llama.cpp CPU inference runtime for AI-2 (every CPU class, the build for this CPU chosen at start)"
 arch=('x86_64')
 url="https://github.com/ggml-org/llama.cpp"
 license=('MIT')
 makedepends=('cmake' 'git' 'binutils' 'patchelf')
 depends=('gcc-libs' 'glibc' 'openssl')
+# The three per-CPU packages of 10398-1; libalpm swaps them for this one at
+# the next -Syu (it looks for replacers before the package itself).
+replaces=('ai2-llama-cpp-baseline' 'ai2-llama-cpp-noavx' 'ai2-llama-cpp-avx2')
+conflicts=('ai2-llama-cpp-baseline' 'ai2-llama-cpp-noavx' 'ai2-llama-cpp-avx2')
+# For an optional backend package built from the same tree (a GPU backend
+# module must match this exact ggml).
+provides=("ai2-llama-cpp-runtime=$pkgver-$pkgrel")
 options=('!lto' '!debug')
 source=("llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=$_tag"
         'isa-check.sh')
 sha256sums=('SKIP' 'SKIP')
 
-_common=(
-  -DCMAKE_BUILD_TYPE=Release
-  -DBUILD_SHARED_LIBS=ON
-  -DGGML_NATIVE=OFF
-  -DGGML_OPENMP=ON
-  -DGGML_BLAS=OFF
-  -DGGML_VULKAN=OFF
-  -DGGML_CUDA=OFF
-  -DLLAMA_CURL=OFF
-  -DLLAMA_BUILD_TESTS=OFF
-  -DLLAMA_BUILD_EXAMPLES=OFF
-  -DLLAMA_BUILD_TOOLS=ON
-  -DLLAMA_BUILD_SERVER=ON
-  -DCMAKE_SKIP_RPATH=ON
-)
-
-_cmake_variant() {
-  local variant=$1; shift
-  # makepkg's default CFLAGS carry -march=x86-64 -mtune=generic already; set
-  # ours explicitly so the contract does not depend on makepkg.conf.
-  cmake -S llama.cpp -B "build-$variant" "${_common[@]}" "$@" \
-    -DCMAKE_C_FLAGS="$CFLAGS ${_flags}" -DCMAKE_CXX_FLAGS="$CXXFLAGS ${_flags}"
-  cmake --build "build-$variant" -j"$(nproc)"
-}
+_rtdir=/usr/lib/ai2/runtimes/llama.cpp
 
 build() {
-  # Baseline: exactly the configuration proven on RMM-PC.
-  _flags='-march=x86-64 -mtune=generic -mpopcnt' \
-  _cmake_variant baseline \
-    -DGGML_SSE42=OFF -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF \
-    -DGGML_AVX512=OFF -DGGML_AVX_VNNI=OFF
+  # The contract for everything that is not a CPU variant: plain x86-64 plus
+  # popcnt (the 10398-1 baseline had it too; every 2008+ CPU has it and the
+  # gate allows it). ggml adds each variant's -m flags PRIVATE to that
+  # variant's target, on top of these; GGML_NATIVE=OFF is required by
+  # GGML_BACKEND_DL and is what keeps the container's CPU out of the build.
+  local flags='-march=x86-64 -mtune=generic -mpopcnt'
+  cmake -S llama.cpp -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=ON \
+    -DGGML_BACKEND_DL=ON \
+    -DGGML_CPU_ALL_VARIANTS=ON \
+    -DGGML_BACKEND_DIR="$_rtdir" \
+    -DGGML_NATIVE=OFF \
+    -DGGML_OPENMP=ON \
+    -DGGML_BLAS=OFF \
+    -DGGML_VULKAN=OFF \
+    -DGGML_CUDA=OFF \
+    -DLLAMA_CURL=OFF \
+    -DLLAMA_BUILD_TESTS=OFF \
+    -DLLAMA_BUILD_EXAMPLES=OFF \
+    -DLLAMA_BUILD_TOOLS=ON \
+    -DLLAMA_BUILD_SERVER=ON \
+    -DCMAKE_SKIP_RPATH=ON \
+    -DCMAKE_C_FLAGS="$CFLAGS $flags" -DCMAKE_CXX_FLAGS="$CXXFLAGS $flags"
+  cmake --build build -j"$(nproc)"
+}
 
-  _flags='-march=x86-64 -mtune=generic -mpopcnt -msse4.1 -msse4.2' \
-  _cmake_variant noavx \
-    -DGGML_SSE42=ON -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF \
-    -DGGML_AVX512=OFF -DGGML_AVX_VNNI=OFF
-
-  _flags='-march=x86-64-v3 -mtune=generic' \
-  _cmake_variant avx2 \
-    -DGGML_SSE42=ON -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON \
-    -DGGML_AVX512=OFF -DGGML_AVX_VNNI=OFF
+# The files that ship, all from build/bin. Executables and their -impl libs,
+# the core libraries, and every CPU variant module.
+_shipped() {
+  local t
+  for t in llama-bench llama-cli llama-server; do
+    echo "$t" "lib$t-impl.so"
+  done
+  ls build/bin/libggml.so* build/bin/libggml-base.so* build/bin/libllama.so* \
+     build/bin/libllama-common.so* build/bin/libmtmd.so* 2>/dev/null | xargs -n1 basename
+  ls build/bin/libggml-cpu-*.so | xargs -n1 basename
 }
 
 check() {
-  local v
-  for v in baseline noavx avx2; do
-    bash isa-check.sh "$v" "build-$v/bin"
-  done
-}
-
-_package_variant() {
-  local variant=$1
-  local dest="$pkgdir/usr/lib/ai2/runtimes/llama.cpp-$variant"
-  install -d "$dest"
-  # Executables, their -impl libraries, and the core shared libs, flat.
-  # (Other tools' -impl libs are built too; not shipped, dead weight.)
-  local t f
-  for t in llama-bench llama-cli llama-server; do
-    install -m755 "build-$variant/bin/$t" "$dest/"
-    install -m755 "build-$variant/bin/lib$t-impl.so" "$dest/"
-  done
-  cp -a "build-$variant"/bin/lib{ggml,llama,mtmd}*.so* "$dest/"
-  # the glob also brings the other tools' -impl libs; keep only ours
-  for f in "$dest"/libllama-*-impl.so; do
-    case "$(basename "$f")" in
-      libllama-bench-impl.so|libllama-cli-impl.so|libllama-server-impl.so) ;;
-      *) rm -f "$f" ;;
+  local f files
+  files=$(_shipped | tr ' ' '\n')     # from $srcdir, before the cd
+  cd build/bin
+  # Gate 1, per file. Everything that is not a CPU variant, plus the x64
+  # variant, must run on the pure-SSE2 machine; the sse42 variant on the
+  # no-AVX machine; the AVX-class variants are exempt by name (the runtime
+  # score guards them, see the header).
+  for f in $files; do
+    case "$f" in
+      libggml-cpu-x64.so) bash ../../isa-check.sh baseline "$f" ;;
+      libggml-cpu-sse42.so) bash ../../isa-check.sh noavx "$f" ;;
+      libggml-cpu-*.so) echo "isa-check skip [avx-class variant, runtime-scored] $f" ;;
+      *) bash ../../isa-check.sh baseline "$f" ;;
     esac
   done
-  # Flat layout, so every ELF resolves siblings via $ORIGIN and nothing else.
-  # cmake's own rpath handling produced "$ORIGIN:" (trailing empty entry =
-  # cwd, insecure); set it explicitly instead.
+  # Gate 2: what a variant runs at dlopen must be clean for the pure-SSE2
+  # machine, because the loader opens every variant before it can score it.
+  for f in libggml-cpu-*.so; do
+    bash ../../isa-check.sh ctors "$f"
+  done
+  # Every variant must be present, x64 first of all (the fallback that always scores).
+  test -f libggml-cpu-x64.so
+  test -f libggml-cpu-sse42.so
+  test -f libggml-cpu-haswell.so
+}
+
+package() {
+  local dest="$pkgdir$_rtdir" f files
+  files=$(_shipped | tr ' ' '\n')
+  install -d "$dest"
+  for f in $files; do
+    if [ -L "build/bin/$f" ]; then
+      cp -a "build/bin/$f" "$dest/"
+    else
+      install -m755 "build/bin/$f" "$dest/"
+    fi
+  done
+  # Flat layout: every ELF resolves siblings via $ORIGIN and nothing else
+  # (cmake's own handling produced "$ORIGIN:", a trailing empty entry = cwd,
+  # insecure, hence patchelf).
   for f in "$dest"/*; do
     [ -L "$f" ] && continue
     patchelf --set-rpath '$ORIGIN' "$f"
   done
-  install -Dm644 llama.cpp/LICENSE "$pkgdir/usr/share/licenses/ai2-llama-cpp-$variant/LICENSE"
-}
-
-package_ai2-llama-cpp-baseline() {
-  pkgdesc+=" (baseline: SSE2 only, for pre-SSE4.1 CPUs)"
-  _package_variant baseline
-}
-
-package_ai2-llama-cpp-noavx() {
-  pkgdesc+=" (noavx: SSE4.2, no AVX)"
-  _package_variant noavx
-}
-
-package_ai2-llama-cpp-avx2() {
-  pkgdesc+=" (avx2: AVX2+FMA+F16C, Haswell and later)"
-  _package_variant avx2
+  install -Dm644 llama.cpp/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
