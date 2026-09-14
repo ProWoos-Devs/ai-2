@@ -1,23 +1,34 @@
-"""Runtime Engine, locates the CPU-variant llama.cpp build and drives it.
+"""Runtime Engine, locates the llama.cpp build and drives it.
 
-Today the binaries are placed manually (proven on RMM-PC in ~/llama). Once the
-signed AI-2 pacman repo exists, install_runtime() will pull the right variant
-package (llama.cpp-baseline / -noavx / -avx2) for hw.cpu_variant; the finder
-below already prefers a per-variant path so that transition is a drop-in.
+One runtime package, ai2-llama-cpp, ships one llama.cpp built for plain
+x86-64 plus one CPU backend module per instruction-set level
+(libggml-cpu-<variant>.so); ggml scores every module against the CPU at start
+and loads the best, x64 always qualifying. hw.cpu_variant (baseline / noavx /
+avx2) stays as AI-2's own coarse class for the record and the wizard text;
+which module actually ran is read from llama-bench's log line
+"load_backend: loaded CPU backend from <path>" and stored with the score.
+Until 10398-1 there were three packages, one full build each, in
+/usr/lib/ai2/runtimes/llama.cpp-<variant>/; the finder still accepts those
+directories so a machine that has not swapped yet keeps working.
 """
 
 from __future__ import annotations
 
 import glob
 import os
+import re
 import subprocess
 import sys
+
+RUNTIME_DIR = "/usr/lib/ai2/runtimes/llama.cpp"
+
 
 # Searched in order; first dir containing a llama-bench wins.
 def _runtime_candidates(variant: str) -> list[str]:
     return [
         os.environ.get("AI2_RUNTIME_DIR", ""),
-        f"/usr/lib/ai2/runtimes/llama.cpp-{variant}",
+        RUNTIME_DIR,
+        f"/usr/lib/ai2/runtimes/llama.cpp-{variant}",   # the 10398-1 per-CPU packages
         "/opt/ai2/llama",
         os.path.expanduser("~/llama"),
     ]
@@ -51,12 +62,35 @@ def find_benchmark_model() -> str | None:
 BENCH_TIMEOUT_S = {"baseline": 300, "noavx": 240, "avx2": 150}   # the plan's 1-2 min budget, wider on weak CPUs
 
 
+LOADED_BACKEND_RE = re.compile(r"load_backend: loaded (\S+) backend from (\S+)")
+
+
+def loaded_backends(stderr: str) -> dict[str, str]:
+    """{backend name: module file} from ggml's log lines, printed
+    unconditionally when a dynamic backend is loaded (ggml-backend-reg.cpp).
+    A CPU entry names the variant that won the score, e.g. {"CPU":
+    "libggml-cpu-haswell.so"}; a static build prints nothing."""
+    return {m.group(1): os.path.basename(m.group(2)) for m in LOADED_BACKEND_RE.finditer(stderr or "")}
+
+
+def cpu_variant_loaded(stderr: str) -> str | None:
+    """The CPU variant name (x64, sse42, haswell, ...) that ggml loaded, or
+    None when the log does not say (a static build, or an old package)."""
+    mod = loaded_backends(stderr).get("CPU")
+    if not mod:
+        return None
+    m = re.fullmatch(r"libggml-cpu(?:-(.+))?\.so", mod)
+    return (m.group(1) or "static") if m else mod
+
+
 def run_llama_bench(runtime_dir: str, model: str, threads: int,
                     pp: int = 32, ng: int = 32, reps: int = 2, timeout: int | None = None,
-                    variant: str = "baseline", fmt: str = "json") -> str:
+                    variant: str = "baseline", fmt: str = "json", info: dict | None = None) -> str:
     """Run llama-bench and return its stdout (JSON by default, markdown with
     fmt="md"). Time-boxed per CPU class so a weak machine does not sit in the
-    benchmark for ten minutes; raises on failure or timeout."""
+    benchmark for ten minutes; raises on failure or timeout. When `info` is
+    given, info["stderr"] receives llama-bench's log, where ggml names the
+    backend module it loaded."""
     env = dict(os.environ, LD_LIBRARY_PATH=runtime_dir)
     cmd = [
         os.path.join(runtime_dir, "llama-bench"),
@@ -69,6 +103,8 @@ def run_llama_bench(runtime_dir: str, model: str, threads: int,
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"llama-bench did not finish within {timeout} s; this machine is "
                            f"below what AI-2 can measure in its time budget")
+    if info is not None:
+        info["stderr"] = proc.stderr
     if proc.returncode != 0:
         raise RuntimeError(f"llama-bench failed (exit {proc.returncode}): "
                            f"{proc.stderr.strip()[:300]}")
@@ -78,12 +114,12 @@ def run_llama_bench(runtime_dir: str, model: str, threads: int,
 # ---------------------------------------------------------------------------
 # Closing the loop: install the runtime, fetch the model, serve on demand.
 
-# One package per CPU class in the signed [ai2] repo (see packaging/).
-RUNTIME_PACKAGES = {
-    "baseline": "ai2-llama-cpp-baseline",
-    "noavx": "ai2-llama-cpp-noavx",
-    "avx2": "ai2-llama-cpp-avx2",
-}
+# One package for every CPU class in the signed [ai2] repo (see packaging/);
+# the per-class map is kept so callers keep asking by variant.
+RUNTIME_PACKAGE = "ai2-llama-cpp"
+RUNTIME_PACKAGES = {v: RUNTIME_PACKAGE for v in ("baseline", "noavx", "avx2")}
+# The packages this one replaced (10398-1); doctor names them when they linger.
+OLD_RUNTIME_PACKAGES = {v: f"ai2-llama-cpp-{v}" for v in ("baseline", "noavx", "avx2")}
 
 
 def runtime_package(variant: str) -> str | None:

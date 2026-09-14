@@ -23,7 +23,7 @@ def test_runtime_check_names_the_package(monkeypatch):
     monkeypatch.setattr(doctor, "find_runtime", lambda v: None)
     hw = Hardware(flags=set())
     c = doctor.check_runtime(hw)
-    assert c.status == doctor.FAIL and "ai2-llama-cpp-baseline" in c.detail
+    assert c.status == doctor.FAIL and "ai2-llama-cpp" in c.detail
 
 
 def test_report_has_no_home_path(monkeypatch, tmp_path):

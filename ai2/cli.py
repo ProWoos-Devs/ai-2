@@ -223,6 +223,8 @@ def cmd_benchmark(args) -> int:
         print(f"           [{bar}]  {data['tg_tps']} tok/s generation, "
               f"{data['pp_tps']} tok/s prompt")
         print(f"           {data.get('feel', '')}")
+        if data.get("loaded_backend"):
+            print(f"           engine build loaded for this CPU: {data['loaded_backend']}")
         print("\nRecommended for:")
         for key, label in STAR_LABELS.items():
             n = data["capabilities"][key]

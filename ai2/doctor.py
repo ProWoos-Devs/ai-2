@@ -45,12 +45,20 @@ def check_runtime(hw: Hardware) -> Check:
 
 
 def check_other_runtimes(hw: Hardware) -> Check:
-    """The ISO installs all three CPU builds; two are dead weight on any one machine."""
-    extra = [v for v in ("baseline", "noavx", "avx2") if v != hw.cpu_variant and find_runtime(v)]
-    if extra:
-        return Check(INFO, "Unused engines", f"{', '.join(extra)} build(s) also installed, about 25 MB each; "
-                                             f"remove with: sudo pacman -R " + " ".join(runtime_package(v) for v in extra))
-    return Check(OK, "Unused engines", "none")
+    """The 10398-1 per-CPU packages (ai2-llama-cpp-baseline/-noavx/-avx2)
+    still installed next to, or instead of, the one ai2-llama-cpp package."""
+    from .runtime import OLD_RUNTIME_PACKAGES, RUNTIME_DIR
+    old = [v for v in ("baseline", "noavx", "avx2")
+           if os.path.isfile(f"/usr/lib/ai2/runtimes/llama.cpp-{v}/llama-bench")]
+    if old and os.path.isfile(os.path.join(RUNTIME_DIR, "llama-bench")):
+        return Check(INFO, "Old engines", f"the per-CPU package(s) {', '.join(OLD_RUNTIME_PACKAGES[v] for v in old)} "
+                                          f"are still installed next to ai2-llama-cpp, about 25 MB each; "
+                                          f"remove with: sudo pacman -R " + " ".join(OLD_RUNTIME_PACKAGES[v] for v in old))
+    if old:
+        return Check(INFO, "Old engines", f"still the per-CPU package(s) {', '.join(OLD_RUNTIME_PACKAGES[v] for v in old)}; "
+                                          "the next update replaces them with ai2-llama-cpp (one package, the build "
+                                          "for this CPU chosen at start)")
+    return Check(OK, "Old engines", "none")
 
 
 def check_score() -> Check:

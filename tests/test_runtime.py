@@ -11,11 +11,35 @@ from ai2.tuning import build_plan
 from tests.test_tuning import FakeBackend, FakePkgBackend
 
 
-def test_runtime_package_per_variant():
-    assert runtime.runtime_package("baseline") == "ai2-llama-cpp-baseline"
-    assert runtime.runtime_package("noavx") == "ai2-llama-cpp-noavx"
-    assert runtime.runtime_package("avx2") == "ai2-llama-cpp-avx2"
+def test_runtime_package_is_the_same_for_every_cpu_class():
+    for v in ("baseline", "noavx", "avx2"):
+        assert runtime.runtime_package(v) == "ai2-llama-cpp"
     assert runtime.runtime_package("weird") is None
+    assert runtime.OLD_RUNTIME_PACKAGES["noavx"] == "ai2-llama-cpp-noavx"
+
+
+def test_find_runtime_prefers_the_one_package_dir_then_the_old_per_cpu_dir(tmp_path, monkeypatch):
+    new = tmp_path / "llama.cpp"; old = tmp_path / "llama.cpp-noavx"
+    for d in (new, old):
+        d.mkdir(); (d / "llama-bench").write_text("")
+    monkeypatch.setattr(runtime, "RUNTIME_DIR", str(new))
+    monkeypatch.setattr(runtime, "_runtime_candidates",
+                        lambda v: [str(new), str(tmp_path / f"llama.cpp-{v}")])
+    assert runtime.find_runtime("noavx") == str(new)
+    (new / "llama-bench").unlink()
+    assert runtime.find_runtime("noavx") == str(old)         # a machine that has not swapped yet
+    assert runtime.find_runtime("avx2") is None
+
+
+def test_loaded_backend_is_read_from_ggml_log():
+    log = ("ggml_backend_load_best: ...\n"
+           "load_backend: loaded CPU backend from /usr/lib/ai2/runtimes/llama.cpp/libggml-cpu-haswell.so\n"
+           "build: 10398 (8e7f22b67)\n")
+    assert runtime.loaded_backends(log) == {"CPU": "libggml-cpu-haswell.so"}
+    assert runtime.cpu_variant_loaded(log) == "haswell"
+    assert runtime.cpu_variant_loaded("load_backend: loaded CPU backend from /x/libggml-cpu.so\n") == "static"
+    assert runtime.cpu_variant_loaded("nothing here") is None
+    assert runtime.cpu_variant_loaded("") is None
 
 
 def test_plan_installs_runtime_for_cpu_variant_not_tier():
@@ -25,8 +49,7 @@ def test_plan_installs_runtime_for_cpu_variant_not_tier():
     hw = Hardware(ram_nominal_gib=4, logical_cores=2, init_system="runit", flags=set())
     plan = build_plan(hw, tier, resolve_config(tier, tiers), FakeBackend(), FakePkgBackend())
     cmds = [c for a in plan for c in a.commands]
-    assert ["fake-install", "ai2-llama-cpp-baseline"] in cmds
-    assert not any("ai2-llama-cpp-avx2" in c for c in cmds)
+    assert ["fake-install", "ai2-llama-cpp"] in cmds
 
 
 def test_plan_skips_runtime_when_installed():

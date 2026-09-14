@@ -197,8 +197,11 @@ def measure(hw, model_path: str, runtime_dir: str, threads: int | None = None) -
     from .models import load_catalog, recommend
     from .runtime import run_llama_bench
 
+    from .runtime import cpu_variant_loaded
+
     threads = threads or max(1, hw.logical_cores)
-    out = run_llama_bench(runtime_dir, model_path, threads, variant=hw.cpu_variant)
+    info: dict = {}
+    out = run_llama_bench(runtime_dir, model_path, threads, variant=hw.cpu_variant, info=info)
     result = parse_llama_bench_json(out) or parse_llama_bench(out)
     if result is None:
         raise RuntimeError("could not parse llama-bench output")
@@ -208,6 +211,9 @@ def measure(hw, model_path: str, runtime_dir: str, threads: int | None = None) -
     rec = recommend(hw.ram_mib, result.tg_tps, params_b, catalog)
     data = summarize(result, max_vram) | {
         "cpu_variant": hw.cpu_variant,
+        # the CPU backend module ggml actually chose (x64, sse42, haswell, ...);
+        # None with a static build, where cpu_variant is the whole story
+        "loaded_backend": cpu_variant_loaded(info.get("stderr", "")),
         "bench_params_b": params_b,
         "recommended_model": rec["local"]["id"] if rec["local"] else None,
         "remote_suggested": rec["remote_suggested"],
