@@ -1,0 +1,33 @@
+# Workflow profile, see translation.yml for the format. Speech to text from a
+# FILE (a recording, a voice note, a video's audio) with whisper.cpp through
+# `ai-2 transcribe`. Shape from the 2026-09-14 review, item 5: file
+# transcription only, no live dictation, no voice assistant. The engine is
+# the ai2-whisper-cpp package for this CPU class (ai-2 transcribe names it
+# when it is missing); ffmpeg from the Artix repositories converts the audio.
+#
+# The speech model per tier is what ai-2 transcribe downloads by default:
+# base (about 388 MB in use) everywhere but the Tiny tier, which gets tiny.
+# Gating caveat, stated plainly: the `voice` star comes from the chat
+# model's generation speed and measures nothing about whisper; the honest
+# gate is whisper-bench per 30-second window on the machine, which is not
+# implemented. No speed on the reference laptops has been measured.
+id: speech
+description: Turn a recording or a video's audio into text, offline
+requests: [voice]
+minimum: {voice: 1}
+remote: false
+tiers:
+  tiny:
+    packages: [ffmpeg]
+    speech_model: tiny
+  light:
+    packages: [ffmpeg]
+    speech_model: base
+  standard:
+    packages: [ffmpeg]
+    speech_model: base
+usage:
+  - "ai-2 transcribe recording.mp3      speech to text into recording.txt (language detected)"
+  - "ai-2 transcribe note.ogg --lang es --model small     name the language, use the better model"
+  - "sudo pacman -S ai2-whisper-cpp-VARIANT   the engine for this CPU; ai-2 detect names the variant"
+  - "Slow on an old CPU, the engine works in 30-second windows; leave it running."

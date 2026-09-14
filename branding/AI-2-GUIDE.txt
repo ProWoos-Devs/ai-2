@@ -46,6 +46,8 @@ What it can be used for, judged for this very machine:
   ai-2 doc index file.pdf        read a PDF, text file or scan into the
                                  documents index (slow on an old CPU)
   ai-2 doc ask "question"        the closest parts go to the AI with it
+  ai-2 transcribe recording.mp3  speech to text with whisper.cpp; slow on an
+                                 old computer, leave it running
 
 
 TALK TO THE AI

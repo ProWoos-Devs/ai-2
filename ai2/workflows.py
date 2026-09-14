@@ -99,7 +99,8 @@ def evaluate(profile: dict, hw, score: dict | None, recommended: dict | None,
     return {"profile": profile, "tier": tier_id, "verdict": verdict, "why": why,
             "denied": denied, "short": short, "models": models, "model_state": model_state,
             "packages": packages, "pkg_state": pkg_state, "missing_models": missing_models,
-            "missing_pkgs": missing_pkgs, "ctx": (block.get("llama_server") or {}).get("ctx")}
+            "missing_pkgs": missing_pkgs, "ctx": (block.get("llama_server") or {}).get("ctx"),
+            "speech_model": block.get("speech_model")}
 
 
 VERDICT_WORDS = {"ready": "ready", "missing": "needs setup", "remote": "via remote AI",
@@ -132,6 +133,8 @@ def render_info(r: dict) -> str:
         lines.append("  Packages:    " + ", ".join(f"{pkg} ({state(pkg)})" for pkg in r["packages"]))
     if r["ctx"]:
         lines.append(f"  Context:     {r['ctx']} tokens on this tier")
+    if r.get("speech_model"):
+        lines.append(f"  Speech model: whisper {r['speech_model']} (ai-2 transcribe downloads it on first use)")
     if p.get("remote"):
         lines.append("  Remote:      can use the remote AI when this computer is too slow (ai-2 remote)")
     if p.get("usage"):

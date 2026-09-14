@@ -31,7 +31,7 @@ def _ev(profile_id, score=None, remote=None, present=lambda f: True, run=_no_pac
 
 def test_profiles_ship_and_resolve_the_config_tier():
     ids = [p["id"] for p in workflows.load_profiles()]
-    assert ids == ["chat", "documents", "translation"]
+    assert ids == ["chat", "documents", "speech", "translation"]
     assert workflows.config_tier_id(LIGHT) == "light"
     big = Hardware(ram_mib=64000, ram_nominal_gib=64, logical_cores=16, flags=set())
     assert workflows.config_tier_id(big) in ("standard", "creator")   # a config_from tier maps down

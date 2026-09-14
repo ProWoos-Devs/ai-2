@@ -1,0 +1,45 @@
+# Speech-to-text models for `ai-2 transcribe` (whisper.cpp ggml files). A
+# catalog of their own, NOT entries of models.yml: everything that reads
+# models.yml (recommend, the picker, the wizard, the tiers) treats an entry as
+# a chat model, and a whisper file on disk would become "the ready-to-chat
+# model". Only the download machinery is shared (repo, file, sha256, file_mb
+# are what ai2.runtime.download_model reads).
+#
+# Multilingual files, not the .en ones (Spanish, German and English are all
+# first-class here; Whisper paper table 13, Fleurs WER: Spanish tiny 15.9,
+# base 9.9, small 5.6; English 12.4, 8.9, 6.1). q8_0 because the pure-SSE2
+# baseline build has no SIMD path for q4_0 (needs SSSE3) and q8_0's dot
+# product is scalar on every non-AVX x86 build anyway. Sizes and LFS sha256
+# from the Hugging Face API 2026-09-15; memory_mb is whisper.cpp's README
+# table ("~273 MB" tiny, "~388 MB" base, "~852 MB" small), not measured here.
+#
+# NO SPEED IS RECORDED. Nothing was measured on the reference laptops.
+models:
+  - id: tiny
+    label: Whisper tiny (multilingual, q8_0)
+    repo: ggerganov/whisper.cpp
+    file: ggml-tiny-q8_0.bin
+    file_mb: 44
+    memory_mb: 273
+    sha256: c2085835d3f50733e2ff6e4b41ae8a2b8d8110461e18821b09a15c40c42d1cca
+    verified: 2026-09-15
+    license: mit
+  - id: base
+    label: Whisper base (multilingual, q8_0)
+    default: true
+    repo: ggerganov/whisper.cpp
+    file: ggml-base-q8_0.bin
+    file_mb: 82
+    memory_mb: 388
+    sha256: c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9
+    verified: 2026-09-15
+    license: mit
+  - id: small
+    label: Whisper small (multilingual, q8_0)
+    repo: ggerganov/whisper.cpp
+    file: ggml-small-q8_0.bin
+    file_mb: 265
+    memory_mb: 852
+    sha256: 49c8fb02b65e6049d5fa6c04f81f53b867b5ec9540406812c643f177317f779f
+    verified: 2026-09-15
+    license: mit

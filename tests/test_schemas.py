@@ -32,7 +32,7 @@ CATALOG_OPTIONAL = {"benchmark", "sampling", "spec_type_measured",
 SAMPLING_KEYS = {"temp", "top_k", "top_p", "min_p", "repeat_penalty"}
 PROFILE_REQUIRED = {"id", "description", "requests", "minimum", "remote", "tiers"}
 PROFILE_KEYS = PROFILE_REQUIRED | {"usage"}
-PROFILE_TIER_KEYS = {"packages", "models", "llama_server"}
+PROFILE_TIER_KEYS = {"packages", "models", "llama_server", "speech_model"}
 
 
 def _tier_files():
@@ -167,6 +167,9 @@ def _check_profile_tier_block(where, tier_id, block, requests, tiers, catalog):
             f"{where}: tier grants no {cap!r}, block may not exceed the grant"
     for pkg in block.get("packages", []):
         assert isinstance(pkg, str) and pkg, where
+    if "speech_model" in block:
+        from ai2.speech import load_catalog as load_speech
+        assert block["speech_model"] in {m["id"] for m in load_speech()}, f"{where}: unknown speech model"
     for m in block.get("models", []):
         assert isinstance(m.get("id"), str) and m["id"], f"{where}: model entry needs an id"
         if m["id"] in catalog:

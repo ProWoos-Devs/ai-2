@@ -975,6 +975,44 @@ def _doc_ask(args, docmod) -> int:
     return 0
 
 
+def cmd_transcribe(args) -> int:
+    """`ai-2 transcribe FILE`: speech to text with whisper.cpp, into FILE.txt."""
+    from . import speech
+    hw = detect()
+    runtime_dir = speech.find_runtime(hw.cpu_variant)
+    if runtime_dir is None:
+        pkg = speech.runtime_package(hw.cpu_variant) or "ai2-whisper-cpp-<variant>"
+        print(f"error: the speech engine for this CPU is not installed. Install it with:  "
+              f"sudo pacman -S {pkg}", file=sys.stderr)
+        return 1
+    if not os.path.isfile(args.file):
+        print(f"error: no such file: {args.file}", file=sys.stderr)
+        return 1
+    model = speech.speech_model(args.model)
+    if model is None:
+        print(f"error: unknown speech model '{args.model}' (tiny, base or small)", file=sys.stderr)
+        return 1
+    path = find_model_file(model["file"])
+    if path is None:
+        print(f"{model['label']} ({model['file_mb']} MB) is not on this computer yet; downloading it.")
+        if _pull_model(model) != 0:
+            return 1
+        path = find_model_file(model["file"])
+    out = args.output or os.path.splitext(args.file)[0] + ".txt"
+    if not out.endswith(".txt"):
+        out += ".txt"
+    print(speech.WAIT_NOTE, flush=True)
+    try:
+        text = speech.transcribe(runtime_dir, path, args.file, args.lang, max(1, hw.logical_cores), out)
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print()
+    print(text)
+    print(f"\nWritten to {out}  ({model['label']}, language {args.lang})")
+    return 0
+
+
 def cmd_remote(args) -> int:
     action = args.remote_cmd
     if action == "set":
@@ -1368,6 +1406,13 @@ def main(argv: list[str] | None = None) -> int:
     p_wf_inst.set_defaults(func=cmd_workflow)
     wf_sub.add_parser("status", help="workflows ready on this computer").set_defaults(func=cmd_workflow)
     p_wf.set_defaults(func=cmd_workflow)
+
+    p_tr = sub.add_parser("transcribe", help="speech to text: a recording, a voice note or a video's audio into FILE.txt (whisper.cpp)")
+    p_tr.add_argument("file")
+    p_tr.add_argument("-l", "--lang", default="auto", help="language code (es, en, de, ...); default: detected")
+    p_tr.add_argument("-m", "--model", help="tiny, base or small (default: base; slower is better)")
+    p_tr.add_argument("-o", "--output", help="text file to write (default: FILE.txt next to the input)")
+    p_tr.set_defaults(func=cmd_transcribe)
 
     p_docs = sub.add_parser("doc", help="ask the AI about your own documents: index PDFs, text or scans, then ask")
     d_sub = p_docs.add_subparsers(dest="doc_cmd", metavar="action")

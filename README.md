@@ -68,6 +68,8 @@ ai-2 workflow install <name>  # download its models; packages printed as a pacma
 ai-2 doc index FILE  # read a PDF, text file, DOCX or scan into the documents index (slow on an old CPU)
 ai-2 doc ask "..."   # the closest parts of your documents go to the AI with the question; sources named
 ai-2 doc list        # what is indexed;  ai-2 doc forget NAME  removes one
+ai-2 transcribe FILE # speech to text with whisper.cpp: a recording or a video's audio into FILE.txt
+                     # (--lang es, --model small; slow on an old CPU, leave it running)
 ai-2 chat            # start the local AI if needed and open the chat page in the browser
 ai-2 chat --terminal # the same chat in the terminal: fastest, minimal memory, works over SSH
                      # --model with no value lists the models on disk and lets you pick one (-m)
@@ -108,6 +110,7 @@ Which machine can be the server is a question for the AI Score, not the tier. On
 - `ai-2`, this tool.
 - `ai2-keyring`, the package signing key for pacman.
 - `ai2-llama-cpp`, the engine, one package for every CPU class: llama.cpp from one pinned release, built for plain x86-64, plus one CPU backend module per instruction-set level (x64, sse42, sandybridge, ivybridge, piledriver, haswell, ...); ggml scores the modules against the CPU at start and loads the best, x64 always qualifying. Before it ships, every file that must run on a pure-SSE2 machine is disassembled against that instruction set, and the constructors every module runs at load are checked the same way, because a single stray SSE4.1 instruction crashes an old machine. `ai-2 benchmark` records which module ran.
+- `ai2-whisper-cpp-baseline` / `-noavx` / `-avx2`, the speech-to-text engine for `ai-2 transcribe`, the same three classes and the same gate, from one pinned whisper.cpp release with its own ggml, no ffmpeg linked in.
 
 ## Architecture
 

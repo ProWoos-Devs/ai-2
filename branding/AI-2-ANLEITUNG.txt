@@ -48,6 +48,8 @@ Wofür er sich eignet, beurteilt für genau diesen Rechner:
   ai-2 doc index datei.pdf       liest ein PDF, einen Text oder einen Scan in
                                  den Dokumentenindex (langsam auf alter CPU)
   ai-2 doc ask "Frage"           die passendsten Teile gehen mit ihr an die KI
+  ai-2 transcribe aufnahme.mp3   Sprache zu Text mit whisper.cpp; langsam
+                                 auf alter CPU, laufen lassen
 
 
 MIT DER KI REDEN
