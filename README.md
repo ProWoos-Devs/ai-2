@@ -92,6 +92,14 @@ ai-2 logo            # the mark, in the size the terminal allows
 
 `AI-2` works as a synonym for `ai-2` everywhere.
 
+### Using the local AI from other apps
+
+`ai-2 serve --host 0.0.0.0 --api-key KEY` is a standard OpenAI-compatible endpoint. Any app with a custom base URL field takes `http://HOST:8080/v1` plus that key. Documented by their upstreams (not yet driven end to end from an AI-2 box), Open WebUI, Paperless-GPT, Open Notebook and Blinko. Home Assistant only through the community integrations Home LLM or Extended OpenAI Conversation, since its built-in OpenAI, Ollama and Anthropic integrations do not accept a third-party endpoint. Those apps run on another machine, the AI-2 box is only the server, and `/v1/embeddings` is not offered today.
+
+Two things to know. `ai-2 serve` is a foreground command with no boot-time service yet, so a box that serves other apps needs it kept running (tmux, screen, or a runit service of your own), and `ai-2 chat` only ever starts a server on localhost. It serves the score-recommended model with the tier's context size (4096 on Standard, 8192 on Creator). `--model` and `--ctx` override that with a RAM check only, no speed check, and `/v1/models` reports the model file path as the id.
+
+Which machine can be the server is a question for the AI Score, not the tier. On the 2011 reference laptop the 0.5B model generates at about 2 tokens per second and reads prompts no faster, so a 1000-token tagging prompt takes minutes before the first output token. Machines like that are the clients. A stronger machine on the network runs `ai-2 serve` and they run `ai-2 chat --remote`. Background jobs such as document tagging tolerate a slow server, a voice assistant does not.
+
 ## Packages
 
 - `ai-2`, this tool.
