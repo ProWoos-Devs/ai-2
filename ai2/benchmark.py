@@ -119,10 +119,17 @@ def _stars(value: float, thresholds: list[float]) -> int:
     return sum(1 for t in thresholds if value >= t)
 
 
+# The packaged llama.cpp runtime is CPU-only (README, Architecture; position
+# reviewed with sources 2026-09-14). Flip this when a GPU runtime ships, and
+# the VRAM-gated stars below come back to life unchanged.
+GPU_RUNTIME_AVAILABLE = False
+
+
 def capability_stars(tg_tps: float, max_vram_mb: int) -> dict[str, int]:
     """Per-capability 0-5 star ratings. Text capabilities come from measured
-    generation speed; image/video need a GPU the text benchmark can't exercise,
-    so they are gated on VRAM (honestly 0 on a CPU-only box)."""
+    generation speed. Image/video need a GPU the text benchmark can't exercise
+    AND a runtime that can drive it; while the runtime is CPU-only they are 0
+    no matter what nvidia-smi reports, otherwise they are gated on VRAM."""
     text_general = [1, 2, 4, 8, 15]      # chat/doc_qa/voice
     text_short = [1, 2, 3, 6, 12]        # translation/ocr, shorter outputs
     text_heavy = [2, 4, 8, 15, 30]       # coding, long outputs need speed
@@ -134,8 +141,12 @@ def capability_stars(tg_tps: float, max_vram_mb: int) -> dict[str, int]:
         "voice": _stars(tg_tps, text_general),
         "coding": _stars(tg_tps, text_heavy),
     }
-    stars["image_generation"] = _stars(max_vram_mb, [2000, 4000, 6000, 8000, 12000])
-    stars["video"] = _stars(max_vram_mb, [8000, 10000, 12000, 16000, 24000])
+    if GPU_RUNTIME_AVAILABLE:
+        stars["image_generation"] = _stars(max_vram_mb, [2000, 4000, 6000, 8000, 12000])
+        stars["video"] = _stars(max_vram_mb, [8000, 10000, 12000, 16000, 24000])
+    else:
+        stars["image_generation"] = 0
+        stars["video"] = 0
     return stars
 
 

@@ -182,7 +182,9 @@ class Wizard:
         tiers = load_tiers()
         tier = assign(hw, tiers)
         config = resolve_config(tier, tiers)
-        gpu = ", ".join(g.name for g in hw.gpus) or tr("none (the CPU does the AI work)")
+        gpu = (tr("{gpus} (not used by the AI engine, which runs on the CPU)")
+               .format(gpus=", ".join(g.name for g in hw.gpus))
+               if hw.gpus else tr("none (the CPU does the AI work)"))
         disk = {True: tr("spinning disk (HDD)"), False: tr("solid state (SSD)"),
                 None: tr("unknown")}[hw.root_disk_rotational]
         self.say(tr("  CPU     {cpu} ({cores} cores, needs the '{variant}' engine build)\n"

@@ -41,9 +41,21 @@ def test_capability_stars_cpu_only():
     assert caps["video"] == 0
 
 
-def test_capability_stars_gpu():
+def test_capability_stars_gpu_without_gpu_runtime():
+    """The packaged runtime is CPU-only, so VRAM that nvidia-smi reports must
+    not buy image or video stars (a GTX box was getting three image stars for
+    a path that does not exist, found 2026-09-14)."""
     caps = capability_stars(30.0, max_vram_mb=12000)
     assert caps["chat"] == 5
+    assert caps["image_generation"] == 0
+    assert caps["video"] == 0
+
+
+def test_capability_stars_gpu_when_runtime_exists(monkeypatch):
+    """The VRAM thresholds stay in place for the day a GPU runtime ships."""
+    from ai2 import benchmark
+    monkeypatch.setattr(benchmark, "GPU_RUNTIME_AVAILABLE", True)
+    caps = capability_stars(30.0, max_vram_mb=12000)
     assert caps["image_generation"] >= 4
     assert caps["video"] >= 1
 

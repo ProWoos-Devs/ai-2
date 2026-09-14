@@ -41,7 +41,7 @@ def cmd_detect(args) -> int:
     if hw.gpus:
         for gpu in hw.gpus:
             vram = f", {gpu.vram_mb} MB VRAM" if gpu.vram_mb else ""
-            print(f"GPU      {gpu.name}{vram}")
+            print(f"GPU      {gpu.name}{vram} (not used by the AI engine, which runs on the CPU)")
     else:
         print("GPU      none detected")
     if hw.root_disk_rotational is not None:

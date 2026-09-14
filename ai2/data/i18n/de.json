@@ -16,6 +16,7 @@
   "stopped at step {step}": "bei Schritt {step} gestoppt",
   "Last run ({when}): {state}{done}. Steps already done are quick to pass through.": "Letzter Lauf ({when}): {state}{done}. Bereits erledigte Schritte gehen schnell.",
   "none (the CPU does the AI work)": "keine (die CPU macht die KI-Arbeit)",
+  "{gpus} (not used by the AI engine, which runs on the CPU)": "{gpus} (vom KI-Motor nicht genutzt, er läuft auf der CPU)",
   "spinning disk (HDD)": "Magnetfestplatte (HDD)",
   "solid state (SSD)": "SSD",
   "unknown": "unbekannt",

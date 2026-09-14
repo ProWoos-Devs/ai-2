@@ -47,3 +47,21 @@ def test_nominal_rounding():
     assert nominal_gib(15380) == 16    # 16 GB machine with reserved memory
     assert nominal_gib(31900) == 32
     assert nominal_gib(300000) == 292  # beyond the table, floor of real GiB
+
+
+def test_cmd_detect_says_the_gpu_is_not_used(monkeypatch, capsys):
+    """A listed GPU must not read as if the engine used it (the runtime is
+    CPU-only); the line says so, and a box without a GPU is unchanged."""
+    import argparse
+    from ai2 import cli
+    from ai2.detect import Gpu, Hardware
+    hw = Hardware(cpu_model="Test CPU", logical_cores=4, flags={"avx2"}, ram_mib=15800,
+                  ram_nominal_gib=16, init_system="runit", root_disk_rotational=False,
+                  gpus=[Gpu(name="NVIDIA GeForce GTX 1060 6GB", vram_mb=6144, vendor="nvidia")])
+    monkeypatch.setattr(cli, "detect", lambda: hw)
+    assert cli.cmd_detect(argparse.Namespace(json=False)) == 0
+    out = capsys.readouterr().out
+    assert "GPU      NVIDIA GeForce GTX 1060 6GB, 6144 MB VRAM (not used by the AI engine, which runs on the CPU)" in out
+    hw.gpus = []
+    cli.cmd_detect(argparse.Namespace(json=False))
+    assert "GPU      none detected" in capsys.readouterr().out
