@@ -129,12 +129,33 @@ def test_answer_model_prefers_the_biggest_usable_over_the_starter():
 def test_build_messages_numbers_the_excerpts():
     hits = [{"text": "El castellano es la lengua oficial.", "doc": "c.pdf", "ord": 2, "of": 37, "score": 0.9},
             {"text": "Madrid es la capital.", "doc": "c.pdf", "ord": 4, "of": 37, "score": 0.8}]
-    msgs = doc.build_messages("¿Cuál es la capital?", hits, doc.doc_system_prompt("You are the assistant."))
-    assert msgs[0]["role"] == "system" and "cite them as [1], [2]" in msgs[0]["content"]
+    msgs = doc.build_messages("¿Cuál es la capital?", hits)
+    assert msgs[0] == {"role": "system", "content": doc.SYSTEM_PROMPT}
     user = msgs[1]["content"]
+    assert user.startswith("Question: ¿Cuál es la capital?\n")          # question first
     assert "[1] (c.pdf, part 3 of 37)" in user and "[2] (c.pdf, part 5 of 37)" in user
-    assert user.rstrip().endswith("If they do not contain the answer, say so.")
-    assert "Question: ¿Cuál es la capital?" in user
+    assert user.rstrip().endswith("If the excerpts do not contain the answer, say so.")
+    assert 'Answer the question "¿Cuál es la capital?" in one or two complete sentences' in user
+
+
+def test_stream_reply_sends_temperature_only_when_asked(monkeypatch):
+    import io
+    import json
+    from ai2 import chatterm
+    sent = []
+
+    class FakeResp(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def fake_urlopen(req, timeout=None):
+        sent.append(json.loads(req.data))
+        return FakeResp(b'data: {"choices":[{"delta":{"content":"hola"}}]}\n\ndata: [DONE]\n')
+    monkeypatch.setattr(chatterm.urllib.request, "urlopen", fake_urlopen)
+    assert "".join(chatterm.stream_reply("http://x", [{"role": "user", "content": "q"}])) == "hola"
+    assert "temperature" not in sent[0]
+    list(chatterm.stream_reply("http://x", [], temperature=0.2))
+    assert sent[1]["temperature"] == 0.2
 
 
 def test_embedding_server_has_its_own_record(tmp_path, monkeypatch):

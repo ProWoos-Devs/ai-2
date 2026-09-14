@@ -924,8 +924,7 @@ def _doc_ask(args, docmod) -> int:
     else:
         present = [m["catalog"] for m in installed_models(load_catalog()) if m["id"]]
         chat_model = docmod.choose_answer_model(present, hw.ram_mib, score)
-    label = chat_model["label"] if chat_model else "a small language model"
-    messages = docmod.build_messages(question, hits, docmod.doc_system_prompt(persona.system_prompt(label)))
+    messages = docmod.build_messages(question, hits)
     n_tokens = sum(docmod.estimate_tokens(m["content"]) for m in messages)
     est = docmod.prefill_seconds(n_tokens, score, chat_model)
     if args.remote:
@@ -937,9 +936,8 @@ def _doc_ask(args, docmod) -> int:
             or (est is not None and est > docmod.SLOW_PREFILL_S)
     if use_remote:
         print(f"Asking {remote.describe(cfg)}. The question and the excerpts of your documents leave this computer.")
-        rlabel = cfg.get("model") or "the remote model"
-        messages[0]["content"] = docmod.doc_system_prompt(persona.system_prompt(rlabel, local=False))
-        stream = functools.partial(stream_reply, headers=remote.headers(cfg), model=cfg.get("model"))
+        stream = functools.partial(stream_reply, headers=remote.headers(cfg), model=cfg.get("model"),
+                                   temperature=docmod.ANSWER_TEMPERATURE)
         base = cfg["url"]
     else:
         if chat_model is None:
@@ -957,7 +955,7 @@ def _doc_ask(args, docmod) -> int:
         base = _ensure_server(hw, chat_model, args.port, serverstate.CHAT, wait=args.wait)
         if base is None:
             return 1
-        stream = stream_reply
+        stream = functools.partial(stream_reply, temperature=docmod.ANSWER_TEMPERATURE)
     print()
     try:
         if args.stream:

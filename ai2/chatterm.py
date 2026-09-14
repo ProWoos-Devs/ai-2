@@ -38,13 +38,17 @@ def delta_text(payload: str) -> str:
 
 
 def stream_reply(url: str, messages: list[dict], headers: dict | None = None,
-                 model: str | None = None):
+                 model: str | None = None, temperature: float | None = None):
     """POST the conversation, yield the reply as it generates. Sampling is
-    left to the server's own defaults (the tier/model set them). `headers`
-    and `model` are for a remote endpoint (API key, the model it must use)."""
+    left to the server's own defaults (the tier/model set them) unless
+    `temperature` is given (`ai-2 doc ask` wants extraction, not creativity).
+    `headers` and `model` are for a remote endpoint (API key, the model it
+    must use)."""
     payload = {"messages": messages, "stream": True}
     if model:
         payload["model"] = model
+    if temperature is not None:
+        payload["temperature"] = temperature
     body = json.dumps(payload).encode()
     req = urllib.request.Request(url.rstrip("/") + "/v1/chat/completions", data=body,
                                  headers=dict(headers or {"Content-Type": "application/json"}))

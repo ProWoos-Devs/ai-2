@@ -45,6 +45,18 @@ OVERLAP_WORDS = 20
 TOP_K = 3
 SLOW_PREFILL_S = 60        # above this the local answer is "minutes", route to the remote if there is one
 ANSWER_MIN_TG = 1.0        # the answering model may be slower than the chat floor (1.5); the user accepted a wait
+ANSWER_TEMPERATURE = 0.2   # extraction, not creativity; at the server default (0.8) the 0.5B wandered
+
+# Measured 2026-09-14 on Qwen2.5 0.5B with the excerpts rafaminu-pc retrieved
+# (laptop trials, 3 runs per question): this short system prompt plus the
+# question first and the instruction last gave complete, correct sentences 12
+# times out of 12 on four answerable questions, in the question's language,
+# about 50 prompt tokens fewer than the persona-based prompt. The model still
+# invents an answer when the excerpts do not contain one (0 of 6 refusals);
+# that is the 0.5B's limit and why the starter note stays.
+SYSTEM_PROMPT = ("You answer questions about the user's own documents. Use only the numbered excerpts, "
+                 "answer in one or two complete sentences in the language of the question, cite the excerpt "
+                 "you used as [1] or [2], and say plainly when the excerpts do not contain the answer.")
 TEXT_SUFFIXES = {".txt", ".md", ".markdown", ".csv", ".log", ".rst", ".text"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
@@ -315,16 +327,12 @@ def prefill_seconds(n_tokens: int, score: dict | None, model: dict | None) -> fl
     return n_tokens / est if est > 0 else None
 
 
-def build_messages(question: str, hits: list[dict], system: str) -> list[dict]:
+def build_messages(question: str, hits: list[dict], system: str = SYSTEM_PROMPT) -> list[dict]:
+    """Question first, excerpts, then the instruction last (small models attend
+    to the end): the shape measured above."""
     excerpts = "\n\n".join(f"[{i}] ({h['doc']}, part {h['ord'] + 1} of {h['of']})\n{h['text']}"
                            for i, h in enumerate(hits, 1))
-    user = (f"Excerpts from my documents:\n\n{excerpts}\n\n"
-            f"Question: {question}\n"
-            "Answer from the excerpts and cite them as [1], [2]. If they do not contain the answer, say so.")
+    user = (f"Question: {question}\n\nExcerpts from my documents:\n\n{excerpts}\n\n"
+            f"Answer the question \"{question}\" in one or two complete sentences, in the language of the "
+            "question, citing the excerpt you used as [1] or [2]. If the excerpts do not contain the answer, say so.")
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
-
-
-def doc_system_prompt(base: str) -> str:
-    return (base + " The user's question comes with numbered excerpts from their own documents; "
-            "answer from those excerpts, cite them as [1], [2], and say plainly when they do not "
-            "contain the answer.")
