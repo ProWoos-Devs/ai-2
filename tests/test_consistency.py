@@ -30,6 +30,23 @@ def test_catalog_entries_are_consistent():
         assert m["file"].endswith(".gguf"), m["id"]
 
 
+def test_rag_embedders_and_profile_models_exist_in_the_catalog():
+    from ai2.models import embedding_models
+    from ai2.workflows import load_profiles
+    everything = {m["id"]: m for m in load_catalog(kind=None)}
+    embedders = {m["id"] for m in embedding_models()}
+    tiers = load_tiers()
+    for tier in tiers.values():
+        rag = resolve_config(tier, tiers).get("rag") or {}
+        if rag:
+            assert rag["vector_store"] == "sqlite", f"{tier.id}: the store is plain sqlite, nothing to package"
+            assert rag["embedder"] in embedders, f"{tier.id} names unknown embedder {rag['embedder']}"
+    for p in load_profiles():
+        for block in p["tiers"].values():
+            for m in block.get("models", []):
+                assert m["id"] in everything, f"{p['id']} names unknown model {m['id']}"
+
+
 def test_exactly_one_benchmark_model():
     flagged = [m["id"] for m in load_catalog() if m.get("benchmark")]
     assert flagged == ["qwen2.5-0.5b"]

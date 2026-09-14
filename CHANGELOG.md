@@ -2,6 +2,15 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.14.0] - 2026-09-14
+### Added
+- **`ai-2 doc`, ask the AI about your own documents.** `ai-2 doc index FILE` reads text files, PDFs (pdftotext), DOCX and scans (tesseract) into a SQLite index next to the models, cut into parts of about a hundred words and embedded by a second on-demand llama-server (`--embeddings`, port 8081, exits when idle) running nomic's embedding models. `ai-2 doc ask "question"` finds the closest parts, hands them to the chat model with the question and names its sources; `list` and `forget` manage the index. Nothing new to install: the embedding server is the llama-server AI-2 already ships and the store is Python's sqlite3. The answer goes to the remote AI (`ai-2 remote`) when one is configured and the local answer would come from a starter model or after a long wait, and it says so first, because the excerpts leave the computer; `--local` and `--remote` decide by hand.
+- Two embedding models in the catalog as their own kind, never offered for chat, chosen on a Spanish test document (37 parts, 12 questions, top 3): nomic-embed-text-v2-moe (multilingual, 12/12, about 1 GB of RAM while indexing) for Standard and up, nomic-embed-text-v1.5 (11/12, 0.3 GB) for Tiny and Light; all-MiniLM-L6-v2 (4/12) stayed out. Measured on the 2016 reference laptop (2 cores, SSE4.2 build): about 9 tokens per second for either nomic model, so a 20-page document indexes in roughly 20 minutes there. The command says so and can be left running.
+### Changed
+- The documents workflow profile names the embedder per tier and its usage lines are the `ai-2 doc` commands, so `ai-2 workflow install documents` downloads it. The tier files' `rag` block, declared since the first release with nothing behind it, now says what ships (plain sqlite, the nomic embedder).
+- `ai-2 stop` stops the embedding server too. `ai-2 serve --model <embedder>` serves it in embeddings-only mode on port 8081 under its own record, never resident (the persistent tiers' "keep the chat loaded" does not extend to it).
+- The ai-2 package depends on sqlite (Python only suggests it; every AI-2 system had it through gnupg anyway) and suggests poppler and tesseract for `ai-2 doc index`.
+
 ## [0.13.4] - 2026-09-14
 ### Changed
 - **A listed GPU now says the engine does not use it.** `ai-2 detect` and the wizard's hardware summary print the GPU name followed by "(not used by the AI engine, which runs on the CPU)", in the three languages. Before, a machine with a GeForce showed the card and its VRAM as if they counted; the packaged llama.cpp runtime is CPU-only.

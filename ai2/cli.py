@@ -748,6 +748,217 @@ def _chat_remote(args, cfg: dict) -> int:
             speaker.close()
 
 
+def _ensure_server(hw, model: dict, port: int, record: str, wait: int = 180,
+                   idle_timeout: int | None = None) -> str | None:
+    """The base URL of a running `ai-2 serve` for `model` on `port`: start it
+    detached when nothing answers there (the same way `ai-2 chat` does), wait
+    until it reports ready. None, with the reason printed, when it cannot."""
+    import subprocess
+    import time
+    url = f"http://127.0.0.1:{port}/"
+    if _server_ready(url):
+        return url
+    running = serverstate.read_server(record)
+    if running and running.get("model") and running["model"] != model["id"]:
+        print(f"error: a server is already running with {running['model']}, not {model['id']}. "
+              f"Stop it first:  ai-2 stop", file=sys.stderr)
+        return None
+    if find_runtime(hw.cpu_variant) is None or find_model_file(model["file"]) is None:
+        print("AI-2 is not set up on this computer yet. Run:  ai-2 wizard", file=sys.stderr)
+        return None
+    state_dir = serverstate.state_dir()
+    os.makedirs(state_dir, exist_ok=True)
+    log = open(serverstate.log_file(record), "ab")
+    cmd = [sys.executable, "-m", "ai2.cli", "serve", "--port", str(port), "--model", model["id"]]
+    if idle_timeout is not None:
+        cmd += ["--idle-timeout", str(idle_timeout)]
+    subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True,
+                     cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    print(f"Starting {model['label']} ... this takes a moment on a slow disk", flush=True)
+    start = time.monotonic()
+    last_note = start
+    while time.monotonic() < start + wait and not _server_ready(url):
+        time.sleep(2)
+        if time.monotonic() - last_note >= 10:
+            last_note = time.monotonic()
+            print(f"  still starting ({int(last_note - start)} s)", flush=True)
+    if not _server_ready(url):
+        print(f"error: the server did not come up within {wait} s (see {serverstate.log_file(record)})",
+              file=sys.stderr)
+        return None
+    return url
+
+
+def cmd_doc(args) -> int:
+    """`ai-2 doc index|ask|list|forget`: questions about your own documents."""
+    from . import doc as docmod
+    action = getattr(args, "doc_cmd", None)
+    if action == "index":
+        return _doc_index(args, docmod)
+    if action == "ask":
+        return _doc_ask(args, docmod)
+    conn = docmod.open_store()
+    if action == "forget":
+        if not args.name and not args.all:
+            print("error: name a document (ai-2 doc list) or pass --all", file=sys.stderr)
+            return 1
+        n = docmod.forget(conn, name=args.name, everything=args.all)
+        print(f"Forgot {n} document{'s' if n != 1 else ''}." if n else f"No document named {args.name!r}.")
+        return 0 if n or args.all else 1
+    docs = docmod.list_documents(conn)
+    model_id = docmod.store_model(conn)
+    if not docs:
+        print("No documents indexed yet. Add one with:  ai-2 doc index FILE   (text, PDF, DOCX or a scan)")
+        return 0
+    print(f"Documents the AI can answer about (index at {docmod.index_path()}, embedder {model_id}):")
+    for d in docs:
+        print(f"  {d['name']:<40} {d['words']:>7} words  {d['chunks']:>5} parts  added {d['added']}")
+    print('Ask:  ai-2 doc ask "your question"        Remove:  ai-2 doc forget NAME')
+    return 0
+
+
+def _doc_index(args, docmod) -> int:
+    import subprocess
+    import time
+    import zipfile
+    hw = detect()
+    conn = docmod.open_store()
+    model_id = docmod.store_model(conn)
+    model = _catalog_entry(model_id) if model_id else docmod.choose_embedder(hw.ram_mib)
+    if model is None:
+        print("error: no embedding model fits this computer's RAM (the smallest needs about 300 MB free).",
+              file=sys.stderr)
+        return 1
+    if find_model_file(model["file"]) is None:
+        print(f"The documents index uses {model['label']} ({model['file_mb']} MB); downloading it first.")
+        if _pull_model(model) != 0:
+            return 1
+    url = _ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait)
+    if url is None:
+        return 1
+    client = docmod.EmbedClient(url, model)
+    if model_id is None:
+        docmod.set_store_model(conn, model["id"], int(model["dims"]))
+    rc = 0
+    prefix = model.get("prefix_document", "")
+    for path in args.files:
+        name = os.path.basename(path)
+        try:
+            text = docmod.extract_text(path, lang=args.lang)
+        except (RuntimeError, subprocess.CalledProcessError, OSError, zipfile.BadZipFile, KeyError) as exc:
+            print(f"  skipped {name}: {exc}", file=sys.stderr)
+            rc = 1
+            continue
+        words = len(text.split())
+        if not words:
+            print(f"  skipped {name}: no text found (a scanned PDF needs OCR: ai-2 workflow info documents)",
+                  file=sys.stderr)
+            rc = 1
+            continue
+        chunks = docmod.fit_chunks(docmod.chunk_words(text), lambda c: client.ntokens(prefix + c),
+                                   client.token_limit())
+        print(f"{name}: {words} words in {len(chunks)} parts, indexing with {model['label']} "
+              "(slow on an old CPU; you can leave it running) ...", flush=True)
+        t0 = time.monotonic()
+
+        def progress(done, total):
+            elapsed = time.monotonic() - t0
+            left = elapsed / done * (total - done) if done else 0
+            print(f"\r  {done}/{total} parts, {int(elapsed)} s, about {int(left / 60) + 1} min left   ",
+                  end="", flush=True)
+
+        try:
+            vectors = client.embed_documents(chunks, progress=progress)
+        except OSError as exc:
+            print(f"\n  error: the embedding server went away ({exc}); run the command again", file=sys.stderr)
+            return 1
+        docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, words)
+        print(f"\r  {name}: {len(chunks)} parts indexed in {time.monotonic() - t0:.0f} s" + " " * 12)
+    print('Ask about them:  ai-2 doc ask "your question"')
+    return rc
+
+
+def _doc_ask(args, docmod) -> int:
+    import functools
+    from .chatterm import sentences, stream_reply
+    from .sysinfo import mem_available_mib
+    hw = detect()
+    conn = docmod.open_store()
+    model_id = docmod.store_model(conn)
+    if not model_id or not docmod.list_documents(conn):
+        print("No documents indexed yet. Add one with:  ai-2 doc index FILE", file=sys.stderr)
+        return 1
+    emb = _catalog_entry(model_id)
+    if emb is None:
+        print(f"error: the index was built with {model_id}, which is no longer in the catalog; "
+              "rebuild it:  ai-2 doc forget --all", file=sys.stderr)
+        return 1
+    question = " ".join(args.question).strip()
+    cfg = remote.load()
+    if args.remote and cfg is None:
+        print("error: no remote AI configured. Set one up with:  ai-2 remote set <url> [--api-key KEY]",
+              file=sys.stderr)
+        return 1
+    url = _ensure_server(hw, emb, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait)
+    if url is None:
+        return 1
+    hits = docmod.search(conn, docmod.EmbedClient(url, emb).embed_query(question), top=args.top, doc=args.doc)
+    if not hits:
+        print("Nothing in the indexed documents matches the question.")
+        return 1
+    chat_model = _usable_model(hw)
+    score = _load_score()
+    label = chat_model["label"] if chat_model else "a small language model"
+    messages = docmod.build_messages(question, hits, docmod.doc_system_prompt(persona.system_prompt(label)))
+    n_tokens = sum(docmod.estimate_tokens(m["content"]) for m in messages)
+    est = docmod.prefill_seconds(n_tokens, score, chat_model)
+    if args.remote:
+        use_remote = True
+    elif args.local or cfg is None:
+        use_remote = False
+    else:
+        use_remote = bool(cfg.get("default")) or chat_model is None or is_starter(chat_model) \
+            or (est is not None and est > docmod.SLOW_PREFILL_S)
+    if use_remote:
+        print(f"Asking {remote.describe(cfg)}. The question and the excerpts of your documents leave this computer.")
+        rlabel = cfg.get("model") or "the remote model"
+        messages[0]["content"] = docmod.doc_system_prompt(persona.system_prompt(rlabel, local=False))
+        stream = functools.partial(stream_reply, headers=remote.headers(cfg), model=cfg.get("model"))
+        base = cfg["url"]
+    else:
+        if chat_model is None:
+            print("error: no chat model on this computer yet (ai-2 wizard), and no remote AI (ai-2 remote set).",
+                  file=sys.stderr)
+            return 1
+        if est is not None and est > docmod.SLOW_PREFILL_S:
+            print(f"Note: this computer needs about {max(1, round(est / 60))} minute(s) to read the excerpts "
+                  "before the first word of the answer. A remote AI would be faster:  ai-2 remote set <url>")
+        if is_starter(chat_model):
+            print(f"Note: {chat_model['label']} is a very small starter model; it can get facts wrong.")
+        avail = mem_available_mib()
+        if avail is not None and avail < int(chat_model.get("ram_peak_mb", 0)):
+            serverstate.stop_server(name=serverstate.EMBED)   # make room, it restarts on demand
+        base = _ensure_server(hw, chat_model, args.port, serverstate.CHAT, wait=args.wait)
+        if base is None:
+            return 1
+        stream = stream_reply
+    print()
+    try:
+        if args.stream:
+            for piece in stream(base, messages):
+                print(piece, end="", flush=True)
+            print()
+        else:
+            for sentence in sentences(stream(base, messages)):
+                print(sentence)
+    except OSError as exc:
+        print(f"error: the AI server went away ({exc}); run the command again", file=sys.stderr)
+        return 1
+    print("\nSources: " + "; ".join(f"[{i}] {h['doc']}, part {h['ord'] + 1} of {h['of']}"
+                                   for i, h in enumerate(hits, 1)))
+    return 0
+
+
 def cmd_remote(args) -> int:
     action = args.remote_cmd
     if action == "set":
@@ -814,7 +1025,7 @@ def cmd_workflow(args) -> int:
     from . import workflows
     hw = detect()
     score = _load_score()
-    catalog = load_catalog()
+    catalog = load_catalog(kind=None)   # profiles may name embedding models
     profiles = workflows.load_profiles()
     rec = _recommended_model(hw) if score else None
     cfg = remote.load()
@@ -1141,6 +1352,30 @@ def main(argv: list[str] | None = None) -> int:
     p_wf_inst.set_defaults(func=cmd_workflow)
     wf_sub.add_parser("status", help="workflows ready on this computer").set_defaults(func=cmd_workflow)
     p_wf.set_defaults(func=cmd_workflow)
+
+    p_docs = sub.add_parser("doc", help="ask the AI about your own documents: index PDFs, text or scans, then ask")
+    d_sub = p_docs.add_subparsers(dest="doc_cmd", metavar="action")
+    p_d_index = d_sub.add_parser("index", help="read files into the index (text, PDF, DOCX, images through OCR)")
+    p_d_index.add_argument("files", nargs="+", help="files to add (a file of the same name replaces the old one)")
+    p_d_index.add_argument("--lang", default="eng", help="OCR language for scans, a tesseract code: eng, spa, deu")
+    p_d_index.add_argument("--wait", type=int, default=180, help="seconds to wait for the embedding server")
+    p_d_index.set_defaults(func=cmd_doc)
+    p_d_ask = d_sub.add_parser("ask", help="ask a question; the closest parts of your documents go to the AI with it")
+    p_d_ask.add_argument("question", nargs="+")
+    p_d_ask.add_argument("--top", type=int, default=3, help="how many parts to hand the AI (default 3)")
+    p_d_ask.add_argument("--doc", help="search only this document (name as in ai-2 doc list)")
+    p_d_ask.add_argument("--remote", action="store_true", help="answer with the remote AI (ai-2 remote); the excerpts leave this computer")
+    p_d_ask.add_argument("--local", action="store_true", help="answer with this computer's own AI even when it would be slow")
+    p_d_ask.add_argument("--stream", action="store_true", help="print token by token instead of whole sentences")
+    p_d_ask.add_argument("--port", type=int, default=8080, help="the chat server's port")
+    p_d_ask.add_argument("--wait", type=int, default=180, help="seconds to wait for a server to come up")
+    p_d_ask.set_defaults(func=cmd_doc)
+    d_sub.add_parser("list", help="the documents in the index").set_defaults(func=cmd_doc)
+    p_d_forget = d_sub.add_parser("forget", help="remove a document from the index (or --all)")
+    p_d_forget.add_argument("name", nargs="?")
+    p_d_forget.add_argument("--all", action="store_true", help="remove every document and the index itself")
+    p_d_forget.set_defaults(func=cmd_doc)
+    p_docs.set_defaults(func=cmd_doc)
 
     p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")
     p_doc.set_defaults(func=cmd_doctor)

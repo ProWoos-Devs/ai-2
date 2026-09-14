@@ -43,6 +43,9 @@ What it can be used for, judged for this very machine:
   ai-2 workflow info documents   what one needs and how to use it
   ai-2 workflow install documents  downloads its models and prints the
                                  packages to install
+  ai-2 doc index file.pdf        read a PDF, text file or scan into the
+                                 documents index (slow on an old CPU)
+  ai-2 doc ask "question"        the closest parts go to the AI with it
 
 
 TALK TO THE AI

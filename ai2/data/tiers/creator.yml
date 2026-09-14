@@ -22,8 +22,8 @@ runtime:
 models:
   - {id: qwen2.5-7b, quant: Q4_K_M, ctx: 8192}
 rag:
-  vector_store: sqlite-vec
-  embedder: all-MiniLM-L6-v2
+  vector_store: sqlite
+  embedder: nomic-embed-text-v2-moe
 capabilities:
   chat: full
   translation: full

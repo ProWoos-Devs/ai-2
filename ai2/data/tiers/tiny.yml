@@ -26,6 +26,9 @@ runtime:
 models:
   - {id: qwen2.5-0.5b, quant: Q4_K_M, ctx: 1024}
   - {id: gemma3-270m, quant: Q4_K_M, ctx: 1024}
+rag:
+  vector_store: sqlite
+  embedder: nomic-embed-text-v1.5
 capabilities:
   chat: basic
   translation: full

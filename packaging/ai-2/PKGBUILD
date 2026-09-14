@@ -7,16 +7,18 @@
 # (git archive of www/ai-2), so a package always maps to a commit.
 
 pkgname=ai-2
-pkgver=0.13.4
+pkgver=0.14.0
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
 url="https://github.com/ProWoos-Devs/AI-2"
 license=('MIT')
 depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pacman-contrib' 'fakeroot'
-         'pamac')
+         'pamac' 'sqlite')   # sqlite: python only suggests it, ai-2 doc's index needs the sqlite3 module
 checkdepends=('python-pytest')
 optdepends=('pciutils: GPU detection via lspci'
+            'poppler: PDF text for ai-2 doc index (pdftotext)'
+            'tesseract: OCR of scans for ai-2 doc index'
             'zramen: compressed swap, installed by ai-2 init --apply on low-RAM tiers'
             'earlyoom: userspace OOM killer, installed by ai-2 init --apply on low-RAM tiers'
             'ai2-llama-cpp-baseline: CPU inference runtime for pre-SSE4.1 CPUs'

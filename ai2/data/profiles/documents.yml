@@ -2,23 +2,32 @@
 # into text (OCR, no AI involved) and ask the AI about it. Package names
 # checked against the Artix world repository 2026-09-04: tesseract 5 + the
 # English, Spanish and German data, poppler for pdftotext, img2pdf.
+# The embedding model per tier is what `ai-2 doc` indexes with (chosen
+# 2026-09-14 on a Spanish test document: nomic v2 MoE found 12/12 answers,
+# v1.5 11/12; the MoE peaks at about 1.1 GB of RAM, v1.5 at 0.3 GB, so the
+# small tiers get v1.5). Measured indexing speed on the 2016 reference laptop
+# (2 cores, SSE4.2 build): about 9 tokens per second for either nomic model.
 id: documents
-description: Read scanned pages and PDFs, then ask the AI about them
+description: Read PDFs, text files and scans, then ask the AI about them
 requests: [ocr, doc_qa]
 minimum: {ocr: 1, doc_qa: 1}
 remote: true
 tiers:
   tiny:
     packages: [tesseract, tesseract-data-eng, tesseract-data-spa, tesseract-data-deu, poppler, img2pdf]
+    models: [{id: nomic-embed-text-v1.5}]
     llama_server: {ctx: 1024}
   light:
     packages: [tesseract, tesseract-data-eng, tesseract-data-spa, tesseract-data-deu, poppler, img2pdf]
+    models: [{id: nomic-embed-text-v1.5}]
     llama_server: {ctx: 2048}
   standard:
     packages: [tesseract, tesseract-data-eng, tesseract-data-spa, tesseract-data-deu, poppler, img2pdf]
+    models: [{id: nomic-embed-text-v2-moe}]
     llama_server: {ctx: 2048}
 usage:
-  - "tesseract scan.png page -l eng      a scanned image to page.txt (spa, deu for Spanish, German)"
-  - "pdftotext file.pdf file.txt         a PDF to text"
-  - "ai-2 chat --terminal                paste a paragraph of the text and ask about it"
-  - "On a small model keep to one paragraph at a time; the context is short."
+  - "ai-2 doc index file.pdf             read a PDF, text file, DOCX or scan (OCR, --lang spa) into the index"
+  - "ai-2 doc ask \"your question\"        the closest parts of your documents go to the AI with the question"
+  - "ai-2 doc list                       what is indexed;  ai-2 doc forget NAME  removes one"
+  - "Indexing is slow on an old CPU (about 9 tokens a second on the 2016 reference laptop); start it and come back."
+  - "tesseract scan.png page -l eng      a scanned image to page.txt by hand (spa, deu for Spanish, German)"

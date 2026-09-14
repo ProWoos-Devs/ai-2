@@ -45,6 +45,9 @@ Para qué sirve, juzgado para esta máquina en concreto:
   ai-2 workflow info documents   qué necesita uno y cómo se usa
   ai-2 workflow install documents  descarga sus modelos e indica los
                                  paquetes que instalar
+  ai-2 doc index archivo.pdf     lee un PDF, un texto o un escaneo en el
+                                 índice de documentos (lento en CPU antiguas)
+  ai-2 doc ask "pregunta"        las partes más cercanas van a la IA con ella
 
 
 HABLAR CON LA IA

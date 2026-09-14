@@ -65,6 +65,9 @@ ai-2 model rm <id>   # delete a model to free disk space
 ai-2 model verify    # check downloaded models against the catalog checksums
 ai-2 workflow        # what this computer can be used for (chat, translation, documents), gated by the score
 ai-2 workflow install <name>  # download its models; packages printed as a pacman line, not installed
+ai-2 doc index FILE  # read a PDF, text file, DOCX or scan into the documents index (slow on an old CPU)
+ai-2 doc ask "..."   # the closest parts of your documents go to the AI with the question; sources named
+ai-2 doc list        # what is indexed;  ai-2 doc forget NAME  removes one
 ai-2 chat            # start the local AI if needed and open the chat page in the browser
 ai-2 chat --terminal # the same chat in the terminal: fastest, minimal memory, works over SSH
                      # --model with no value lists the models on disk and lets you pick one (-m)
@@ -94,7 +97,7 @@ ai-2 logo            # the mark, in the size the terminal allows
 
 ### Using the local AI from other apps
 
-`ai-2 serve --host 0.0.0.0 --api-key KEY` is a standard OpenAI-compatible endpoint. Any app with a custom base URL field takes `http://HOST:8080/v1` plus that key. Documented by their upstreams (not yet driven end to end from an AI-2 box), Open WebUI, Paperless-GPT, Open Notebook and Blinko. Home Assistant only through the community integrations Home LLM or Extended OpenAI Conversation, since its built-in OpenAI, Ollama and Anthropic integrations do not accept a third-party endpoint. Those apps run on another machine, the AI-2 box is only the server, and `/v1/embeddings` is not offered today.
+`ai-2 serve --host 0.0.0.0 --api-key KEY` is a standard OpenAI-compatible endpoint. Any app with a custom base URL field takes `http://HOST:8080/v1` plus that key. Documented by their upstreams (not yet driven end to end from an AI-2 box), Open WebUI, Paperless-GPT, Open Notebook and Blinko. Home Assistant only through the community integrations Home LLM or Extended OpenAI Conversation, since its built-in OpenAI, Ollama and Anthropic integrations do not accept a third-party endpoint. Those apps run on another machine, the AI-2 box is only the server. An embedding endpoint exists too, `ai-2 serve --model nomic-embed-text-v2-moe --host 0.0.0.0 --api-key KEY` serves `/v1/embeddings` on port 8081 (it is what `ai-2 doc` uses locally).
 
 Two things to know. `ai-2 serve` is a foreground command with no boot-time service yet, so a box that serves other apps needs it kept running (tmux, screen, or a runit service of your own), and `ai-2 chat` only ever starts a server on localhost. It serves the score-recommended model with the tier's context size (4096 on Standard, 8192 on Creator). `--model` and `--ctx` override that with a RAM check only, no speed check, and `/v1/models` reports the model file path as the id.
 

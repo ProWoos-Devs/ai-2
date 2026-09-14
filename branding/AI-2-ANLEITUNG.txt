@@ -45,6 +45,9 @@ Wofür er sich eignet, beurteilt für genau diesen Rechner:
   ai-2 workflow info documents   was eines braucht und wie man es benutzt
   ai-2 workflow install documents  lädt seine Modelle und nennt die
                                  Pakete, die zu installieren sind
+  ai-2 doc index datei.pdf       liest ein PDF, einen Text oder einen Scan in
+                                 den Dokumentenindex (langsam auf alter CPU)
+  ai-2 doc ask "Frage"           die passendsten Teile gehen mit ihr an die KI
 
 
 MIT DER KI REDEN
