@@ -9,6 +9,7 @@ gate. Nothing here changes the catalog or the system.
       [--dir DIR]                where the GGUF files live or go (default: the AI-2 model dir)
       [--candidates a,b,c]       subset of: granite-4.0-h-tiny lfm2.5-8b-a1b gemma4-e2b
       [--reference ID]           catalog model the gate compares against (default qwen3-1.7b)
+      [--comparisons a,b]        cataloged models measured alongside (default qwen3-1.7b,smollm3-3b; none = only the reference)
       [--threads N]              default: every logical core
       [--chat-check hybrid|all|none]   the two-turn prompt-cache check (default hybrid)
       [--pp N --ng N]            llama-bench prompt and generation sizes (default 512 / 128)
@@ -136,7 +137,7 @@ def build_report(rows: list[dict], reference_id: str, machine: str = "") -> str:
              "| model | file MiB | params total/active | tg tok/s | pp tok/s | peak RSS MiB | cache reused | gate |",
              "|---|---|---|---|---|---|---|---|"]
     for r in rows:
-        params = f"{r.get('params_b', '?')} / {r.get('active_b', r.get('params_b', '?'))}"
+        params = f"{r.get('params_b', '?')} / {r.get('active_b') or r.get('params_b', '?')}"
         tg = f"{r['tg']:.2f}" if r.get("tg") is not None else "failed"
         pp = f"{r['pp']:.2f}" if r.get("pp") is not None else "-"
         rss = str(r["peak_rss_mib"]) if r.get("peak_rss_mib") is not None else "-"
@@ -285,6 +286,7 @@ def main() -> int:
     ap.add_argument("--dir")
     ap.add_argument("--candidates", default=",".join(c["id"] for c in CANDIDATES if not c.get("optional")))
     ap.add_argument("--reference", default=DEFAULT_REFERENCE)
+    ap.add_argument("--comparisons", default=",".join(COMPARISON_IDS))
     ap.add_argument("--threads", type=int, default=os.cpu_count() or 1)
     ap.add_argument("--chat-check", choices=["hybrid", "all", "none"], default="hybrid")
     ap.add_argument("--pp", type=int, default=512)
@@ -308,7 +310,8 @@ def main() -> int:
     comparisons = [dict(id=i, label=catalog[i]["label"], params_b=catalog[i]["params_b"], hybrid=False,
                         repo=catalog[i]["repo"], file=catalog[i]["file"], sha256=catalog[i]["sha256"],
                         bytes=catalog[i]["file_mb"] * 1_000_000, role="comparison")
-                   for i in dict.fromkeys([a.reference] + COMPARISON_IDS) if i in catalog]
+                   for i in dict.fromkeys([a.reference] + [c for c in a.comparisons.split(",") if c and c != "none"])
+                   if i in catalog]
     print(f"moe-bench on {hw.cpu_model} ({hw.logical_cores} cores, {hw.ram_nominal_gib} GB), runtime {runtime_dir}, "
           f"{a.threads} threads, files in {dest}")
     print("Expect a long run on an old CPU: minutes to load each file and well under one token per second "

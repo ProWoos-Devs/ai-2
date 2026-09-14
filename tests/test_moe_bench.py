@@ -27,7 +27,7 @@ def test_cache_rule_reads_turn_counts_and_the_server_line():
 
 
 def test_report_table_and_errors():
-    rows = [{"id": "qwen3-1.7b", "label": "Qwen3 1.7B", "params_b": 1.7, "hybrid": False, "role": "comparison",
+    rows = [{"id": "qwen3-1.7b", "label": "Qwen3 1.7B", "params_b": 1.7, "active_b": None, "hybrid": False, "role": "comparison",
              "file_mib": 1011, "tg": 0.39, "pp": 0.5, "peak_rss_mib": 1900, "cache_reused": None},
             {"id": "granite-4.0-h-tiny", "label": "Granite 4.0 H-Tiny", "params_b": 7.0, "active_b": 1.0,
              "hybrid": True, "role": "candidate", "file_mib": 4035, "tg": 0.67, "pp": 0.9,
