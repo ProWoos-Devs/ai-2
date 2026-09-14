@@ -62,11 +62,23 @@ def models_that_fit(ram_mib: int, catalog: list[dict] | None = None) -> list[dic
     return [m for m in catalog if m["ram_peak_mb"] <= budget]
 
 
-def load_catalog() -> list[dict]:
+def load_catalog(kind: str | None = "chat") -> list[dict]:
+    """The catalog, smallest first. By default only the chat models: every
+    consumer here (recommend, the picker, the wizard's offers, the tiers) means
+    a model that can answer, and an embedding model handed to the chat server
+    would be a silent failure. kind="embedding" gives the text embedders `ai-2
+    doc` uses, kind=None everything."""
     data = yaml.safe_load(
         importlib.resources.files("ai2").joinpath("data/models.yml").read_text()
     )
-    return sorted(data["models"], key=lambda m: m["params_b"])
+    models = data["models"]
+    if kind is not None:
+        models = [m for m in models if m.get("kind", "chat") == kind]
+    return sorted(models, key=lambda m: m["params_b"])
+
+
+def embedding_models() -> list[dict]:
+    return load_catalog(kind="embedding")
 
 
 def estimate_tps(measured_tps: float, measured_params_b: float, candidate_params_b: float) -> float:

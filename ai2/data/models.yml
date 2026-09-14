@@ -13,6 +13,11 @@
 # file_mb is the real Content-Length rounded up. sha256 is the Hugging Face LFS
 # oid of the file (fetched from the HF API), checked after every download;
 # verified is the date the URL, size and hash were last confirmed.
+# kind (optional, default chat): `embedding` entries are the text embedders the
+# documents workflow uses for retrieval; load_catalog() leaves them out of the
+# chat catalog, so no recommendation, picker or tier can hand one to the chat
+# server. They carry dims, ctx (the GGUF's context, the chunk ceiling), the
+# nomic prefix rule (prefix_document / prefix_query) and multilingual.
 # sampling (optional) is passed to llama-server as its default sampling
 # (--temp/--top-k/--top-p/--min-p/--repeat-penalty); the chat page picks these
 # up from /props. Only set when the model's own card recommends values.
@@ -113,3 +118,48 @@ models:
     sha256: 65b8fcd92af6b4fefa935c625d1ac27ea29dcb6ee14589c55a8f115ceaaa1423
     verified: 2026-08-21
     license: apache-2.0
+
+  # Text embedders for `ai-2 doc` (retrieval, no generation). Chosen 2026-09-14
+  # on a Spanish test document (Constitution, 37 chunks, 12 questions, top-3):
+  # nomic-embed-text-v2-moe 12/12, nomic-embed-text-v1.5 11/12,
+  # all-MiniLM-L6-v2 4/12 (not cataloged). ram_peak_mb is the measured VmHWM
+  # of llama-server --embeddings with -ub 512, 4 inputs of 256 tokens, on an
+  # 8-thread AVX2 laptop (v1.5 251 MiB, v2-moe 1040 MiB), rounded up.
+  - id: nomic-embed-text-v2-moe
+    label: Nomic Embed Text v2 MoE (multilingual)
+    kind: embedding
+    params_b: 0.475
+    quant: Q4_K_M
+    file_mb: 345
+    ram_peak_mb: 1100
+    repo: nomic-ai/nomic-embed-text-v2-moe-GGUF
+    file: nomic-embed-text-v2-moe.Q4_K_M.gguf
+    sha256: b5fb2811647b8ef461519a68a3bf67014a84a66a130c8a2af9413ff9f06d3f22
+    verified: 2026-09-14
+    license: apache-2.0
+    dims: 768
+    ctx: 512
+    prefix_document: "search_document: "
+    prefix_query: "search_query: "
+    multilingual: true
+
+  - id: nomic-embed-text-v1.5
+    label: Nomic Embed Text v1.5 (English)
+    kind: embedding
+    params_b: 0.137
+    quant: Q4_K_M
+    file_mb: 85
+    ram_peak_mb: 300
+    repo: nomic-ai/nomic-embed-text-v1.5-GGUF
+    file: nomic-embed-text-v1.5.Q4_K_M.gguf
+    sha256: d4e388894e09cf3816e8b0896d81d265b55e7a9fff9ab03fe8bf4ef5e11295ac
+    verified: 2026-09-14
+    license: apache-2.0
+    dims: 768
+    ctx: 2048
+    prefix_document: "search_document: "
+    prefix_query: "search_query: "
+    # The model card declares English; it still found 11 of 12 Spanish answers
+    # in the 2026-09-14 test. The lighter choice for machines that cannot
+    # afford the MoE's memory.
+    multilingual: false

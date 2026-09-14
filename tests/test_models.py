@@ -42,3 +42,18 @@ def test_starter_and_ram_fit():
     assert not is_starter(by_id["gemma3-1b"])
     fit = [m["id"] for m in models_that_fit(3800, cat)]     # 4 GB machine
     assert "gemma3-1b" in fit and "smollm3-3b" not in fit
+
+
+def test_catalog_kinds_are_separated():
+    """Embedders never reach recommend(), the picker or the tiers: load_catalog()
+    is chat-only by default, kind="embedding" is the documents workflow's list."""
+    from ai2.models import embedding_models, load_catalog, recommend
+    chat = load_catalog()
+    assert all(m.get("kind", "chat") == "chat" for m in chat)
+    emb = embedding_models()
+    assert {m["id"] for m in emb} >= {"nomic-embed-text-v2-moe", "nomic-embed-text-v1.5"}
+    assert all(m["kind"] == "embedding" for m in emb)
+    assert len(load_catalog(kind=None)) == len(chat) + len(emb)
+    # a 2 GB box at 5 tok/s must still be handed a chat model, not the 137M embedder
+    rec = recommend(2048, 5.0, 0.5)
+    assert rec["local"] is not None and rec["local"].get("kind", "chat") == "chat"

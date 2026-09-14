@@ -26,7 +26,9 @@ TIER_KEYS = {"tier", "label", "requires", "config_from", "session", "memory",
 CATALOG_REQUIRED = {"id", "label", "params_b", "quant", "file_mb",
                     "ram_peak_mb", "repo", "file", "sha256", "verified",
                     "license"}
-CATALOG_OPTIONAL = {"benchmark", "sampling", "spec_type_measured"}
+CATALOG_OPTIONAL = {"benchmark", "sampling", "spec_type_measured",
+                    # embedding entries (kind: embedding), see models.yml
+                    "kind", "dims", "ctx", "prefix_document", "prefix_query", "multilingual"}
 SAMPLING_KEYS = {"temp", "top_k", "top_p", "min_p", "repeat_penalty"}
 PROFILE_REQUIRED = {"id", "description", "requests", "minimum", "remote", "tiers"}
 PROFILE_KEYS = PROFILE_REQUIRED | {"usage"}
@@ -112,6 +114,16 @@ def test_catalog_entries_have_valid_shape():
         assert isinstance(m["license"], str) and m["license"], where
         if "benchmark" in m:
             assert m["benchmark"] is True, where
+        if m.get("kind", "chat") == "embedding":
+            assert isinstance(m["dims"], int) and m["dims"] > 0, f"{where}: dims"
+            assert isinstance(m["ctx"], int) and m["ctx"] >= 512, f"{where}: ctx"
+            assert isinstance(m["multilingual"], bool), f"{where}: multilingual"
+            for k in ("prefix_document", "prefix_query"):
+                assert isinstance(m[k], str) and m[k].endswith(" "), f"{where}: {k}"
+        else:
+            assert m.get("kind", "chat") == "chat", f"{where}: unknown kind {m.get('kind')}"
+            for k in ("dims", "ctx", "prefix_document", "prefix_query", "multilingual"):
+                assert k not in m, f"{where}: {k} belongs to embedding entries"
         if "sampling" in m:
             s = m["sampling"]
             assert set(s) <= SAMPLING_KEYS, f"{where}: sampling keys {set(s) - SAMPLING_KEYS}"

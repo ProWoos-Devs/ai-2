@@ -261,7 +261,9 @@ def _usable_model(hw) -> dict | None:
 
 
 def _catalog_entry(model_id: str) -> dict | None:
-    return next((m for m in load_catalog() if m["id"] == model_id), None)
+    """Any catalog entry by id, embedders included (pull, rm and verify take
+    them; serve and chat check the kind themselves)."""
+    return next((m for m in load_catalog(kind=None) if m["id"] == model_id), None)
 
 
 PICK_MODEL = "?"   # `--model` given with no value: ask interactively
@@ -344,7 +346,7 @@ def cmd_model_pull(args) -> int:
         model = _catalog_entry(args.model)
         if model is None:
             print(f"error: '{args.model}' is not in the catalog "
-                  f"(ids: {', '.join(m['id'] for m in load_catalog())})", file=sys.stderr)
+                  f"(ids: {', '.join(m['id'] for m in load_catalog(kind=None))})", file=sys.stderr)
             return 1
     else:
         model = _recommended_model(hw)
@@ -382,7 +384,7 @@ def _pull_model(model: dict, force: bool = False) -> int:
 
 def cmd_model_list(args) -> int:
     hw = detect()
-    catalog = load_catalog()
+    catalog = load_catalog(kind=None)
     rec = _recommended_model(hw)
     have = installed_models(catalog)
     running = serverstate.read_server()
@@ -404,8 +406,9 @@ def cmd_model_list(args) -> int:
     if others:
         print("Available to download (ai-2 model pull <id>):")
         for m in others:
-            print(f"  {m['id']:<16} {m['file_mb']:>6} MB  {m['label']}"
-                  + ("  [recommended]" if rec and m["id"] == rec["id"] else ""))
+            kind = "  [for documents, not chat]" if m.get("kind") == "embedding" else ""
+            print(f"  {m['id']:<24} {m['file_mb']:>6} MB  {m['label']}"
+                  + ("  [recommended]" if rec and m["id"] == rec["id"] else "") + kind)
     return 0
 
 
@@ -432,7 +435,7 @@ def cmd_model_rm(args) -> int:
 
 
 def cmd_model_verify(args) -> int:
-    catalog = load_catalog()
+    catalog = load_catalog(kind=None)
     targets = [m for m in catalog if not args.model or m["id"] == args.model]
     if args.model and not targets:
         print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
@@ -473,6 +476,10 @@ def cmd_serve(args) -> int:
         model = _catalog_entry(args.model)
         if model is None:
             print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
+            return 1
+        if model.get("kind", "chat") != "chat":
+            print(f"error: {model['label']} is an embedding model, it cannot chat. "
+                  "It is used by: ai-2 doc", file=sys.stderr)
             return 1
     else:
         model = _usable_model(hw)
