@@ -270,6 +270,15 @@ def sampling_args(model: dict) -> list[str]:
     return out
 
 
+def _is_timeout(exc: BaseException) -> bool:
+    """A poll that timed out (connect or read), as urllib reports it."""
+    import socket
+    import urllib.error
+    if isinstance(exc, (TimeoutError, socket.timeout)):
+        return True
+    return isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, (TimeoutError, socket.timeout))
+
+
 def _shutdown(proc) -> int:
     """Terminate llama-server and really wait it out; escalate to SIGKILL if
     it ignores SIGTERM (a model loading from a slow disk can hang a while)."""
@@ -306,10 +315,20 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
     failure counts as idle time (the old behavior reset the idle clock on every
     error, so one transient failure kept the model resident forever, found in
     the 2026-08-21 review). Before the first successful poll the clock is held
-    for at most startup_grace_s (a cold HDD load can take minutes)."""
+    for at most startup_grace_s (a cold HDD load can take minutes).
+
+    One exception, a poll that TIMES OUT counts as busy. llama-server answers
+    /slots from the same loop that runs the model, so while it chews on a long
+    batch (an embedding batch, or a 900-token prompt at 1.5 tok/s on the
+    validated laptops) it cannot answer for minutes; those timeouts were
+    counted as idle and the wrapper killed the server in the middle of an
+    `ai-2 doc index` on rafaminu-pc (2026-09-14). A dead server refuses the
+    connection instead of timing out, so failing closed still holds for it."""
     import json
     import signal
+    import socket
     import time
+    import urllib.error
     import urllib.request
 
     from . import serverstate
@@ -350,8 +369,10 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
                 seen_up = True
                 if any(s.get("is_processing") for s in slots):
                     last_busy = now
-            except Exception:
-                if not seen_up and now - started < startup_grace_s:
+            except Exception as exc:
+                if _is_timeout(exc):
+                    last_busy = now       # too busy to answer: working, not idle
+                elif not seen_up and now - started < startup_grace_s:
                     last_busy = now       # still loading, do not count as idle
                 # otherwise the failure counts as idle time (fail closed)
             if now - last_busy >= idle_timeout_s:

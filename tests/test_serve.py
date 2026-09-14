@@ -22,6 +22,25 @@ FAKE_SERVER = textwrap.dedent('''\
 
 DEAF_SERVER = "#!/bin/sh\nexec sleep 600\n"   # never answers a poll
 
+BUSY_SERVER = textwrap.dedent('''\
+    #!/usr/bin/env python3
+    # Stand-in for a llama-server chewing on a long batch: for its first 8 s it
+    # answers /slots only after 3 s (past the wrapper's 2 s poll timeout), then
+    # it is idle and answers at once.
+    import http.server, sys, time
+    port = int(sys.argv[sys.argv.index("--port") + 1])
+    t0 = time.time()
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/slots" and time.time() - t0 < 8:
+                time.sleep(3)
+            body = b"[]" if self.path == "/slots" else b"{}"
+            self.send_response(200); self.send_header("Content-Length", str(len(body)))
+            self.end_headers(); self.wfile.write(body)
+        def log_message(self, *a): pass
+    http.server.HTTPServer(("127.0.0.1", port), H).serve_forever()
+''')
+
 
 def _runtime_dir(tmp_path, script):
     d = tmp_path / "rt"
@@ -47,6 +66,20 @@ def test_unreachable_server_counts_as_idle_after_grace(tmp_path, monkeypatch):
     rc = runtime.serve(rt, "m.gguf", threads=1, port=18766, idle_timeout_s=2,
                        startup_grace_s=1, model_id="t")
     assert rc in (0, -15)
+    assert serverstate.read_server() is None
+
+
+def test_poll_timeouts_count_as_busy_not_idle(tmp_path, monkeypatch):
+    """Found on rafaminu-pc 2026-09-14: while llama-server embedded a batch it
+    could not answer /slots, every poll timed out, the timeouts were counted
+    as idle and the wrapper killed the server mid-index."""
+    import time
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    rt = _runtime_dir(tmp_path, BUSY_SERVER)
+    t0 = time.monotonic()
+    rc = runtime.serve(rt, "m.gguf", threads=1, port=18767, idle_timeout_s=4, model_id="t")
+    assert rc in (0, -15)
+    assert time.monotonic() - t0 >= 8, "shut down while the server was still busy"
     assert serverstate.read_server() is None
 
 
