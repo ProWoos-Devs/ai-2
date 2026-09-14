@@ -8,9 +8,11 @@ from ai2 import updates
 
 
 def _fake_checkupdates(tmp_path, monkeypatch, script):
+    """A stand-in pamac-checkupdates: prints "name  old -> new" lines and
+    exits 100 when there are updates, 0 when there are none."""
     d = tmp_path / "bin"
     d.mkdir(exist_ok=True)
-    p = d / "checkupdates"
+    p = d / updates.CHECK_CMD
     p.write_text(script)
     p.chmod(p.stat().st_mode | stat.S_IEXEC)
     monkeypatch.setenv("PATH", f"{d}:{os.environ['PATH']}")
@@ -19,23 +21,78 @@ def _fake_checkupdates(tmp_path, monkeypatch, script):
 def test_check_now_counts_and_persists(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     _fake_checkupdates(tmp_path, monkeypatch,
-                       "#!/bin/sh\necho 'ai-2 0.5.1-1 -> 0.5.2-1'\necho 'linux 6.9-1 -> 6.10-1'\n")
+                       "#!/bin/sh\necho 'ai-2  0.5.1-1 -> 0.5.2-1'\necho 'linux  6.9-1 -> 6.10-1'\n"
+                       "echo 'broadcom-wl-dkms  6.30.223.271-1'\nexit 100\n")   # the last is a replacer line
     st = updates.check_now()
-    assert st["count"] == 2 and st["packages"] == ["ai-2", "linux"]
-    assert json.load(open(updates.state_file()))["count"] == 2
+    assert st["count"] == 3 and st["packages"] == ["ai-2", "linux", "broadcom-wl-dkms"]
+    assert json.load(open(updates.state_file()))["count"] == 3
+
+
+def test_check_waits_for_a_due_refresh_then_lists_again(tmp_path, monkeypatch):
+    """The QEMU install 2026-09-14: on a never-synced system the first run
+    asks the daemon to refresh and lists nothing before the daemon is done;
+    the stamp appears a second later and the run after it lists 49."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    stamp = tmp_path / "refresh_timestamp"
+    monkeypatch.setattr(updates, "PAMAC_REFRESH_STAMP", str(stamp))
+    monkeypatch.setattr(updates, "PAMAC_CONF", str(tmp_path / "no-such-pamac.conf"))
+    calls = tmp_path / "calls"
+    # the daemon "finishes" on the second tick of our sleep, not inside the run
+    _fake_checkupdates(tmp_path, monkeypatch,
+                       f"#!/bin/sh\necho . >> {calls}\nif [ ! -e {stamp} ]; then exit 0; fi\n"
+                       "echo 'a  1-1 -> 1-2'\necho 'b  1-1 -> 1-2'\nexit 100\n")
+    ticks = []
+    def sleep(s):
+        ticks.append(s)
+        if len(ticks) == 2:
+            stamp.touch()
+    st = updates.check_now(sleep=sleep)
+    assert st["count"] == 2 and calls.read_text().count(".") == 2 and len(ticks) == 2
+    # a fresh stamp: not due, a single run, no waiting
+    calls.write_text(""); ticks.clear()
+    assert updates.check_now(sleep=sleep)["count"] == 2
+    assert calls.read_text().count(".") == 1 and ticks == []
+    # due (stamp older than RefreshPeriod) but the refresh never lands: "could not check", state kept
+    old = time.time() - 7 * 3600
+    os.utime(stamp, (old, old))
+    calls.write_text("")
+    monkeypatch.setattr(updates, "_run_check", lambda t: ([], True))
+    assert updates.check_now(wait_refresh_s=2, sleep=lambda s: None) is None
+    assert updates.load_state()["count"] == 2
+
+
+def test_refresh_due_follows_pamac_conf(tmp_path, monkeypatch):
+    stamp = tmp_path / "refresh_timestamp"
+    monkeypatch.setattr(updates, "PAMAC_REFRESH_STAMP", str(stamp))
+    conf = tmp_path / "pamac.conf"
+    monkeypatch.setattr(updates, "PAMAC_CONF", str(conf))
+    assert updates.refresh_due()                          # no stamp at all
+    now = time.time()
+    stamp.touch(); os.utime(stamp, (now - 1800, now - 1800))
+    assert not updates.refresh_due(now)                   # half an hour: never, whatever the period
+    os.utime(stamp, (now - 3 * 3600, now - 3 * 3600))
+    assert not updates.refresh_due(now)                   # 3 h, default period 6
+    conf.write_text("## comment\nRefreshPeriod = 1\n")
+    assert updates.refresh_due(now)                       # 3 h, period 1
+    os.utime(stamp, (now - 7 * 3600, now - 7 * 3600))
+    conf.write_text("RefreshPeriod = 6\n")
+    assert updates.refresh_due(now)
 
 
 def test_check_failure_keeps_old_state(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
-    _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\necho x\n")
+    _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\necho 'x  1-1 -> 1-2'\nexit 100\n")
     assert updates.check_now()["count"] == 1
-    # exit 1 = real error (offline): old state must survive
+    # exit 1 = real error: old state must survive
     _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\nexit 1\n")
     assert updates.check_now() is None
     assert updates.load_state()["count"] == 1
-    # exit 2 = checked fine, nothing pending: state becomes 0
-    _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\nexit 2\n")
+    # exit 0 = checked fine, nothing pending: state becomes 0
+    _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\nexit 0\n")
     assert updates.check_now()["count"] == 0
+    # the tool missing altogether: no state change either
+    monkeypatch.setattr(updates.shutil, "which", lambda name: None)
+    assert updates.check_now() is None
 
 
 def test_state_freshness(tmp_path, monkeypatch):
@@ -56,7 +113,7 @@ def test_state_freshness(tmp_path, monkeypatch):
 def test_cli_update_check(tmp_path, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
-    _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\necho 'pkg 1-1 -> 2-1'\n")
+    _fake_checkupdates(tmp_path, monkeypatch, "#!/bin/sh\necho 'pkg  1-1 -> 2-1'\nexit 100\n")
     sent = []
     monkeypatch.setattr(updates, "notify", lambda n: sent.append(n) or True)
     _pamac_open(monkeypatch, False)

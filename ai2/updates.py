@@ -5,9 +5,18 @@ notify-send) and a one-line hint in login shells (/etc/profile.d reads the
 state file this module writes). Nothing here installs anything; updating stays
 an explicit `sudo pacman -Syu`.
 
-The check runs `checkupdates` (pacman-contrib): it syncs a private copy of the
-sync db, so it never touches the real pacman db and needs no root. Offline or
-on any failure the old state is kept and nothing is reported.
+The check runs `pamac-checkupdates` (libpamac), the program pamac's own tray
+icon runs hourly. It asks pamac's daemon to refresh the system databases when
+they are older than pamac.conf's RefreshPeriod (6 hours; the daemon does that
+for any user, no password) and then lists what is pending against those same
+databases. That is what makes the bubble and Software Updates agree: until
+2026-09-14 the check used pacman-contrib's `checkupdates`, which syncs a
+private copy, so the bubble knew about a release minutes after it was
+published while Software Updates, which reads the system databases and does
+not refresh them when it opens, said there was nothing (rafaminu-pc). AI-2
+hides pamac's tray, so nothing else refreshes those databases between
+updates. Offline or on any failure the old state is kept and nothing is
+reported.
 """
 import json
 import os
@@ -53,21 +62,90 @@ def state_is_fresh(max_age_h: float, now: float | None = None) -> bool:
     return True
 
 
-def check_now(timeout_s: int = 120) -> dict | None:
-    """Run checkupdates and persist the result. Returns the new state, or None
-    when the check could not run (offline, missing tool); old state is kept."""
-    if not shutil.which("checkupdates"):
-        return None
+CHECK_CMD = "pamac-checkupdates"   # libpamac; see the module docstring
+# pamac's daemon touches this after it refreshed the system databases.
+PAMAC_REFRESH_STAMP = "/var/lib/pacman/sync/refresh_timestamp"
+PAMAC_CONF = "/etc/pamac.conf"
+DEFAULT_REFRESH_PERIOD_H = 6
+
+
+def _stamp_mtime() -> float | None:
     try:
-        proc = subprocess.run(["checkupdates"], capture_output=True, text=True,
-                              timeout=timeout_s)
+        return os.path.getmtime(PAMAC_REFRESH_STAMP)
+    except OSError:
+        return None
+
+
+def refresh_period_h() -> float:
+    """pamac.conf's RefreshPeriod, hours between database refreshes."""
+    try:
+        with open(PAMAC_CONF) as fh:
+            for line in fh:
+                key, _, value = line.partition("=")
+                if key.strip() == "RefreshPeriod":
+                    return float(value.strip())
+    except (OSError, ValueError):
+        pass
+    return DEFAULT_REFRESH_PERIOD_H
+
+
+def refresh_due(now: float | None = None) -> bool:
+    """pamac's own rule (libpamac Database.need_refresh): refresh when the
+    last one is at least an hour old and at least RefreshPeriod hours old; a
+    missing stamp (fresh offline install) means refresh."""
+    mtime = _stamp_mtime()
+    if mtime is None:
+        return True
+    age = (now if now is not None else time.time()) - mtime
+    if age < 3600:
+        return False
+    return age / 3600 >= refresh_period_h()
+
+
+def _run_check(timeout_s: int):
+    """One pamac-checkupdates run: (names, ok). ok is False on a failure that
+    must not overwrite a good state. pamac-checkupdates exits 100 with a
+    list, 0 with none (libpamac src/checkupdates.vala); lines are
+    "name  old -> new" (a replacer has no arrow), the first word is the name."""
+    try:
+        proc = subprocess.run([CHECK_CMD], capture_output=True, text=True, timeout=timeout_s)
     except (OSError, subprocess.TimeoutExpired):
+        return [], False
+    if proc.returncode not in (0, 100):
+        return [], False
+    return [line.split()[0] for line in proc.stdout.splitlines() if line.split()], True
+
+
+def check_now(timeout_s: int = 600, wait_refresh_s: int = 300, sleep=time.sleep) -> dict | None:
+    """Run pamac-checkupdates and persist the result. Returns the new state,
+    or None when the check could not run (missing tool, timeout, failure, a
+    due refresh that did not happen); old state is kept.
+
+    When a refresh is due, pamac-checkupdates asks the daemon for it and
+    lists BEFORE the daemon is done (measured in the QEMU install
+    2026-09-14: the check returned "0 updates" at 23:22:39, the daemon wrote
+    the databases and the stamp at 23:22:40; the run after it listed 49). A
+    fresh AI-2 install is exactly that case, the offline installer leaves the
+    sync directory empty. So when a refresh is due this waits for the stamp
+    to change, up to wait_refresh_s, and lists again; a stamp that never
+    changes means the refresh failed (offline, no daemon) and the honest
+    answer is "could not check", never "the system is current"."""
+    if not shutil.which(CHECK_CMD):
         return None
-    # checkupdates exits 0 with a list, 2 with none; 1 is a real error
-    # (offline, db sync failure) and must not overwrite a good state.
-    if proc.returncode not in (0, 2):
+    before = _stamp_mtime()
+    due = refresh_due()
+    names, ok = _run_check(timeout_s)
+    if not ok:
         return None
-    names = [line.split()[0] for line in proc.stdout.splitlines() if line.split()]
+    if due:
+        deadline = time.monotonic() + wait_refresh_s
+        while _stamp_mtime() == before and time.monotonic() < deadline:
+            sleep(1)
+        if _stamp_mtime() == before:
+            return None
+        names, ok = _run_check(timeout_s)
+        if not ok:
+            return None
     st = {"checked_at": time.time(), "count": len(names), "packages": names[:10]}
     os.makedirs(state_dir(), exist_ok=True)
     with open(state_file(), "w") as fh:

@@ -207,11 +207,11 @@ def check_broadcom() -> Check:
 
 
 def check_updates() -> Check:
-    if not shutil.which("checkupdates"):
-        return Check(INFO, "Updates", "checkupdates not installed (pacman-contrib)")
-    # Shared with the login hint and the desktop bubble: reads checkupdates'
-    # exit code (1 is a failure, not "nothing to do") and warms their cache.
-    st = updates.load_state() if updates.state_is_fresh(1) else updates.check_now(timeout_s=60)
+    if not shutil.which(updates.CHECK_CMD):
+        return Check(INFO, "Updates", f"{updates.CHECK_CMD} not installed (libpamac)")
+    # Shared with the login hint and the desktop bubble: reads the checker's
+    # exit code (a failure is not "nothing to do") and warms their cache.
+    st = updates.load_state() if updates.state_is_fresh(1) else updates.check_now(timeout_s=60, wait_refresh_s=60)
     if st is None:
         return Check(INFO, "Updates", "could not check (offline, or the mirror did not answer); later: ai-2 update")
     n = st.get("count", 0)

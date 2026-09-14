@@ -1171,7 +1171,7 @@ def cmd_update_check(args, sleep=None) -> int:
         st = (updates.load_state() or {}) if cached else (updates.check_now() or updates.load_state() or {})
         count = st.get("count")
         if count is None:
-            print("No update information (offline, or checkupdates missing).", flush=True)
+            print("No update information (offline, or pamac-checkupdates missing).", flush=True)
         else:
             due = args.notify and count and (owed or not cached)
             owed = False

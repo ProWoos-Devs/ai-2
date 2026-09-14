@@ -405,13 +405,13 @@ class Wizard:
         """Tell the user, in one line, whether system updates are waiting. The
         AI-2 tool, the engine and the model catalog all update through pacman."""
         import shutil
-        if not shutil.which("checkupdates"):
+        if not shutil.which(updates.CHECK_CMD):
             self.say(tr("\n  Updates: keep AI-2 (and its models list) current with  ai-2 update"))
             return
         # The one implementation of "are updates waiting", shared with the
-        # login hint and the desktop bubble: it reads checkupdates' exit code
-        # (1 is a failure, not "nothing to do") and warms the cache they read.
-        st = updates.load_state() if updates.state_is_fresh(1) else updates.check_now(timeout_s=60)
+        # login hint and the desktop bubble: it reads the checker's exit code
+        # (a failure is not "nothing to do") and warms the cache they read.
+        st = updates.load_state() if updates.state_is_fresh(1) else updates.check_now(timeout_s=60, wait_refresh_s=60)
         if st is None:
             self.say(tr("\n  Updates: could not check right now. Any time:  ai-2 update"))
         elif st.get("count"):
