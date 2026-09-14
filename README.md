@@ -102,7 +102,7 @@ ai-2 logo            # the mark, in the size the terminal allows
 
 Three orthogonal pillars. The Adaptation Engine detects hardware, assigns one of six capability tiers (Tiny, Light, Standard, Creator, Studio, Workstation), and applies the corresponding configuration. The Workflow Engine describes what the user wants to do, as declarative YAML profiles. The Runtime Engine executes models; the local runtime is llama.cpp, selected per CPU class, with persistent heavyweight daemons avoided on low-memory tiers.
 
-The packaged llama.cpp runtime is CPU-only today. GPU acceleration is planned, but AI-2 does not yet select or configure a CUDA, Vulkan or ROCm runtime.
+The packaged llama.cpp runtime is CPU-only, and `ai-2 detect` says so next to any GPU it lists. This position was reviewed with sources on 2026-09-14. CUDA and ROCm are not coming for the hardware AI-2 is built for. The CUDA toolkit package alone is bigger than the whole AI-2 ISO and CUDA 13 dropped the GeForce GTX 10 series and older, while ROCm is over 9 GB installed and supports no GCN card. Proprietary NVIDIA drivers are out-of-tree kernel modules, the same class of problem as the Broadcom WiFi driver, so they will never ship on the image. The one GPU path under consideration is a Vulkan build of llama.cpp on Mesa's open drivers. It is not built, and it would pay off only on a machine with a discrete card of the Radeon RX 400 or GeForce GTX 10 generation or later, never on the shared-memory integrated GPUs of the laptops AI-2 was validated on, which cannot run it at all.
 
 **Workflows request capabilities; tiers grant a subset; runtimes execute what was granted.** RAM alone over-promises, so the AI Score measured by `ai-2 benchmark`, not the tier, gates which model is recommended.
 

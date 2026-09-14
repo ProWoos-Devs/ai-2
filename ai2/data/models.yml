@@ -4,7 +4,10 @@
 # Score gates which of these a given machine is steered to.
 # Every repo/file here must be downloadable ANONYMOUSLY (no HF login, no gated
 # license click): verified with a HEAD request 2026-08-19 (the official Qwen3
-# repo only ships Q8_0, Google's Gemma repo is gated, hence the unsloth mirrors).
+# repo only ships Q8_0; Google's Gemma 3 repos are gated ("manual", license
+# gemma), hence the unsloth mirrors. Gemma 4 differs, its google/ repos report
+# gated False under Apache 2.0, first-party QAT q4_0 GGUFs included, checked
+# through the HF API 2026-09-14).
 # ram_peak_mb for the 2026-08-21 additions is an estimate (file + ~400 MB).
 # license is the model's own license (apache-2.0, gemma = Gemma Terms of Use).
 # file_mb is the real Content-Length rounded up. sha256 is the Hugging Face LFS
