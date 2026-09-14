@@ -44,6 +44,7 @@ CHUNK_WORDS = 110
 OVERLAP_WORDS = 20
 TOP_K = 3
 SLOW_PREFILL_S = 60        # above this the local answer is "minutes", route to the remote if there is one
+ANSWER_MIN_TG = 1.0        # the answering model may be slower than the chat floor (1.5); the user accepted a wait
 TEXT_SUFFIXES = {".txt", ".md", ".markdown", ".csv", ".log", ".rst", ".text"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
@@ -270,6 +271,29 @@ def choose_embedder(ram_mib: int, catalog: list[dict] | None = None) -> dict | N
         return None
     multi = [m for m in fits if m.get("multilingual")]
     return max(multi or fits, key=lambda m: m["params_b"])
+
+
+def choose_answer_model(present: list[dict], ram_mib: int, score: dict | None) -> dict | None:
+    """The chat model `ai-2 doc ask` answers with. Not the speed recommendation:
+    on rafaminu-pc that is the 270M starter, which cannot read excerpts at all
+    (it answered a question about the Constitution with "I am programmed to be
+    a safe and helpful AI assistant", 2026-09-14) while Qwen2.5 0.5B on the
+    same disk can. So, the largest model on disk that fits RAM and is estimated
+    from the AI Score to generate at least ANSWER_MIN_TG tok/s; failing that the
+    largest that fits; without a score the same. `present` is the chat catalog
+    filtered to files on disk."""
+    from .models import estimate_tps
+    budget = max(0, ram_mib - RAM_HEADROOM_MIB)
+    fits = [m for m in present if m["ram_peak_mb"] <= budget] or list(present)
+    if not fits:
+        return None
+    if score and score.get("tg_tps"):
+        fast = [m for m in fits
+                if estimate_tps(float(score["tg_tps"]), float(score.get("bench_params_b") or 0.5),
+                                float(m["params_b"])) >= ANSWER_MIN_TG]
+        if fast:
+            return max(fast, key=lambda m: m["params_b"])
+    return max(fits, key=lambda m: m["params_b"])
 
 
 def estimate_tokens(text: str) -> int:

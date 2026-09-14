@@ -108,6 +108,24 @@ def test_prefill_gate_uses_measured_prompt_speed():
     assert doc.estimate_tokens("a" * 300) == 101
 
 
+def test_answer_model_prefers_the_biggest_usable_over_the_starter():
+    """rafaminu-pc 2026-09-14: the score recommends Gemma 3 270M (nothing clears
+    1.5 tok/s), which produced nonsense over the excerpts; Qwen2.5 0.5B on the
+    same disk answers. doc ask picks the largest present model estimated to
+    still run at 1 tok/s, not the speed recommendation."""
+    from ai2.models import load_catalog
+    by_id = {m["id"]: m for m in load_catalog()}
+    present = [by_id["gemma3-270m"], by_id["qwen2.5-0.5b"], by_id["smollm3-3b"]]
+    score = {"tg_tps": 1.34, "bench_params_b": 0.5}          # rafaminu-pc
+    assert doc.choose_answer_model(present, 7800, score)["id"] == "qwen2.5-0.5b"
+    fast = {"tg_tps": 40.0, "bench_params_b": 0.5}           # a strong CPU: the 3B clears 1 tok/s
+    assert doc.choose_answer_model(present, 7800, fast)["id"] == "smollm3-3b"
+    assert doc.choose_answer_model(present, 3800, fast)["id"] == "qwen2.5-0.5b"   # the 3B does not fit 4 GB
+    assert doc.choose_answer_model(present, 7800, None)["id"] == "smollm3-3b"     # no score: largest that fits
+    assert doc.choose_answer_model([by_id["smollm3-3b"]], 2000, score)["id"] == "smollm3-3b"  # only one, even if it does not fit
+    assert doc.choose_answer_model([], 7800, score) is None
+
+
 def test_build_messages_numbers_the_excerpts():
     hits = [{"text": "El castellano es la lengua oficial.", "doc": "c.pdf", "ord": 2, "of": 37, "score": 0.9},
             {"text": "Madrid es la capital.", "doc": "c.pdf", "ord": 4, "of": 37, "score": 0.8}]

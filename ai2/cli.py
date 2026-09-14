@@ -911,8 +911,19 @@ def _doc_ask(args, docmod) -> int:
     if not hits:
         print("Nothing in the indexed documents matches the question.")
         return 1
-    chat_model = _usable_model(hw)
     score = _load_score()
+    if args.model:
+        chat_model = _catalog_entry(args.model)
+        if chat_model is None or chat_model.get("kind", "chat") != "chat":
+            print(f"error: '{args.model}' is not a chat model in the catalog", file=sys.stderr)
+            return 1
+        if find_model_file(chat_model["file"]) is None:
+            print(f"error: {chat_model['file']} is not downloaded. Run 'ai-2 model pull {chat_model['id']}'.",
+                  file=sys.stderr)
+            return 1
+    else:
+        present = [m["catalog"] for m in installed_models(load_catalog()) if m["id"]]
+        chat_model = docmod.choose_answer_model(present, hw.ram_mib, score)
     label = chat_model["label"] if chat_model else "a small language model"
     messages = docmod.build_messages(question, hits, docmod.doc_system_prompt(persona.system_prompt(label)))
     n_tokens = sum(docmod.estimate_tokens(m["content"]) for m in messages)
@@ -936,7 +947,7 @@ def _doc_ask(args, docmod) -> int:
                   file=sys.stderr)
             return 1
         if est is not None and est > docmod.SLOW_PREFILL_S:
-            print(f"Note: this computer needs about {max(1, round(est / 60))} minute(s) to read the excerpts "
+            print(f"Note: this computer may need up to {max(1, round(est / 60))} minute(s) to read the excerpts "
                   "before the first word of the answer. A remote AI would be faster:  ai-2 remote set <url>")
         if is_starter(chat_model):
             print(f"Note: {chat_model['label']} is a very small starter model; it can get facts wrong.")
@@ -1367,6 +1378,7 @@ def main(argv: list[str] | None = None) -> int:
     p_d_index.set_defaults(func=cmd_doc)
     p_d_ask = d_sub.add_parser("ask", help="ask a question; the closest parts of your documents go to the AI with it")
     p_d_ask.add_argument("question", nargs="+")
+    p_d_ask.add_argument("-m", "--model", help="catalog id of the chat model that answers (default: the largest on disk that fits RAM and is fast enough by the AI Score)")
     p_d_ask.add_argument("--top", type=int, default=3, help="how many parts to hand the AI (default 3)")
     p_d_ask.add_argument("--doc", help="search only this document (name as in ai-2 doc list)")
     p_d_ask.add_argument("--remote", action="store_true", help="answer with the remote AI (ai-2 remote); the excerpts leave this computer")
