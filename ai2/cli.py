@@ -1003,7 +1003,10 @@ def cmd_transcribe(args) -> int:
         out += ".txt"
     print(speech.WAIT_NOTE, flush=True)
     try:
-        text = speech.transcribe(runtime_dir, path, args.file, args.lang, max(1, hw.logical_cores), out)
+        # whisper-cli's own default is min(4, cores): the encoder does not scale
+        # past that and spinning threads cost more than they give (16 threads
+        # spent 5 CPU-minutes on a 5-second clip on the laptop, 2026-09-15)
+        text = speech.transcribe(runtime_dir, path, args.file, args.lang, max(1, min(4, hw.logical_cores)), out)
     except RuntimeError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

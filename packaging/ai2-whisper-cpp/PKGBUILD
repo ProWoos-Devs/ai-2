@@ -1,0 +1,114 @@
+# Maintainer: Rafael Minuesa <rafael.minuesa@gmail.com>
+# whisper.cpp speech-to-text runtimes for AI-2, three ISA variants from one
+# pinned source, the same scheme as ai2-llama-cpp (see that PKGBUILD for the
+# reasoning behind baseline/noavx/avx2 and the ISA gate).
+#
+# Deliberately self-contained (XDA review 2026-09-14, item 5): whisper.cpp
+# ships its own ggml (0.23.0 at this tag; the pinned llama.cpp carries 0.19.0,
+# the two pins move at different speeds), no ffmpeg (WHISPER_COMMON_FFMPEG=OFF,
+# so a world ffmpeg soname bump can never break a signed package; `ai-2
+# transcribe` converts the audio with the ffmpeg command instead), no SDL2 (no
+# live dictation), no server. Only whisper-cli and whisper-bench are built.
+#
+# Each variant installs flat into /usr/lib/ai2/runtimes/whisper.cpp-<variant>/
+# (executables + shared libs side by side, $ORIGIN rpath), which is what
+# ai2/speech.py looks up. isa-check.sh is a copy of ai2-llama-cpp's; keep the
+# two identical.
+
+pkgbase=ai2-whisper-cpp
+pkgname=(ai2-whisper-cpp-baseline ai2-whisper-cpp-noavx ai2-whisper-cpp-avx2)
+_tag=v1.9.4
+pkgver=${_tag#v}
+pkgrel=1
+pkgdesc="whisper.cpp speech-to-text runtime for AI-2 (file transcription)"
+arch=('x86_64')
+url="https://github.com/ggml-org/whisper.cpp"
+license=('MIT')
+makedepends=('cmake' 'git' 'binutils' 'patchelf')
+depends=('gcc-libs' 'glibc')
+options=('!lto' '!debug')
+source=("whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#tag=$_tag"
+        'isa-check.sh')
+sha256sums=('SKIP' 'SKIP')
+
+_common=(
+  -DCMAKE_BUILD_TYPE=Release
+  -DBUILD_SHARED_LIBS=ON
+  -DGGML_NATIVE=OFF
+  -DGGML_OPENMP=ON
+  -DGGML_BLAS=OFF
+  -DGGML_VULKAN=OFF
+  -DGGML_CUDA=OFF
+  -DWHISPER_USE_SYSTEM_GGML=OFF
+  -DWHISPER_BUILD_TESTS=OFF
+  -DWHISPER_BUILD_EXAMPLES=ON
+  -DWHISPER_BUILD_SERVER=OFF
+  -DWHISPER_SDL2=OFF
+  -DWHISPER_COMMON_FFMPEG=OFF
+  -DCMAKE_SKIP_RPATH=ON
+)
+
+_cmake_variant() {
+  local variant=$1; shift
+  cmake -S whisper.cpp -B "build-$variant" "${_common[@]}" "$@" \
+    -DCMAKE_C_FLAGS="$CFLAGS ${_flags}" -DCMAKE_CXX_FLAGS="$CXXFLAGS ${_flags}"
+  # only the two programs AI-2 uses (whisper.cpp puts binaries and libs in bin/)
+  cmake --build "build-$variant" -j"$(nproc)" --target whisper-cli whisper-bench
+}
+
+build() {
+  _flags='-march=x86-64 -mtune=generic -mpopcnt' \
+  _cmake_variant baseline \
+    -DGGML_SSE42=OFF -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF \
+    -DGGML_AVX512=OFF -DGGML_AVX_VNNI=OFF
+
+  _flags='-march=x86-64 -mtune=generic -mpopcnt -msse4.1 -msse4.2' \
+  _cmake_variant noavx \
+    -DGGML_SSE42=ON -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF \
+    -DGGML_AVX512=OFF -DGGML_AVX_VNNI=OFF
+
+  _flags='-march=x86-64-v3 -mtune=generic' \
+  _cmake_variant avx2 \
+    -DGGML_SSE42=ON -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON \
+    -DGGML_AVX512=OFF -DGGML_AVX_VNNI=OFF
+}
+
+check() {
+  local v
+  for v in baseline noavx avx2; do
+    bash isa-check.sh "$v" "build-$v/bin"
+  done
+}
+
+_package_variant() {
+  local variant=$1
+  local dest="$pkgdir/usr/lib/ai2/runtimes/whisper.cpp-$variant"
+  install -d "$dest"
+  local f
+  for f in whisper-cli whisper-bench; do
+    install -m755 "build-$variant/bin/$f" "$dest/"
+  done
+  cp -a "build-$variant"/bin/lib{ggml,whisper}*.so* "$dest/"
+  # Flat layout: every ELF resolves siblings via $ORIGIN and nothing else
+  # (cmake's own rpath handling once produced "$ORIGIN:", see ai2-llama-cpp).
+  for f in "$dest"/*; do
+    [ -L "$f" ] && continue
+    patchelf --set-rpath '$ORIGIN' "$f"
+  done
+  install -Dm644 whisper.cpp/LICENSE "$pkgdir/usr/share/licenses/ai2-whisper-cpp-$variant/LICENSE"
+}
+
+package_ai2-whisper-cpp-baseline() {
+  pkgdesc+=" (baseline: SSE2 only, for pre-SSE4.1 CPUs)"
+  _package_variant baseline
+}
+
+package_ai2-whisper-cpp-noavx() {
+  pkgdesc+=" (noavx: SSE4.2, no AVX)"
+  _package_variant noavx
+}
+
+package_ai2-whisper-cpp-avx2() {
+  pkgdesc+=" (avx2: AVX2+FMA+F16C, Haswell and later)"
+  _package_variant avx2
+}
