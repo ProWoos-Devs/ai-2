@@ -803,7 +803,12 @@ def cmd_doc(args) -> int:
             print("error: name a document (ai-2 doc list) or pass --all", file=sys.stderr)
             return 1
         n = docmod.forget(conn, name=args.name, everything=args.all)
-        print(f"Forgot {n} document{'s' if n != 1 else ''}." if n else f"No document named {args.name!r}.")
+        if n:
+            print(f"Forgot {n} document{'s' if n != 1 else ''}.")
+        elif args.all:
+            print("The index was already empty.")
+        else:
+            print(f"No document named {args.name!r} (ai-2 doc list shows the names).")
         return 0 if n or args.all else 1
     docs = docmod.list_documents(conn)
     model_id = docmod.store_model(conn)

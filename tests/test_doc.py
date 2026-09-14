@@ -166,3 +166,6 @@ def test_doc_list_and_forget_cli(tmp_path, monkeypatch, capsys):
     assert cli.main(["doc", "forget", "c.txt"]) == 0
     assert "Forgot 1 document." in capsys.readouterr().out
     assert cli.main(["doc", "forget", "--all"]) == 0
+    assert "already empty" in capsys.readouterr().out
+    assert cli.main(["doc", "forget", "ghost.txt"]) == 1
+    assert "No document named 'ghost.txt'" in capsys.readouterr().out
