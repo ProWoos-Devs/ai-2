@@ -2,7 +2,7 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.15.0] - 2026-09-15
 ### Added
 - **`ai-2 transcribe FILE`, speech to text with whisper.cpp** (XDA review item 5, file transcription only): a recording, a voice note or a video's audio becomes FILE.txt; anything that is not a 16 kHz mono WAV is converted with the ffmpeg command first (the speech workflow names the package); the language is detected unless `--lang` says; `--model` picks whisper tiny, base (default) or small, downloaded on first use from a catalog of their own, `ai2/data/speech-models.yml` (multilingual q8_0 files, SHA-256 verified). New package `ai2-whisper-cpp`, one pinned whisper.cpp release (v1.9.4) with its own ggml, no ffmpeg or SDL linked in, built once with ggml's runtime CPU dispatch (the program picks the CPU module at start, like the llama.cpp runtime of the one-package change) and checked by the same per-file ISA gate and constructors gate; `ai-2 transcribe` names it when it is missing. Profile `speech` names the model per tier and ffmpeg, and has no star minimum: the `voice` star comes from the chat model's speed and measures nothing about whisper, so it must not decide whether speech works here; a whisper-bench metric is the follow-up. No speed is stated anywhere, nothing was measured on the reference laptops.
 ### Changed
