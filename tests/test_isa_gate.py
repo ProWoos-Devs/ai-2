@@ -36,3 +36,15 @@ def test_gate_modes(tmp_path, insn, baseline_ok, noavx_ok):
     so = _so(tmp_path, "t", insn)
     assert (_gate("baseline", so).returncode == 0) is baseline_ok, _gate("baseline", so).stdout
     assert (_gate("noavx", so).returncode == 0) is noavx_ok, _gate("noavx", so).stdout
+
+
+def test_avx512_scan_ignores_the_file_path(tmp_path):
+    """A clean SSE2 object in a directory whose name contains "zmm" failed the
+    gate: the AVX-512 grep read objdump's header line, which carries the path
+    (a mktemp directory, 2026-09-15). Only instruction lines count now."""
+    d = tmp_path / "tmp.wGzmmI2Ruf"
+    d.mkdir()
+    so = _so(d, "clean", "paddb %xmm1, %xmm0")
+    assert _gate("baseline", so).returncode == 0, _gate("baseline", so).stdout
+    real = _so(d, "avx512", "vpaddb %zmm1, %zmm2, %zmm0")
+    assert _gate("avx2", real).returncode == 1          # a real zmm instruction still fails every mode

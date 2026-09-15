@@ -122,7 +122,9 @@ while IFS= read -r -d '' f; do
   if [ -n "$forbidden" ]; then
     hits=$(printf '%s\n' "$disasm" | grep -Ex "$forbidden" | grep -Evx "$AVX_EXCLUDE" || true)
   fi
-  hits512=$(objdump -d --no-show-raw-insn "$f" 2>/dev/null | grep -Ec "$AVX512" || true)
+  # instruction lines only (tab-separated): the header line carries the file
+  # path, and a path containing "zmm" failed a clean file (2026-09-15)
+  hits512=$(objdump -d --no-show-raw-insn "$f" 2>/dev/null | awk -F'\t' 'NF>=2' | grep -Ec "$AVX512" || true)
   if [ -n "$hits" ] || [ "${hits512:-0}" -gt 0 ]; then
     echo "isa-check FAIL [$variant] $f"
     [ -n "$hits" ] && printf '   %s\n' $hits
