@@ -8,7 +8,7 @@ import pathlib
 import xml.etree.ElementTree as ET
 
 DESKTOP = pathlib.Path("branding/desktop")
-ENTRIES = ["ai2-chat", "ai2-chat-terminal", "ai2-guide", "ai2-software-updates"]
+ENTRIES = ["ai2-chat", "ai2-chat-terminal", "ai2-guide", "ai2-software-updates", "ai2-about"]
 CATEGORY = "X-AI2"
 
 
@@ -32,6 +32,28 @@ def test_the_submenu_collects_that_category():
     assert sub is not None and sub.findtext("Name") == "AI-2"
     assert sub.findtext("Directory") == "ai2.directory"
     assert sub.findtext("Include/Category") == CATEGORY
+
+
+def test_about_ai2_closes_the_submenu_after_a_separator():
+    """Layout checked with garcon 4.20 against the real xfce-applications.menu:
+    the other entries keep garcon's name order, then a separator, then About
+    AI-2, the way About Xfce closes the main menu."""
+    sub = ET.parse(DESKTOP / "ai2.menu").getroot().find("Menu")
+    layout = [(child.tag, child.get("type") or (child.text or "").strip())
+              for child in sub.find("Layout")]
+    assert layout == [("Merge", "all"), ("Separator", ""), ("Filename", "ai2-about.desktop")]
+
+
+def test_every_entry_is_installed_by_the_package():
+    pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text(encoding="utf-8")
+    for name in ENTRIES:
+        assert f"/usr/share/applications/{name}.desktop" in pkgbuild, name
+
+
+def test_about_ai2_opens_its_own_window():
+    entry = _entry("ai2-about")
+    assert entry["Exec"] == "ai-2 about --window"
+    assert entry["Terminal"] == "false"
 
 
 def test_the_submenu_has_a_directory_entry_with_the_ai2_icon():

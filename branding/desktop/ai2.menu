@@ -17,5 +17,12 @@
         <Include>
             <Category>X-AI2</Category>
         </Include>
+        <!-- Every entry in garcon's own (name) order, then About AI-2 last
+             after a separator, the way About Xfce closes the main menu. -->
+        <Layout>
+            <Merge type="all"/>
+            <Separator/>
+            <Filename>ai2-about.desktop</Filename>
+        </Layout>
     </Menu>
 </Menu>

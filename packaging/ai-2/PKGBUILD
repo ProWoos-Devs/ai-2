@@ -54,6 +54,7 @@ package() {
   install -Dm644 branding/desktop/ai2-guide.desktop "$pkgdir/usr/share/applications/ai2-guide.desktop"
   # hidden by TryExec when pamac is not installed
   install -Dm644 branding/desktop/ai2-software-updates.desktop "$pkgdir/usr/share/applications/ai2-software-updates.desktop"
+  install -Dm644 branding/desktop/ai2-about.desktop "$pkgdir/usr/share/applications/ai2-about.desktop"
   # One submenu, Applications > AI-2, for every entry above (X-AI2 category).
   install -Dm644 branding/desktop/ai2.menu "$pkgdir/etc/xdg/menus/applications-merged/ai2.menu"
   install -Dm644 branding/desktop/ai2.directory "$pkgdir/usr/share/desktop-directories/ai2.directory"

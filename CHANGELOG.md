@@ -4,6 +4,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 ### Added
+- **About AI-2** in Applications > AI-2, last after a separator, the way About Xfce closes the main menu, and `ai-2 about` in a terminal: the AI-2 version, the system it is based on (Artix Linux and its init on AI-2 and on Artix installs, the system's own name anywhere else), this computer's AI Score (or how to measure it), the project page and the license. The menu entry opens a small terminal window titled About AI-2 that stays until Enter, the same way the first-login wizard opens, so nothing new is installed for it. English, Spanish and German. The submenu order was checked with garcon 4.20 against the real xfce-applications.menu.
 - `tools/moe-bench.py` and its procedure in `tools/README.md` (XDA review item 6): measures the small mixture-of-experts candidates (Granite 4.0 H-Tiny, LFM2.5-8B-A1B; Gemma 4 E2B as an architecture smoke test) against the cataloged qwen3-1.7b and smollm3-3b on the machine it runs on, with SHA-256 verified downloads, llama-bench prompt and generation speed, peak RSS, and for the hybrid models a two-turn chat that tells whether the prompt cache is reused. Writes a Markdown report with the review's entry gate. No catalog change: the entry and its two fields (active_params_b, class_b) land only for a candidate that clears the gate.
 
 ## [0.15.0] - 2026-09-15

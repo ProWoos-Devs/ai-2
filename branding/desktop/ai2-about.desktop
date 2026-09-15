@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=About AI-2
+Name[es]=Acerca de AI-2
+Name[de]=Über AI-2
+Comment=Version, the system it is based on, this computer's AI Score, website and license
+Comment[es]=Versión, el sistema en que se basa, el AI Score de este ordenador, web y licencia
+Comment[de]=Version, das zugrunde liegende System, der AI Score dieses Computers, Webseite und Lizenz
+Exec=ai-2 about --window
+Icon=ai2
+Terminal=false
+Categories=X-AI2;
+Keywords=about;version;license;
+Keywords[es]=acerca;version;licencia;
+Keywords[de]=über;version;lizenz;

@@ -93,6 +93,7 @@ ai-2 update          # update AI-2, the engine, the model catalog and the system
                      # --gui on either opens pamac, the graphical Add/Remove Software
 ai-2 guide           # the guide for the installed computer, in the system language
 ai-2 logo            # the mark, in the size the terminal allows
+ai-2 about           # version, the system it is based on, AI Score, website, license
 ```
 
 `AI-2` works as a synonym for `ai-2` everywhere.

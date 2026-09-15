@@ -27,6 +27,23 @@ def cmd_logo(args) -> int:
     return 0
 
 
+def cmd_about(args) -> int:
+    """About AI-2. --window is the menu entry: a small terminal window that
+    runs this command again with --wait, which keeps it open until Enter."""
+    from . import about
+    if args.window:
+        if about.open_window():
+            return 0
+        print("No terminal program found to open the About window; showing it here.", file=sys.stderr)
+    print(branding.compact())
+    print()
+    print(about.render(about.about_lines()))
+    if args.wait:
+        print()
+        about.wait_for_enter()
+    return 0
+
+
 def cmd_detect(args) -> int:
     hw = detect()
     if args.json:
@@ -1492,6 +1509,11 @@ def main(argv: list[str] | None = None) -> int:
 
     p_logo = sub.add_parser("logo", help="print the AI-2 logo")
     p_logo.set_defaults(func=cmd_logo)
+
+    p_about = sub.add_parser("about", help="the AI-2 version, the system it is based on, the AI Score, website and license")
+    p_about.add_argument("--wait", action="store_true", help="wait for Enter before exiting")
+    p_about.add_argument("--window", action="store_true", help="open it in its own terminal window (what the menu entry uses)")
+    p_about.set_defaults(func=cmd_about)
 
     args = parser.parse_args(argv)
     if not hasattr(args, "func"):
