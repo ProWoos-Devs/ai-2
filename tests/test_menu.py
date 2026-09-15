@@ -36,14 +36,13 @@ def test_the_submenu_collects_that_category():
     assert sub.findtext("Include/Category") == CATEGORY
 
 
-def test_about_ai2_closes_the_submenu_after_a_separator():
-    """Layout checked with garcon 4.20 against the real xfce-applications.menu:
-    the other entries keep garcon's name order, then a separator, then About
-    AI-2, the way About Xfce closes the main menu."""
+def test_about_ai2_opens_the_submenu():
+    """Rafael, 2026-09-15: About AI-2 is the first entry of the AI-2 submenu,
+    no separator. Checked with garcon 4.20 and in the QEMU install."""
     sub = ET.parse(DESKTOP / "ai2.menu").getroot().find("Menu")
     layout = [(child.tag, child.get("type") or (child.text or "").strip())
               for child in sub.find("Layout")]
-    assert layout == [("Merge", "all"), ("Separator", ""), ("Filename", "ai2-about.desktop")]
+    assert layout == [("Filename", "ai2-about.desktop"), ("Merge", "all")]
 
 
 def _layout(element):

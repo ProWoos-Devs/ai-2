@@ -39,12 +39,12 @@
         <Include>
             <Category>X-AI2</Category>
         </Include>
-        <!-- Every entry in garcon's own (name) order, then About AI-2 last
-             after a separator, the way About Xfce closes the main menu. -->
+        <!-- About AI-2 first (Rafael, 2026-09-15), then every other entry in
+             garcon's own name order. Explicit, because name order alone
+             would put the German "Über AI-2" last. -->
         <Layout>
-            <Merge type="all"/>
-            <Separator/>
             <Filename>ai2-about.desktop</Filename>
+            <Merge type="all"/>
         </Layout>
     </Menu>
 </Menu>
