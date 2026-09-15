@@ -29,6 +29,7 @@ import array
 import json
 import math
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -68,12 +69,55 @@ def data_dir() -> str:
     return os.path.join(base, "ai2")
 
 
-def index_path() -> str:
-    return os.path.join(data_dir(), "doc", "index.sqlite")
+DEFAULT_COLLECTION = "documents"
+_COLLECTION_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+
+
+def doc_root() -> str:
+    return os.path.join(data_dir(), "doc")
+
+
+def valid_collection(name: str) -> bool:
+    """A collection name is a directory name: lower-case letters, digits, dot,
+    dash and underscore, starting with a letter or digit."""
+    return bool(name) and bool(_COLLECTION_NAME.match(name))
+
+
+def index_path(collection: str = DEFAULT_COLLECTION) -> str:
+    return os.path.join(doc_root(), collection, "index.sqlite")
+
+
+def migrate_legacy_index() -> None:
+    """0.14 and 0.15 kept one index at doc/index.sqlite; it becomes the
+    default collection, moved in place (same filesystem, so a rename)."""
+    old = os.path.join(doc_root(), "index.sqlite")
+    new = index_path()
+    if os.path.isfile(old) and not os.path.exists(new):
+        os.makedirs(os.path.dirname(new), exist_ok=True)
+        for suffix in ("-journal", "-wal", "-shm"):     # only there after a crash mid-write
+            if os.path.exists(old + suffix):
+                os.replace(old + suffix, new + suffix)
+        os.replace(old, new)
+
+
+def list_collections() -> list[str]:
+    """The collections that have an index, by name."""
+    migrate_legacy_index()
+    try:
+        names = os.listdir(doc_root())
+    except FileNotFoundError:
+        return []
+    return sorted(n for n in names if valid_collection(n) and os.path.isfile(index_path(n)))
+
+
+def remove_collection(name: str) -> None:
+    shutil.rmtree(os.path.join(doc_root(), name), ignore_errors=True)
 
 
 def open_store(path: str | None = None) -> sqlite3.Connection:
-    path = path or index_path()
+    if path is None:
+        migrate_legacy_index()
+        path = index_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     conn = sqlite3.connect(path)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -279,13 +323,39 @@ def make_chunks(pages: list[str], paged: bool, count_tokens, limit: int,
     return texts, spans, len(words)
 
 
-def cite(hit: dict) -> str:
+def cite(hit: dict, with_collection: bool = False) -> str:
     """Where an excerpt comes from, the way a person looks it up: the PDF page
-    (or pages) when the document has them, else the part number."""
+    (or pages) when the document has them, else the part number; prefixed with
+    the collection when several were searched."""
+    name = f"{hit['collection']}/{hit['doc']}" if with_collection and hit.get("collection") else hit["doc"]
     page, end = hit.get("page"), hit.get("page_end")
     if page:
-        return f"{hit['doc']}, page {page}" if not end or end == page else f"{hit['doc']}, pages {page}-{end}"
-    return f"{hit['doc']}, part {hit['ord'] + 1} of {hit['of']}"
+        return f"{name}, page {page}" if not end or end == page else f"{name}, pages {page}-{end}"
+    return f"{name}, part {hit['ord'] + 1} of {hit['of']}"
+
+
+def search_collections(stores: dict[str, sqlite3.Connection], qvec, top: int = TOP_K,
+                       doc: str | None = None) -> list[dict]:
+    """search() over several stores built with the same embedding model (so
+    their scores compare), merged; each hit names its collection."""
+    hits = []
+    for name, conn in stores.items():
+        for h in search(conn, qvec, top=top, doc=doc):
+            h["collection"] = name
+            hits.append(h)
+    hits.sort(key=lambda h: -h["score"])
+    return hits[:top]
+
+
+def pick_embedder_group(models: dict[str, list[str]], preferred: str | None,
+                        chunks: dict[str, int]) -> str:
+    """Which embedding model a search across collections uses when they were
+    built with different ones (a question is embedded once): the one this
+    computer would index with, when some collection has it, else the model
+    behind the most parts."""
+    if preferred in models:
+        return preferred
+    return max(models, key=lambda m: (sum(chunks[n] for n in models[m]), m))
 
 
 # ------------------------------------------------------- the servers' side

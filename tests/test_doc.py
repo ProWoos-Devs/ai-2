@@ -304,3 +304,100 @@ def test_doc_search_prints_passages_without_a_chat_model(tmp_path, monkeypatch, 
     assert "[1] n.txt, part 1 of 1" in capsys.readouterr().out
     assert cli.main(["doc", "search", "--doc", "ghost.pdf", "x"]) == 1
     assert "No document named 'ghost.pdf'" in capsys.readouterr().err
+
+
+def _store(name, model, docs):
+    conn = doc.open_store(doc.index_path(name))
+    doc.set_store_model(conn, model, 8)
+    for doc_name, texts in docs.items():
+        doc.add_document(conn, doc_name, "/" + doc_name, texts, [fake_vec(t) for t in texts], words=len(texts))
+    conn.close()
+
+
+def test_collection_names_and_the_legacy_index_moves_in_place(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    assert doc.valid_collection("constitucion-es") and doc.valid_collection("python3.14_docs")
+    for bad in ("", "Docs", "../x", "a/b", ".hidden", "-x", "x" * 65):
+        assert not doc.valid_collection(bad)
+    assert doc.list_collections() == []
+    legacy = tmp_path / "data" / "ai2" / "doc" / "index.sqlite"      # where 0.14 and 0.15 kept it
+    conn = doc.open_store(str(legacy))
+    doc.set_store_model(conn, "nomic-embed-text-v1.5", 8)
+    doc.add_document(conn, "old.txt", "/old.txt", ["Madrid"], [fake_vec("Madrid")], words=1)
+    conn.close()
+    assert doc.list_collections() == ["documents"]
+    assert not legacy.exists() and os.path.isfile(doc.index_path("documents"))
+    assert doc.list_documents(doc.open_store())[0]["name"] == "old.txt"
+    os.makedirs(doc.doc_root() + "/Not-A-Name")
+    assert doc.list_collections() == ["documents"]
+
+
+def test_search_across_collections_merges_and_names_them(tmp_path):
+    a = doc.open_store(str(tmp_path / "a.sqlite"))
+    b = doc.open_store(str(tmp_path / "b.sqlite"))
+    for conn, name, text in ((a, "a.txt", "La capital es Madrid."), (b, "b.txt", "Madrid, capital y bandera.")):
+        doc.set_store_model(conn, "m", 8)
+        doc.add_document(conn, name, "/" + name, [text, "otra cosa"], [fake_vec(text), fake_vec("x")], words=4)
+    hits = doc.search_collections({"documents": a, "packs": b}, fake_vec("Madrid bandera"), top=3)
+    assert [h["collection"] for h in hits[:1]] == ["packs"] and len(hits) == 3
+    assert doc.cite(hits[0], with_collection=True) == "packs/b.txt, part 1 of 2"
+    assert doc.cite(hits[0]) == "b.txt, part 1 of 2"
+    chunks = {"documents": 10, "big": 500, "small": 5}
+    assert doc.pick_embedder_group({"v2": ["documents"], "v1": ["big"]}, "v2", chunks) == "v2"   # what this machine indexes with
+    assert doc.pick_embedder_group({"v2": ["small"], "v1": ["big"]}, "none", chunks) == "v1"     # else the most parts
+
+
+def test_doc_cli_with_collections(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": "nomic-embed-text-v2-moe"})
+    _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["Madrid es la capital."]})
+    _store("constitucion", "nomic-embed-text-v2-moe", {"c.pdf": ["La bandera de España.", "Madrid, la capital."]})
+    _store("english", "nomic-embed-text-v1.5", {"e.txt": ["Madrid is the capital."]})
+    assert cli.main(["doc", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "  constitucion  (embedder nomic-embed-text-v2-moe" in out and "    notas.txt" in out and "  english  " in out
+    # every collection built with this machine's embedder, named in the citations; the other one is said
+    assert cli.main(["doc", "search", "--top", "3", "Madrid capital"]) == 0
+    out = capsys.readouterr().out
+    assert "Not searched, built with another embedding model: english" in out
+    assert "constitucion/c.pdf, part" in out and "documents/notas.txt, part 1 of 1" in out and "e.txt" not in out
+    # --in picks one collection, whatever its model; citations stay short
+    assert cli.main(["doc", "search", "--in", "english", "Madrid"]) == 0
+    out = capsys.readouterr().out
+    assert "[1] e.txt, part 1 of 1" in out and "Not searched" not in out
+    assert cli.main(["doc", "search", "--in", "ghost", "x"]) == 1
+    assert "No collection named 'ghost'" in capsys.readouterr().err
+    assert cli.main(["doc", "search", "--in", "Bad/Name", "x"]) == 1
+    assert "not a collection name" in capsys.readouterr().err
+    # forget finds the document's collection, refuses when ambiguous, --all --in removes a collection
+    _store("otra", "nomic-embed-text-v2-moe", {"notas.txt": ["Otra copia."]})
+    assert cli.main(["doc", "forget", "notas.txt"]) == 1
+    assert "more than one collection (documents, otra)" in capsys.readouterr().err
+    assert cli.main(["doc", "forget", "notas.txt", "--in", "otra"]) == 0
+    assert "Forgot 1 document. (collection otra)" in capsys.readouterr().out
+    assert cli.main(["doc", "forget", "c.pdf"]) == 0
+    assert cli.main(["doc", "forget", "--all", "--in", "english"]) == 0
+    assert "Forgot 1 document and the collection english." in capsys.readouterr().out
+    assert "english" not in doc.list_collections() and "otra" in doc.list_collections()
+    assert cli.main(["doc", "forget", "--all", "--in", "english"]) == 1
+
+
+def test_doc_index_into_a_named_collection(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    monkeypatch.setattr(doc.EmbedClient, "ntokens", lambda self, text: len(text.split()))
+    monkeypatch.setattr(doc.EmbedClient, "embed_documents", lambda self, chunks, progress=None: [fake_vec(c) for c in chunks])
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: next(
+        m for m in embedding_models() if m["id"] == "nomic-embed-text-v1.5"))
+    f = tmp_path / "ley.txt"
+    f.write_text("La capital del Estado es la villa de Madrid. " * 30, encoding="utf-8")
+    assert cli.main(["doc", "index", "--in", "leyes", str(f)]) == 0
+    assert "--in leyes" in capsys.readouterr().out
+    assert doc.list_collections() == ["leyes"]
+    conn = doc.open_store(doc.index_path("leyes"))
+    assert doc.store_model(conn) == "nomic-embed-text-v1.5" and doc.list_documents(conn)[0]["name"] == "ley.txt"
