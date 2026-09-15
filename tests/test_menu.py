@@ -7,6 +7,8 @@ import configparser
 import pathlib
 import xml.etree.ElementTree as ET
 
+import pytest
+
 DESKTOP = pathlib.Path("branding/desktop")
 ENTRIES = ["ai2-chat", "ai2-chat-terminal", "ai2-guide", "ai2-software-updates", "ai2-about"]
 CATEGORY = "X-AI2"
@@ -42,6 +44,32 @@ def test_about_ai2_closes_the_submenu_after_a_separator():
     layout = [(child.tag, child.get("type") or (child.text or "").strip())
               for child in sub.find("Layout")]
     assert layout == [("Merge", "all"), ("Separator", ""), ("Filename", "ai2-about.desktop")]
+
+
+def _layout(element):
+    return [(child.tag, child.get("type") or (child.text or "").strip())
+            for child in element.find("Layout")]
+
+
+def test_ai2_is_the_first_entry_of_the_applications_menu():
+    """Rafael's placement, 2026-09-15: the AI-2 submenu at the very top, above
+    Run Program, then a separator. Checked with garcon 4.20 against the real
+    xfce-applications.menu and in the QEMU install."""
+    layout = _layout(ET.parse(DESKTOP / "ai2.menu").getroot())
+    assert layout[:3] == [("Menuname", "AI-2"), ("Separator", ""), ("Filename", "xfce4-run.desktop")]
+    assert ("Merge", "all") in layout, "without it every other submenu disappears"
+    assert layout.count(("Menuname", "AI-2")) == 1
+
+
+def test_the_copied_layout_matches_the_installed_garcon_menu():
+    """The merged Layout replaces XFCE's, so the rest of ours must stay the
+    installed garcon's own layout. Runs where garcon's file exists (the
+    developer laptop, an AI-2 system); skipped elsewhere."""
+    installed = pathlib.Path("/etc/xdg/menus/xfce-applications.menu")
+    if not installed.exists():
+        pytest.skip("no xfce-applications.menu here")
+    ours = _layout(ET.parse(DESKTOP / "ai2.menu").getroot())
+    assert ours[2:] == _layout(ET.parse(installed).getroot())
 
 
 def test_every_entry_is_installed_by_the_package():

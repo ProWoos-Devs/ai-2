@@ -11,6 +11,28 @@
      xfce-applications-merged/ the entries fall into "Other"). -->
 <Menu>
     <Name>Xfce</Name>
+    <!-- The AI-2 submenu first, above Run Program, then a separator. A merged
+         Layout replaces the one in xfce-applications.menu, so everything after
+         the first separator is a copy of garcon 4.20's own top-level layout
+         (tests/test_menu.py compares it with the installed file when there
+         is one, so a garcon update that changes it shows up). -->
+    <Layout>
+        <Menuname>AI-2</Menuname>
+        <Separator/>
+        <Filename>xfce4-run.desktop</Filename>
+        <Separator/>
+        <Filename>xfce4-terminal-emulator.desktop</Filename>
+        <Filename>xfce4-file-manager.desktop</Filename>
+        <Filename>xfce4-mail-reader.desktop</Filename>
+        <Filename>xfce4-web-browser.desktop</Filename>
+        <Separator/>
+        <Menuname>Settings</Menuname>
+        <Separator/>
+        <Merge type="all"/>
+        <Separator/>
+        <Filename>xfce4-about.desktop</Filename>
+        <Filename>xfce4-session-logout.desktop</Filename>
+    </Layout>
     <Menu>
         <Name>AI-2</Name>
         <Directory>ai2.directory</Directory>
