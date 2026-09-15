@@ -110,7 +110,7 @@ Which machine can be the server is a question for the AI Score, not the tier. On
 - `ai-2`, this tool.
 - `ai2-keyring`, the package signing key for pacman.
 - `ai2-llama-cpp`, the engine, one package for every CPU class: llama.cpp from one pinned release, built for plain x86-64, plus one CPU backend module per instruction-set level (x64, sse42, sandybridge, ivybridge, piledriver, haswell, ...); ggml scores the modules against the CPU at start and loads the best, x64 always qualifying. Before it ships, every file that must run on a pure-SSE2 machine is disassembled against that instruction set, and the constructors every module runs at load are checked the same way, because a single stray SSE4.1 instruction crashes an old machine. `ai-2 benchmark` records which module ran.
-- `ai2-whisper-cpp-baseline` / `-noavx` / `-avx2`, the speech-to-text engine for `ai-2 transcribe`, the same three classes and the same gate, from one pinned whisper.cpp release with its own ggml, no ffmpeg linked in.
+- `ai2-whisper-cpp`, the speech-to-text engine for `ai-2 transcribe`, from one pinned whisper.cpp release with its own ggml, no ffmpeg linked in. One package for every CPU: like ggml in llama.cpp, it picks the CPU build at start, and the same gate checks every binary and every CPU module before it ships.
 
 ## Architecture
 

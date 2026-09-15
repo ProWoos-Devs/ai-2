@@ -979,11 +979,10 @@ def cmd_transcribe(args) -> int:
     """`ai-2 transcribe FILE`: speech to text with whisper.cpp, into FILE.txt."""
     from . import speech
     hw = detect()
-    runtime_dir = speech.find_runtime(hw.cpu_variant)
+    runtime_dir = speech.find_runtime()
     if runtime_dir is None:
-        pkg = speech.runtime_package(hw.cpu_variant) or "ai2-whisper-cpp-<variant>"
-        print(f"error: the speech engine for this CPU is not installed. Install it with:  "
-              f"sudo pacman -S {pkg}", file=sys.stderr)
+        print(f"error: the speech engine is not installed. Install it with:  "
+              f"sudo pacman -S {speech.RUNTIME_PACKAGE}", file=sys.stderr)
         return 1
     if not os.path.isfile(args.file):
         print(f"error: no such file: {args.file}", file=sys.stderr)

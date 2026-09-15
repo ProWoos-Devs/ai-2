@@ -35,7 +35,7 @@ def test_speech_catalog_shape_and_default():
     assert speech.speech_model(None)["id"] == "base"
     assert speech.speech_model("small")["id"] == "small"
     assert speech.speech_model("large") is None
-    assert speech.runtime_package("baseline") == "ai2-whisper-cpp-baseline"
+    assert speech.RUNTIME_PACKAGE == "ai2-whisper-cpp" and speech.RUNTIME_DIR == "/usr/lib/ai2/runtimes/whisper.cpp"
 
 
 def test_wav_detection(tmp_path):
@@ -110,4 +110,4 @@ def test_cmd_transcribe_end_to_end(tmp_path, monkeypatch, capsys):
     assert cli.main(["transcribe", str(tmp_path / "nope.wav")]) == 1
     monkeypatch.setenv(speech.RUNTIME_ENV, str(tmp_path / "nowhere"))
     assert cli.main(["transcribe", str(wav)]) == 1
-    assert "sudo pacman -S ai2-whisper-cpp-avx2" in capsys.readouterr().err
+    assert "sudo pacman -S ai2-whisper-cpp" in capsys.readouterr().err

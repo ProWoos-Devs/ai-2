@@ -3,10 +3,11 @@ audio into a text file, with whisper.cpp, on the CPU.
 
 The shape decided in the 2026-09-14 review, item 5. File transcription only:
 no live dictation, no voice assistant, no Speaches or Piper. The engine is the
-`ai2-whisper-cpp-<variant>` package (one per CPU class, like the llama.cpp
-runtime), built without ffmpeg so a world ffmpeg bump can never break a signed
-package; anything that is not already a 16 kHz mono 16-bit WAV is converted
-with the ffmpeg command first, which the speech workflow installs.
+one `ai2-whisper-cpp` package, whose ggml picks the CPU build at start (the
+same runtime dispatch as ai2-llama-cpp), built without ffmpeg so a world ffmpeg
+bump can never break a signed package; anything that is not already a 16 kHz
+mono 16-bit WAV is converted with the ffmpeg command first, which the speech
+workflow installs.
 
 The models are whisper.cpp's own ggml files in `ai2/data/speech-models.yml`,
 a catalog of their own on purpose: everything that reads models.yml treats an
@@ -31,11 +32,8 @@ import tempfile
 import yaml
 
 RUNTIME_ENV = "AI2_WHISPER_DIR"
-RUNTIME_PACKAGES = {
-    "baseline": "ai2-whisper-cpp-baseline",
-    "noavx": "ai2-whisper-cpp-noavx",
-    "avx2": "ai2-whisper-cpp-avx2",
-}
+RUNTIME_PACKAGE = "ai2-whisper-cpp"
+RUNTIME_DIR = "/usr/lib/ai2/runtimes/whisper.cpp"
 WAIT_NOTE = ("Transcribing. This takes a while on an old computer, the engine works in 30-second "
              "windows and each one costs the same; leave it running.")
 
@@ -56,24 +54,22 @@ def speech_model(model_id: str | None, catalog: list[dict] | None = None) -> dic
     return next((m for m in catalog if m["id"] == model_id), None)
 
 
-def _runtime_candidates(variant: str) -> list[str]:
+def _runtime_candidates() -> list[str]:
     return [
         os.environ.get(RUNTIME_ENV, ""),
-        f"/usr/lib/ai2/runtimes/whisper.cpp-{variant}",
+        RUNTIME_DIR,
         "/opt/ai2/whisper",
         os.path.expanduser("~/whisper"),
     ]
 
 
-def find_runtime(variant: str) -> str | None:
-    for d in _runtime_candidates(variant):
+def find_runtime() -> str | None:
+    """The engine directory. One for every CPU: ggml picks the CPU build when
+    whisper-cli starts, from the libggml-cpu-*.so modules beside it."""
+    for d in _runtime_candidates():
         if d and os.path.isfile(os.path.join(d, "whisper-cli")):
             return d
     return None
-
-
-def runtime_package(variant: str) -> str | None:
-    return RUNTIME_PACKAGES.get(variant)
 
 
 def is_wav16k_mono(path: str) -> bool:
