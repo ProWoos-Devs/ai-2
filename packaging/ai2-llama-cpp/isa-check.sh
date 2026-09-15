@@ -67,10 +67,12 @@ ctors_check() {
       target=$(( 16#$(readelf -rW "$f" | awk -v o="$off" '$1 == o && /R_X86_64_RELATIVE/ {print $NF; exit}') ))
     fi
     i=$((i + 1)); n=$((n + 1))
-    # the symbol that contains the address, and its size, from the symbol table
+    # the symbol that contains the address, and its size, from the symbol
+    # table (read to the end: an awk exit here sends nm a SIGPIPE, which
+    # pipefail turns into a failed gate, seen on libggml-vulkan.so)
     local sym; sym=$(nm -nS --defined-only "$f" 2>/dev/null | awk -v a="$target" '
-      { s = strtonum("0x" $1); z = (NF >= 4) ? strtonum("0x" $2) : 0; name = $NF
-        if (s <= a && a < s + z) { print name, s, z; exit } }')
+      !found { s = strtonum("0x" $1); z = (NF >= 4) ? strtonum("0x" $2) : 0; name = $NF
+        if (s <= a && a < s + z) { print name, s, z; found = 1 } }')
     local name start len mnems
     if [ -n "$sym" ]; then
       name=${sym%% *}; start=$(echo "$sym" | awk '{print $2}'); len=$(echo "$sym" | awk '{print $3}')
