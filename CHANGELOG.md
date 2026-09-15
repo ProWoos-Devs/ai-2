@@ -4,6 +4,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 ### Changed
+- **`ai-2 doc` cites PDF pages.** The sources under an answer name the page of the PDF each excerpt came from ("constitucion.pdf, page 8", or "pages 8-9" when a part runs across a page break) instead of "part 47 of 219"; text files, DOCX and scans, which have no pages, keep the part number. pdftotext ends every page with a form feed, so this costs nothing at indexing time. Parts still run across page breaks, so a sentence continued on the next page stays whole. Indexes made by 0.14 and 0.15 keep working and cite parts until the file is indexed again. Checked on the 39-page Spanish Constitution: all 219 parts carry the page range pdftotext gives for those pages.
 - **The AI-2 menu is the first entry of Applications**, above Run Program, with a separator under it. A merged menu file can only move it by replacing XFCE's top-level layout, so the ai-2 package carries a copy of garcon 4.20's own; a test compares that copy with the installed xfce-applications.menu wherever one exists, so a garcon update that changes it is caught at the next test run. Checked with garcon 4.20 and in the QEMU install.
 
 ### Added

@@ -84,9 +84,15 @@ def open_store(path: str | None = None) -> sqlite3.Connection:
             words INTEGER, chunks INTEGER);
         CREATE TABLE IF NOT EXISTS chunks (
             id INTEGER PRIMARY KEY, doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
-            ord INTEGER, text TEXT, vec BLOB);
+            ord INTEGER, text TEXT, vec BLOB, page INTEGER, page_end INTEGER);
         CREATE INDEX IF NOT EXISTS chunks_doc ON chunks(doc_id);
     """)
+    # stores made by 0.14/0.15 have no page columns; NULL reads as "no pages"
+    have = {row[1] for row in conn.execute("PRAGMA table_info(chunks)")}
+    for col in ("page", "page_end"):
+        if col not in have:
+            conn.execute(f"ALTER TABLE chunks ADD COLUMN {col} INTEGER")
+    conn.commit()
     return conn
 
 
@@ -116,14 +122,17 @@ def from_blob(blob: bytes) -> array.array:
 
 
 def add_document(conn: sqlite3.Connection, name: str, path: str, chunks: list[str],
-                 vectors: list, words: int) -> int:
-    """Replace any document of the same name; returns its id."""
+                 vectors: list, words: int, pages: list | None = None) -> int:
+    """Replace any document of the same name; returns its id. `pages` holds a
+    (first, last) page pair per chunk, or None for a document without pages."""
     conn.execute("DELETE FROM docs WHERE name = ?", (name,))
     cur = conn.execute("INSERT INTO docs (name, path, added, words, chunks) VALUES (?, ?, ?, ?, ?)",
                        (name, path, time.strftime("%Y-%m-%d %H:%M"), words, len(chunks)))
     doc_id = cur.lastrowid
-    conn.executemany("INSERT INTO chunks (doc_id, ord, text, vec) VALUES (?, ?, ?, ?)",
-                     [(doc_id, i, text, to_blob(vec)) for i, (text, vec) in enumerate(zip(chunks, vectors))])
+    spans = pages or [None] * len(chunks)
+    conn.executemany("INSERT INTO chunks (doc_id, ord, text, vec, page, page_end) VALUES (?, ?, ?, ?, ?, ?)",
+                     [(doc_id, i, text, to_blob(vec), *(span or (None, None)))
+                      for i, (text, vec, span) in enumerate(zip(chunks, vectors, spans))])
     conn.commit()
     return doc_id
 
@@ -151,86 +160,132 @@ def search(conn: sqlite3.Connection, qvec, top: int = TOP_K, doc: str | None = N
     plain Python; that is the whole vector store."""
     q = array.array("f", qvec)
     qn = math.sqrt(sum(x * x for x in q)) or 1.0
-    sql = ("SELECT chunks.text, chunks.ord, docs.name, docs.chunks, chunks.vec FROM chunks "
-           "JOIN docs ON docs.id = chunks.doc_id")
+    sql = ("SELECT chunks.text, chunks.ord, docs.name, docs.chunks, chunks.vec, chunks.page, chunks.page_end "
+           "FROM chunks JOIN docs ON docs.id = chunks.doc_id")
     params: tuple = ()
     if doc:
         sql += " WHERE docs.name = ?"
         params = (doc,)
     hits = []
-    for text, ord_, name, total, blob in conn.execute(sql, params):
+    for text, ord_, name, total, blob, page, page_end in conn.execute(sql, params):
         v = from_blob(blob)
         if len(v) != len(q):
             continue
         score = sum(a * b for a, b in zip(q, v)) / qn
-        hits.append({"text": text, "ord": ord_, "doc": name, "of": total, "score": score})
+        hits.append({"text": text, "ord": ord_, "doc": name, "of": total, "score": score,
+                     "page": page, "page_end": page_end})
     hits.sort(key=lambda h: -h["score"])
     return hits[:top]
 
 
 # ------------------------------------------------------- text and chunking
 
-def extract_text(path: str, lang: str = "eng") -> str:
-    """Plain text of a file: text files as they are, PDFs through pdftotext,
-    .docx through its XML, images through tesseract (the documents workflow
-    installs both tools). Raises RuntimeError naming the missing tool."""
+def extract_pages(path: str, lang: str = "eng") -> tuple[list[str], bool]:
+    """The text of a file and whether it has real pages: PDFs through
+    pdftotext, one string per page (it ends every page with a form feed),
+    text files as they are, .docx through its XML, images through tesseract
+    (the documents workflow installs both tools); those three are one string
+    and no pages. Raises RuntimeError naming the missing tool."""
     suffix = os.path.splitext(path)[1].lower()
     if suffix in TEXT_SUFFIXES or suffix == "":
         with open(path, encoding="utf-8", errors="replace") as fh:
-            return fh.read()
+            return [fh.read()], False
     if suffix == ".pdf":
         if not shutil.which("pdftotext"):
             raise RuntimeError("pdftotext is not installed (package poppler); ai-2 workflow install documents")
-        return subprocess.run(["pdftotext", "-layout", path, "-"], capture_output=True, text=True,
-                              check=True).stdout
+        out = subprocess.run(["pdftotext", "-layout", path, "-"], capture_output=True, text=True,
+                             check=True).stdout
+        pages = out.split("\f")
+        if len(pages) > 1 and pages[-1] == "":
+            pages.pop()             # the form feed after the last page
+        return pages, True
     if suffix == ".docx":
         import re
         with zipfile.ZipFile(path) as z:
             xml = z.read("word/document.xml").decode("utf-8", "replace")
         xml = re.sub(r"</w:p>", "\n", xml)
-        return re.sub(r"<[^>]+>", "", xml)
+        return [re.sub(r"<[^>]+>", "", xml)], False
     if suffix in IMAGE_SUFFIXES:
         if not shutil.which("tesseract"):
             raise RuntimeError("tesseract is not installed; ai-2 workflow install documents")
-        return subprocess.run(["tesseract", path, "-", "-l", lang], capture_output=True, text=True,
-                              check=True).stdout
+        return [subprocess.run(["tesseract", path, "-", "-l", lang], capture_output=True, text=True,
+                               check=True).stdout], False
     raise RuntimeError(f"unsupported file type {suffix or '(none)'}: text, PDF, DOCX or an image (scan)")
 
 
-def chunk_words(text: str, size: int = CHUNK_WORDS, overlap: int = OVERLAP_WORDS) -> list[str]:
-    """Windows of `size` words that overlap by `overlap`, so a sentence cut at
-    a boundary still appears whole in one of them."""
-    words = text.split()
-    if not words:
-        return []
+def extract_text(path: str, lang: str = "eng") -> str:
+    """Plain text of a file (extract_pages without the page split)."""
+    return "\n".join(extract_pages(path, lang)[0])
+
+
+def chunk_ranges(n_words: int, size: int = CHUNK_WORDS, overlap: int = OVERLAP_WORDS) -> list[tuple[int, int]]:
+    """(start, end) word positions of windows of `size` words that overlap by
+    `overlap`, so a sentence cut at a boundary still appears whole in one."""
     step = max(1, size - overlap)
     out = []
-    for start in range(0, len(words), step):
-        out.append(" ".join(words[start:start + size]))
-        if start + size >= len(words):
+    for start in range(0, n_words, step):
+        out.append((start, min(start + size, n_words)))
+        if start + size >= n_words:
             break
     return out
 
 
-def fit_chunks(chunks: list[str], count_tokens, limit: int) -> list[str]:
-    """Every chunk at or under `limit` tokens as the server counts them (with
-    the document prefix included by the caller's counter); a long one is split
-    in halves until it fits. Non-causal models refuse inputs above n_ubatch."""
+def chunk_words(text: str, size: int = CHUNK_WORDS, overlap: int = OVERLAP_WORDS) -> list[str]:
+    words = text.split()
+    return [" ".join(words[s:e]) for s, e in chunk_ranges(len(words), size, overlap)]
+
+
+def fit_ranges(words: list[str], ranges: list[tuple[int, int]], count_tokens, limit: int) -> list[tuple[int, int]]:
+    """Every range at or under `limit` tokens as the server counts its text
+    (with the document prefix included by the caller's counter); a long one is
+    split in halves until it fits. Non-causal models refuse inputs above
+    n_ubatch. Order is kept."""
     out = []
-    stack = list(reversed(chunks))
+    stack = list(reversed(ranges))
     while stack:
-        c = stack.pop()
-        if count_tokens(c) <= limit:
-            out.append(c)
+        s, e = stack.pop()
+        if e - s < 2 or count_tokens(" ".join(words[s:e])) <= limit:
+            out.append((s, e))      # fits, or one huge word the server will refuse anyway
             continue
-        words = c.split()
-        if len(words) < 2:
-            out.append(c)   # one huge word, nothing to split; the server will say no
-            continue
-        mid = len(words) // 2
-        stack.append(" ".join(words[mid:]))
-        stack.append(" ".join(words[:mid]))
+        mid = (s + e) // 2
+        stack.append((mid, e))
+        stack.append((s, mid))
     return out
+
+
+def fit_chunks(chunks: list[str], count_tokens, limit: int) -> list[str]:
+    out = []
+    for c in chunks:
+        words = c.split()
+        out += [" ".join(words[s:e]) for s, e in fit_ranges(words, [(0, len(words))], count_tokens, limit)] or [c]
+    return out
+
+
+def make_chunks(pages: list[str], paged: bool, count_tokens, limit: int,
+                size: int = CHUNK_WORDS, overlap: int = OVERLAP_WORDS) -> tuple[list[str], list | None, int]:
+    """The chunks of a document ready to embed: their texts, a (first, last)
+    page pair per chunk when the document has pages (else None), and the word
+    count. Windows run across page breaks, so a sentence that continues on the
+    next page stays whole; its chunk then names both pages."""
+    words: list[str] = []
+    page_of: list[int] = []
+    for number, page in enumerate(pages, 1):
+        page_words = page.split()
+        words += page_words
+        page_of += [number] * len(page_words)
+    ranges = fit_ranges(words, chunk_ranges(len(words), size, overlap), count_tokens, limit) if words else []
+    texts = [" ".join(words[s:e]) for s, e in ranges]
+    spans = [(page_of[s], page_of[e - 1]) for s, e in ranges] if paged else None
+    return texts, spans, len(words)
+
+
+def cite(hit: dict) -> str:
+    """Where an excerpt comes from, the way a person looks it up: the PDF page
+    (or pages) when the document has them, else the part number."""
+    page, end = hit.get("page"), hit.get("page_end")
+    if page:
+        return f"{hit['doc']}, page {page}" if not end or end == page else f"{hit['doc']}, pages {page}-{end}"
+    return f"{hit['doc']}, part {hit['ord'] + 1} of {hit['of']}"
 
 
 # ------------------------------------------------------- the servers' side
@@ -330,8 +385,7 @@ def prefill_seconds(n_tokens: int, score: dict | None, model: dict | None) -> fl
 def build_messages(question: str, hits: list[dict], system: str = SYSTEM_PROMPT) -> list[dict]:
     """Question first, excerpts, then the instruction last (small models attend
     to the end): the shape measured above."""
-    excerpts = "\n\n".join(f"[{i}] ({h['doc']}, part {h['ord'] + 1} of {h['of']})\n{h['text']}"
-                           for i, h in enumerate(hits, 1))
+    excerpts = "\n\n".join(f"[{i}] ({cite(h)})\n{h['text']}" for i, h in enumerate(hits, 1))
     user = (f"Question: {question}\n\nExcerpts from my documents:\n\n{excerpts}\n\n"
             f"Answer the question \"{question}\" in one or two complete sentences, in the language of the "
             "question, citing the excerpt you used as [1] or [2]. If the excerpts do not contain the answer, say so.")

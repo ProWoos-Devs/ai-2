@@ -33,6 +33,77 @@ def test_fit_chunks_splits_until_under_the_limit():
     assert doc.fit_chunks(["singleword"], lambda c: 99, limit=8) == ["singleword"]
 
 
+def test_fit_ranges_keeps_positions():
+    words = "a b c d e f g h".split()
+    count = lambda c: len(c.split()) * 2
+    assert doc.fit_ranges(words, [(0, 8)], count, limit=8) == [(0, 4), (4, 8)]
+    assert doc.fit_ranges(words, [(0, 1)], lambda c: 99, limit=8) == [(0, 1)]
+
+
+def test_pdf_pages_come_from_the_form_feeds(tmp_path, monkeypatch):
+    """pdftotext ends every page with a form feed (39 in the 39-page
+    Constitution PDF, checked 2026-09-15); the one after the last page is not a
+    page of its own."""
+    pdf = tmp_path / "c.pdf"
+    pdf.write_bytes(b"%PDF")
+    monkeypatch.setattr(doc.shutil, "which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(doc.subprocess, "run",
+                        lambda *a, **k: type("R", (), {"stdout": "uno dos\ftres\f\fcuatro\f"})())
+    pages, paged = doc.extract_pages(str(pdf))
+    assert paged and pages == ["uno dos", "tres", "", "cuatro"]      # an empty page keeps its number
+    assert doc.extract_text(str(pdf)).split() == ["uno", "dos", "tres", "cuatro"]
+    (tmp_path / "n.txt").write_text("hola\fmundo", encoding="utf-8")
+    assert doc.extract_pages(str(tmp_path / "n.txt")) == (["hola\fmundo"], False)
+
+
+def test_make_chunks_names_the_pages_each_chunk_spans():
+    pages = [" ".join(f"p1w{i}" for i in range(100)), " ".join(f"p2w{i}" for i in range(100)), "", "fin"]
+    texts, spans, words = doc.make_chunks(pages, True, lambda c: 0, limit=512, size=110, overlap=20)
+    assert words == 201
+    assert texts[0].split()[0] == "p1w0" and texts[0].split()[-1] == "p2w9"
+    assert spans[0] == (1, 2)                       # runs across the page break
+    assert spans[1] == (1, 2) and texts[1].split()[0] == "p1w90"
+    assert spans[-1] == (2, 4) and texts[-1].split()[-1] == "fin"   # page 3 is empty, "fin" is on page 4
+    # split to fit: the halves keep their own pages
+    t2, s2, _ = doc.make_chunks(pages[:2], True, lambda c: len(c.split()), limit=60, size=110, overlap=20)
+    assert all(len(t.split()) <= 60 for t in t2) and s2[0] == (1, 1) and (2, 2) in s2
+    t3, s3, w3 = doc.make_chunks(["sin páginas aquí"], False, lambda c: 0, limit=512)
+    assert t3 == ["sin páginas aquí"] and s3 is None and w3 == 3
+    assert doc.make_chunks(["", "  "], True, lambda c: 0, limit=512) == ([], [], 0)
+
+
+def test_cite_prefers_pages_over_parts():
+    assert doc.cite({"doc": "c.pdf", "ord": 4, "of": 49, "page": 12, "page_end": 12}) == "c.pdf, page 12"
+    assert doc.cite({"doc": "c.pdf", "ord": 4, "of": 49, "page": 12, "page_end": 13}) == "c.pdf, pages 12-13"
+    assert doc.cite({"doc": "n.txt", "ord": 4, "of": 49, "page": None, "page_end": None}) == "n.txt, part 5 of 49"
+    assert doc.cite({"doc": "n.txt", "ord": 0, "of": 1}) == "n.txt, part 1 of 1"
+
+
+def test_pages_are_stored_and_old_stores_gain_the_columns(tmp_path):
+    import sqlite3
+    path = str(tmp_path / "old.sqlite")
+    old = sqlite3.connect(path)          # the 0.14.0 schema, with a document in it
+    old.executescript("""
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE docs (id INTEGER PRIMARY KEY, name TEXT UNIQUE, path TEXT, added TEXT, words INTEGER, chunks INTEGER);
+        CREATE TABLE chunks (id INTEGER PRIMARY KEY, doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
+                             ord INTEGER, text TEXT, vec BLOB);
+    """)
+    old.execute("INSERT INTO docs VALUES (1, 'old.txt', '/old.txt', 'x', 1, 1)")
+    old.execute("INSERT INTO chunks VALUES (1, 1, 0, 'Madrid', ?)", (doc.to_blob(fake_vec("Madrid")),))
+    old.commit()
+    old.close()
+    conn = doc.open_store(path)
+    hit = doc.search(conn, fake_vec("Madrid"), top=1)[0]
+    assert hit["doc"] == "old.txt" and hit["page"] is None and doc.cite(hit) == "old.txt, part 1 of 1"
+    doc.add_document(conn, "c.pdf", "/c.pdf", ["La capital es Madrid.", "El castellano."],
+                     [fake_vec("Madrid"), fake_vec("castellano")], words=5, pages=[(3, 3), (3, 4)])
+    hits = doc.search(conn, fake_vec("castellano"), top=1, doc="c.pdf")
+    assert hits[0]["page"] == 3 and hits[0]["page_end"] == 4
+    conn.close()
+    doc.open_store(path).close()          # opening twice does not add the columns twice
+
+
 def test_store_roundtrip_search_and_forget(tmp_path):
     conn = doc.open_store(str(tmp_path / "index.sqlite"))
     assert doc.store_model(conn) is None
@@ -128,12 +199,12 @@ def test_answer_model_prefers_the_biggest_usable_over_the_starter():
 
 def test_build_messages_numbers_the_excerpts():
     hits = [{"text": "El castellano es la lengua oficial.", "doc": "c.pdf", "ord": 2, "of": 37, "score": 0.9},
-            {"text": "Madrid es la capital.", "doc": "c.pdf", "ord": 4, "of": 37, "score": 0.8}]
+            {"text": "Madrid es la capital.", "doc": "c.pdf", "ord": 4, "of": 37, "score": 0.8, "page": 7, "page_end": 7}]
     msgs = doc.build_messages("¿Cuál es la capital?", hits)
     assert msgs[0] == {"role": "system", "content": doc.SYSTEM_PROMPT}
     user = msgs[1]["content"]
     assert user.startswith("Question: ¿Cuál es la capital?\n")          # question first
-    assert "[1] (c.pdf, part 3 of 37)" in user and "[2] (c.pdf, part 5 of 37)" in user
+    assert "[1] (c.pdf, part 3 of 37)" in user and "[2] (c.pdf, page 7)" in user
     assert user.rstrip().endswith("If the excerpts do not contain the answer, say so.")
     assert 'Answer the question "¿Cuál es la capital?" in one or two complete sentences' in user
 

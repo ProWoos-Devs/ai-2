@@ -868,19 +868,18 @@ def _doc_index(args, docmod) -> int:
     for path in args.files:
         name = os.path.basename(path)
         try:
-            text = docmod.extract_text(path, lang=args.lang)
+            pages, paged = docmod.extract_pages(path, lang=args.lang)
         except (RuntimeError, subprocess.CalledProcessError, OSError, zipfile.BadZipFile, KeyError) as exc:
             print(f"  skipped {name}: {exc}", file=sys.stderr)
             rc = 1
             continue
-        words = len(text.split())
-        if not words:
+        if not any(p.split() for p in pages):
             print(f"  skipped {name}: no text found (a scanned PDF needs OCR: ai-2 workflow info documents)",
                   file=sys.stderr)
             rc = 1
             continue
-        chunks = docmod.fit_chunks(docmod.chunk_words(text), lambda c: client.ntokens(prefix + c),
-                                   client.token_limit())
+        chunks, spans, words = docmod.make_chunks(pages, paged, lambda c: client.ntokens(prefix + c),
+                                                  client.token_limit())
         print(f"{name}: {words} words in {len(chunks)} parts, indexing with {model['label']} "
               "(slow on an old CPU; you can leave it running) ...", flush=True)
         t0 = time.monotonic()
@@ -896,7 +895,7 @@ def _doc_index(args, docmod) -> int:
         except OSError as exc:
             print(f"\n  error: the embedding server went away ({exc}); run the command again", file=sys.stderr)
             return 1
-        docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, words)
+        docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, words, pages=spans)
         print(f"\r  {name}: {len(chunks)} parts indexed in {time.monotonic() - t0:.0f} s" + " " * 12)
     print('Ask about them:  ai-2 doc ask "your question"')
     return rc
@@ -987,8 +986,7 @@ def _doc_ask(args, docmod) -> int:
     except OSError as exc:
         print(f"error: the AI server went away ({exc}); run the command again", file=sys.stderr)
         return 1
-    print("\nSources: " + "; ".join(f"[{i}] {h['doc']}, part {h['ord'] + 1} of {h['of']}"
-                                   for i, h in enumerate(hits, 1)))
+    print("\nSources: " + "; ".join(f"[{i}] {docmod.cite(h)}" for i, h in enumerate(hits, 1)))
     return 0
 
 
