@@ -825,15 +825,21 @@ def cmd_doc(args) -> int:
         return _doc_search(args, docmod)
     if action == "forget":
         return _doc_forget(args, docmod)
+    if action == "pack":
+        return _doc_pack(args, docmod)
     names = docmod.list_collections()
     shown = [(n, docmod.open_store(docmod.index_path(n))) for n in names]
     shown = [(n, c) for n, c in shown if docmod.list_documents(c)]
     if not shown:
         print("No documents indexed yet. Add one with:  ai-2 doc index FILE   (text, PDF, DOCX or a scan)")
         return 0
+    from . import pack as packmod
     print("Documents the AI can answer about:")
     for name, conn in shown:
-        print(f"\n  {name}  (embedder {docmod.store_model(conn)}, {docmod.index_path(name)})")
+        manifest = packmod.manifest_of(name)
+        what = (f"pack {manifest.get('title')}, version {manifest.get('version')}, license {manifest.get('license')}"
+                if manifest else docmod.index_path(name))
+        print(f"\n  {name}  (embedder {docmod.store_model(conn)}, {what})")
         for d in docmod.list_documents(conn):
             print(f"    {d['name']:<40} {d['words']:>7} words  {d['chunks']:>5} parts  added {d['added']}")
     print('\nAsk:  ai-2 doc ask "your question"    Passages only:  ai-2 doc search "..."    Remove:  ai-2 doc forget NAME')
@@ -875,6 +881,70 @@ def _doc_forget(args, docmod) -> int:
     docmod.forget(docmod.open_store(docmod.index_path(where[0])), name=args.name)
     print(f"Forgot 1 document." + ("" if where[0] == docmod.DEFAULT_COLLECTION else f" (collection {where[0]})"))
     return 0
+
+
+def _doc_pack(args, docmod) -> int:
+    """`ai-2 doc pack export|install|list|remove`: a collection as one file."""
+    import yaml
+    from . import pack as packmod
+    action = getattr(args, "pack_cmd", None)
+    try:
+        if action == "export":
+            if not docmod.valid_collection(args.name) or args.name not in docmod.list_collections():
+                print(f"error: no collection named {args.name!r} (ai-2 doc list shows them)", file=sys.stderr)
+                return 1
+            template = None
+            if args.manifest:
+                with open(args.manifest, encoding="utf-8") as fh:
+                    template = yaml.safe_load(fh) or {}
+                if not isinstance(template, dict):
+                    print(f"error: {args.manifest} is not a YAML mapping", file=sys.stderr)
+                    return 1
+            out = args.output or f"{(template or {}).get('id', args.name)}{packmod.SUFFIX}"
+            m = packmod.export_pack(args.name, out, template)
+            print(f"Wrote {out} ({os.path.getsize(out) // 1024} KB): {m['title']}, version {m['version']}, "
+                  f"{m['index']['documents']} document(s), {m['index']['parts']} parts, embedder {m['embedder']['id']}, "
+                  f"license {m['license']}.")
+            print("Document paths on this computer are not included. On the other computer:  "
+                  f"ai-2 doc pack install {os.path.basename(out)}")
+            return 0
+        if action == "install":
+            collection, m, previous = packmod.install_pack(args.file, name=args.as_name)
+            model = _catalog_entry(m["embedder"]["id"])
+            verb = f"Updated {collection} from version {previous.get('version')} to" if previous else f"Installed {collection},"
+            print(f"{verb} {m['title']} version {m['version']}: {m['index']['documents']} document(s), "
+                  f"{m['index']['parts']} parts. License {m['license']}.")
+            if m.get("attribution"):
+                print(m["attribution"])
+            if model and find_model_file(model["file"]) is None:
+                print(f"The pack is searched with {model['label']} ({model['file_mb']} MB); downloading it now.")
+                if _pull_model(model) != 0:
+                    print("The pack is installed; the download can be repeated with:  "
+                          f"ai-2 model pull {model['id']}", file=sys.stderr)
+                    return 1
+            print(f'Search it:  ai-2 doc search --in {collection} "your question"')
+            return 0
+        if action == "remove":
+            if packmod.manifest_of(args.name) is None:
+                print(f"error: {args.name!r} is not an installed pack (ai-2 doc pack list); "
+                      "a collection of your own goes with:  ai-2 doc forget --all --in NAME", file=sys.stderr)
+                return 1
+            docmod.remove_collection(args.name)
+            print(f"Removed the pack {args.name}.")
+            return 0
+        packs = packmod.installed_packs()
+        if not packs:
+            print("No knowledge packs installed. Install one with:  ai-2 doc pack install FILE.ai2pack")
+            return 0
+        print("Knowledge packs:")
+        for name, m in packs:
+            idx = m.get("index") or {}
+            print(f"  {name:<24} {m.get('title')}, version {m.get('version')}, {idx.get('parts')} parts, "
+                  f"license {m.get('license')}")
+        return 0
+    except (packmod.PackError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
 
 def _doc_index(args, docmod) -> int:
@@ -985,10 +1055,28 @@ def _doc_hits(args, docmod, hw, question: str) -> list[dict] | None:
     if not hits:
         print("Nothing in the indexed documents matches the question.")
         return None
+    from . import pack as packmod
     several = len(groups[model_id]) > 1
+    manifests = {n: packmod.manifest_of(n) for n in groups[model_id]}
     for h in hits:
         h["cite"] = docmod.cite(h, with_collection=several)
+        h["url"] = packmod.source_url(manifests.get(h["collection"]), h["doc"])
+        h["manifest"] = manifests.get(h["collection"])
     return hits
+
+
+def _pack_terms(hits: list[dict]) -> list[str]:
+    """One line per pack the hits came from: its license and attribution, which
+    CC BY-SA and the BOE reuse terms ask to show wherever the text is reused."""
+    out = []
+    seen = set()
+    for h in hits:
+        m = h.get("manifest")
+        if m and m.get("id") not in seen:
+            seen.add(m.get("id"))
+            attribution = str(m.get("attribution") or "").strip()
+            out.append(f"From the pack {m.get('title')} ({m.get('license')})" + (f". {attribution}" if attribution else ""))
+    return out
 
 
 def _doc_search(args, docmod) -> int:
@@ -1003,8 +1091,13 @@ def _doc_search(args, docmod) -> int:
         return 1
     width = max(40, min(100, shutil.get_terminal_size((80, 24)).columns) - 4)
     for i, h in enumerate(hits, 1):
-        print(f"\n[{i}] {h['cite']}")
+        print(f"\n[{i}] {h['cite']}" + (f"  {h['url']}" if h.get("url") else ""))
         print(textwrap.fill(h["text"], width=width, initial_indent="    ", subsequent_indent="    "))
+    terms = _pack_terms(hits)
+    if terms:
+        print()
+        for line in terms:
+            print(textwrap.fill(line, width=width + 4))
     return 0
 
 
@@ -1079,7 +1172,10 @@ def _doc_ask(args, docmod) -> int:
     except OSError as exc:
         print(f"error: the AI server went away ({exc}); run the command again", file=sys.stderr)
         return 1
-    print("\nSources: " + "; ".join(f"[{i}] {h['cite']}" for i, h in enumerate(hits, 1)))
+    print("\nSources: " + "; ".join(f"[{i}] {h['cite']}" + (f" {h['url']}" if h.get("url") else "")
+                                   for i, h in enumerate(hits, 1)))
+    for line in _pack_terms(hits):
+        print(line)
     return 0
 
 
@@ -1559,6 +1655,22 @@ def main(argv: list[str] | None = None) -> int:
                             help="remove every document of the collection and the collection itself (default: documents)")
     p_d_forget.add_argument("--in", dest="collection", metavar="NAME", help="the collection the document is in")
     p_d_forget.set_defaults(func=cmd_doc)
+    p_d_pack = d_sub.add_parser("pack", help="a collection as one file: export it here, install it on another computer")
+    pk_sub = p_d_pack.add_subparsers(dest="pack_cmd", metavar="action")
+    p_pk_exp = pk_sub.add_parser("export", help="write a collection as a .ai2pack file (document paths left out)")
+    p_pk_exp.add_argument("name", help="the collection (ai-2 doc list)")
+    p_pk_exp.add_argument("-o", "--output", help="file to write (default: ID.ai2pack here)")
+    p_pk_exp.add_argument("--manifest", help="YAML with id, version, title, languages, license, attribution, modified, sources")
+    p_pk_exp.set_defaults(func=cmd_doc)
+    p_pk_inst = pk_sub.add_parser("install", help="install a .ai2pack file as a collection (a newer version replaces the old)")
+    p_pk_inst.add_argument("file")
+    p_pk_inst.add_argument("--as", dest="as_name", metavar="NAME", help="collection name (default: the pack's id)")
+    p_pk_inst.set_defaults(func=cmd_doc)
+    pk_sub.add_parser("list", help="the installed packs").set_defaults(func=cmd_doc)
+    p_pk_rm = pk_sub.add_parser("remove", help="remove an installed pack")
+    p_pk_rm.add_argument("name")
+    p_pk_rm.set_defaults(func=cmd_doc)
+    p_d_pack.set_defaults(func=cmd_doc)
     p_docs.set_defaults(func=cmd_doc)
 
     p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")
