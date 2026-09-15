@@ -25,6 +25,13 @@
 # __m128i initializer in an AVX variant ran on a non-AVX machine before the
 # score could say no) and requires it clean for the pure-SSE2 machine.
 #
+# Release gates beyond check(), both run by hand on the built package:
+#   1. A KVM guest that looks like the oldest target, the test install booted
+#      with  -cpu host,-ssse3,-sse4.1,-sse4.2,-avx,-avx2,-fma,-f16c,-bmi1,-bmi2,-avx512f
+#      (check /proc/cpuinfo in the guest): llama-bench completes and the
+#      load_backend line names libggml-cpu-x64.so.
+#   2. The same on RMM-PC (A4-3305M, no SSSE3, no SSE4.1), the real machine.
+#
 # Everything installs flat into /usr/lib/ai2/runtimes/llama.cpp/ ($ORIGIN
 # rpath), which is where ai2/runtime.py looks first. GGML_BACKEND_DIR is that
 # directory too, so the loader finds the variants wherever the executable is

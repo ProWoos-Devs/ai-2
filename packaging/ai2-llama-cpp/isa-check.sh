@@ -3,7 +3,8 @@
 # fails if it contains instructions the variant's target CPU cannot execute.
 #
 #   isa-check.sh <variant> <dir-or-file>
-#     baseline  pure SSE2 (+popcnt): no SSE4.1, no SSE4.2, no AVX/FMA/F16C
+#     baseline  pure SSE2 (+popcnt): no SSSE3, no SSE4.1, no SSE4.2, no AVX/FMA/F16C
+#               (SSE3 is not gated)
 #     noavx     up to SSE4.2:        no AVX/FMA/F16C
 #     avx2      no gate (AVX-512 is still rejected, we never target it)
 #   isa-check.sh ctors <file>
@@ -28,6 +29,11 @@ dir=${2:?dir}
 # match inside longer names and 'popcnt' (allowed) is not listed.
 SSE41='pinsr[bdq]|pextr[bdq]|pblendw|pblendvb|blendp[sd]|blendvp[sd]|pmulld|pmuldq|roundp[sd]|rounds[sd]|ptest|pmovsx[bwd][wdq]|pmovzx[bwd][wdq]|pmins[bd]|pmaxs[bd]|pminu[wd]|pmaxu[wd]|packusdw|phminposuw|dpp[sd]|mpsadbw|insertps|extractps|movntdqa|pcmpeqq'
 SSE42='pcmpgtq|pcmpestri|pcmpestrm|pcmpistri|pcmpistrm|crc32[bwlq]?'
+# SSSE3 (the legacy-SSE spellings; the VEX forms start with 'v' and fall under
+# AVX). The 2011 A4-3305M has SSE4a but no SSSE3, and a VM gate that masks only
+# SSE4.1 and up still exposes SSSE3, so neither would have caught one of these
+# (gap found 2026-09-15, both packages disassembled clean at the time).
+SSSE3='pshufb|phadd[wd]|phaddsw|phsub[wd]|phsubsw|pmaddubsw|pmulhrsw|psign[bwd]|pabs[bwd]|palignr'
 # Every VEX/EVEX-encoded instruction is spelled with a leading 'v' in AT&T
 # syntax (vmovaps, vpxor, vfmadd..., vcvtph2ps, vzeroupper). Exclude the
 # handful of legacy 'v'-mnemonics that are not AVX.
@@ -38,7 +44,7 @@ AVX512='(zmm|\{k[0-7]\}|\{z\})'
 ctors_check() {
   # $1: an ELF shared object. Prints one line per constructor, fails on the
   # first forbidden mnemonic, IFUNC symbol or IRELATIVE relocation.
-  local f=$1 forbidden="$SSE41|$SSE42|$AVX" status=0
+  local f=$1 forbidden="$SSSE3|$SSE41|$SSE42|$AVX" status=0
   local sec addr size lo hi n=0
   if readelf -sW "$f" | grep -q ' IFUNC '; then
     echo "ctors FAIL $f: IFUNC symbols (resolved at load time)"; status=1
@@ -99,7 +105,7 @@ ctors_check() {
 }
 
 case "$variant" in
-  baseline) forbidden="$SSE41|$SSE42|$AVX" ;;
+  baseline) forbidden="$SSSE3|$SSE41|$SSE42|$AVX" ;;
   noavx)    forbidden="$AVX" ;;
   avx2)     forbidden='' ;;
   ctors)    ctors_check "$dir"; exit $? ;;
