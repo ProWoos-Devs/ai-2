@@ -279,3 +279,28 @@ def test_doc_list_and_forget_cli(tmp_path, monkeypatch, capsys):
     assert "already empty" in capsys.readouterr().out
     assert cli.main(["doc", "forget", "ghost.txt"]) == 1
     assert "No document named 'ghost.txt'" in capsys.readouterr().out
+
+
+def test_doc_search_prints_passages_without_a_chat_model(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    started = []
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: started.append((model["id"], record)) or "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    assert cli.main(["doc", "search", "capital"]) == 1
+    assert "No documents indexed yet" in capsys.readouterr().err and started == []
+    conn = doc.open_store()
+    doc.set_store_model(conn, "nomic-embed-text-v2-moe", 8)
+    doc.add_document(conn, "c.pdf", "/c.pdf", ["La capital del Estado es la villa de Madrid.", "El castellano es la lengua oficial."],
+                     [fake_vec("Madrid"), fake_vec("castellano")], words=14, pages=[(3, 3), (3, 4)])
+    doc.add_document(conn, "n.txt", "/n.txt", ["Notas sin páginas sobre la bandera."], [fake_vec("bandera")], words=5)
+    conn.close()
+    assert cli.main(["doc", "search", "--top", "2", "¿Dónde", "está", "Madrid?"]) == 0
+    out = capsys.readouterr().out
+    assert "[1] c.pdf, page 3\n    La capital del Estado es la villa de Madrid." in out
+    assert "[2] " in out and "[3] " not in out
+    assert started == [("nomic-embed-text-v2-moe", serverstate.EMBED)]      # the embedding server only, no chat model
+    assert cli.main(["doc", "search", "--doc", "n.txt", "bandera"]) == 0
+    assert "[1] n.txt, part 1 of 1" in capsys.readouterr().out
+    assert cli.main(["doc", "search", "--doc", "ghost.pdf", "x"]) == 1
+    assert "No document named 'ghost.pdf'" in capsys.readouterr().err

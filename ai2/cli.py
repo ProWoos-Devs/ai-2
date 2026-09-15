@@ -816,6 +816,8 @@ def cmd_doc(args) -> int:
         return _doc_index(args, docmod)
     if action == "ask":
         return _doc_ask(args, docmod)
+    if action == "search":
+        return _doc_search(args, docmod)
     conn = docmod.open_store()
     if action == "forget":
         if not args.name and not args.all:
@@ -837,7 +839,7 @@ def cmd_doc(args) -> int:
     print(f"Documents the AI can answer about (index at {docmod.index_path()}, embedder {model_id}):")
     for d in docs:
         print(f"  {d['name']:<40} {d['words']:>7} words  {d['chunks']:>5} parts  added {d['added']}")
-    print('Ask:  ai-2 doc ask "your question"        Remove:  ai-2 doc forget NAME')
+    print('Ask:  ai-2 doc ask "your question"    Passages only:  ai-2 doc search "..."    Remove:  ai-2 doc forget NAME')
     return 0
 
 
@@ -901,33 +903,64 @@ def _doc_index(args, docmod) -> int:
     return rc
 
 
+def _doc_hits(args, docmod, hw, question: str) -> list[dict] | None:
+    """The parts of the indexed documents closest to the question, found by
+    the embedding server (started on demand). None, with the reason printed,
+    when there is nothing to search or no server."""
+    conn = docmod.open_store()
+    model_id = docmod.store_model(conn)
+    docs = docmod.list_documents(conn)
+    if not model_id or not docs:
+        print("No documents indexed yet. Add one with:  ai-2 doc index FILE", file=sys.stderr)
+        return None
+    if args.doc and args.doc not in {d["name"] for d in docs}:
+        print(f"No document named {args.doc!r} (ai-2 doc list shows the names).", file=sys.stderr)
+        return None
+    emb = _catalog_entry(model_id)
+    if emb is None:
+        print(f"error: the index was built with {model_id}, which is no longer in the catalog; "
+              "rebuild it:  ai-2 doc forget --all", file=sys.stderr)
+        return None
+    url = _ensure_server(hw, emb, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait)
+    if url is None:
+        return None
+    hits = docmod.search(conn, docmod.EmbedClient(url, emb).embed_query(question), top=args.top, doc=args.doc)
+    if not hits:
+        print("Nothing in the indexed documents matches the question.")
+        return None
+    return hits
+
+
+def _doc_search(args, docmod) -> int:
+    """The closest parts themselves, with where they come from, and no chat
+    model: seconds instead of minutes on the old machines, and the text is
+    the document's own, so nothing can be made up."""
+    import shutil
+    import textwrap
+    question = " ".join(args.question).strip()
+    hits = _doc_hits(args, docmod, detect(), question)
+    if hits is None:
+        return 1
+    width = max(40, min(100, shutil.get_terminal_size((80, 24)).columns) - 4)
+    for i, h in enumerate(hits, 1):
+        print(f"\n[{i}] {docmod.cite(h)}")
+        print(textwrap.fill(h["text"], width=width, initial_indent="    ", subsequent_indent="    "))
+    return 0
+
+
 def _doc_ask(args, docmod) -> int:
     import functools
     from .chatterm import sentences, stream_reply
     from .sysinfo import mem_available_mib
     hw = detect()
-    conn = docmod.open_store()
-    model_id = docmod.store_model(conn)
-    if not model_id or not docmod.list_documents(conn):
-        print("No documents indexed yet. Add one with:  ai-2 doc index FILE", file=sys.stderr)
-        return 1
-    emb = _catalog_entry(model_id)
-    if emb is None:
-        print(f"error: the index was built with {model_id}, which is no longer in the catalog; "
-              "rebuild it:  ai-2 doc forget --all", file=sys.stderr)
-        return 1
     question = " ".join(args.question).strip()
     cfg = remote.load()
     if args.remote and cfg is None:
         print("error: no remote AI configured. Set one up with:  ai-2 remote set <url> [--api-key KEY]",
               file=sys.stderr)
         return 1
-    url = _ensure_server(hw, emb, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait)
-    if url is None:
-        return 1
-    hits = docmod.search(conn, docmod.EmbedClient(url, emb).embed_query(question), top=args.top, doc=args.doc)
-    if not hits:
-        print("Nothing in the indexed documents matches the question.")
+    hits = _doc_hits(args, docmod, hw, question)
+    if hits is None:
         return 1
     score = _load_score()
     if args.model:
@@ -1449,6 +1482,12 @@ def main(argv: list[str] | None = None) -> int:
     p_d_ask.add_argument("--port", type=int, default=8080, help="the chat server's port")
     p_d_ask.add_argument("--wait", type=int, default=180, help="seconds to wait for a server to come up")
     p_d_ask.set_defaults(func=cmd_doc)
+    p_d_search = d_sub.add_parser("search", help="show the parts of your documents closest to a question, with their pages; no chat model")
+    p_d_search.add_argument("question", nargs="+")
+    p_d_search.add_argument("--top", type=int, default=3, help="how many parts to show (default 3)")
+    p_d_search.add_argument("--doc", help="search only this document (name as in ai-2 doc list)")
+    p_d_search.add_argument("--wait", type=int, default=180, help="seconds to wait for the embedding server")
+    p_d_search.set_defaults(func=cmd_doc)
     d_sub.add_parser("list", help="the documents in the index").set_defaults(func=cmd_doc)
     p_d_forget = d_sub.add_parser("forget", help="remove a document from the index (or --all)")
     p_d_forget.add_argument("name", nargs="?")

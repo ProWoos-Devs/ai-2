@@ -67,6 +67,7 @@ ai-2 workflow        # what this computer can be used for (chat, translation, do
 ai-2 workflow install <name>  # download its models; packages printed as a pacman line, not installed
 ai-2 doc index FILE  # read a PDF, text file, DOCX or scan into the documents index (slow on an old CPU)
 ai-2 doc ask "..."   # the closest parts of your documents go to the AI with the question; sources named (PDF pages)
+ai-2 doc search "..." # the closest parts themselves, with their pages; no chat model, seconds instead of minutes
 ai-2 doc list        # what is indexed;  ai-2 doc forget NAME  removes one
 ai-2 transcribe FILE # speech to text with whisper.cpp: a recording or a video's audio into FILE.txt
                      # (--lang es, --model small; slow on an old CPU, leave it running)
