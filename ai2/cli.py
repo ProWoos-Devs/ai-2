@@ -981,9 +981,12 @@ def cmd_knowledge(args) -> int:
             print("Knowledge packs (ai-2 knowledge install ID):")
             for e in entries:
                 here = installed.get(e["id"])
-                state = "" if here is None else (
-                    "  [installed]" if str(here.get("version")) == str(e.get("version")) else
-                    f"  [installed {here.get('version')}, newer available]")
+                if here is None:
+                    state = ""
+                elif packmod.revision_of(e) > packmod.revision_of(here):
+                    state = f"  [installed {here.get('version')}, newer available]"
+                else:
+                    state = "  [installed]"
                 print(f"  {e['id']:<22} {e.get('title')}  ({e.get('parts')} parts, "
                       f"{int(e.get('size_bytes', 0)) // 1024} KB, {', '.join(e.get('languages') or [])}, "
                       f"{e.get('license')}){state}")
@@ -1006,9 +1009,17 @@ def cmd_knowledge(args) -> int:
                 source = packmod.download_pack(entry, os.path.join(docmod.data_dir(), "packs"),
                                                progress=progress)
                 print()
-            collection, m, previous = packmod.install_pack(source, name=args.as_name)
+            collection, m, previous = packmod.install_pack(source, name=args.as_name, force=args.force)
             model = _catalog_entry(m["embedder"]["id"])
-            verb = f"Updated {collection} from version {previous.get('version')} to" if previous else f"Installed {collection},"
+            here, incoming = packmod.revision_of(previous or {}), packmod.revision_of(m)
+            if previous is None:
+                verb = f"Installed {collection},"
+            elif incoming > here:
+                verb = f"Updated {collection} from version {previous.get('version')} to"
+            elif incoming == here:
+                verb = f"Reinstalled {collection}, replacing version {previous.get('version')} with"
+            else:
+                verb = f"Put {collection} back from version {previous.get('version')} to the older"
             print(f"{verb} {m['title']} version {m['version']}: {m['index']['documents']} document(s), "
                   f"{m['index']['parts']} parts. License {m['license']}.")
             if m.get("attribution"):
@@ -1767,6 +1778,8 @@ def main(argv: list[str] | None = None) -> int:
     p_kn_inst = kn_sub.add_parser("install", help="install a pack: a .ai2pack file, or a name from ai-2 knowledge available")
     p_kn_inst.add_argument("file", metavar="FILE-OR-ID")
     p_kn_inst.add_argument("--as", dest="as_name", metavar="NAME", help="collection name (default: the pack's id)")
+    p_kn_inst.add_argument("--force", action="store_true",
+                           help="install even when the file is an older revision than the installed pack")
     p_kn_inst.set_defaults(func=cmd_knowledge)
     kn_sub.add_parser("list", help="the knowledge packs installed here").set_defaults(func=cmd_knowledge)
     p_kn_rm = kn_sub.add_parser("remove", help="remove an installed knowledge pack")

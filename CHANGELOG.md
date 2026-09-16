@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.17.1] - 2026-09-17
+### Fixed
+- **A pack file can no longer put an installed pack back to an older version.** `ai-2 knowledge install` replaced any pack of the same id, whatever it contained, while the documentation said a *newer* version replaces it. Manifests now carry a `revision`, a whole number, which is what the code orders by (a `version` string like "2026-09-16" cannot be compared reliably, and a pack without a revision counts as 1). The same or a higher revision replaces the installed pack; an older one is refused and names both revisions, and `--force` installs it anyway. The three messages now say which of the three happened rather than all claiming an update. `ai-2 knowledge available` marks "newer available" by revision as well.
+
 ## [0.17.0] - 2026-09-16
 ### Added
 - **w3m on the image**, 1.8 MB installed, and `ai-2 install text-browser` for machines that already exist. It is what reads the knowledge packs another AI-2 serves with `ai-2 gopher`, and a usable text browser for the web on a machine where Epiphany is heavy. Checked against the Artix repositories: w3m and lynx both speak Gopher, links does not ("Bad URL syntax"), and w3m is the smallest of the three (956 KB download, 1.8 MB installed, against lynx's 1.3 MB and 5.3 MB). Rendered against a real `ai-2 gopher`: the pack menu shows a search item and a document list, and a search shows the passage as readable prose with a link to the whole document.

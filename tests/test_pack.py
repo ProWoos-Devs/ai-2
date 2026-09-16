@@ -267,3 +267,48 @@ def test_the_shipped_catalog_is_usable():
         assert e["embedder"] in {m["id"] for m in embedding_models()}, f"{e['id']}: unknown embedder"
         if e["license"].startswith(("CC-BY", "GFDL", "PSF", "OGL")):
             assert str(e.get("attribution", "")).strip(), f"{e['id']}: needs an attribution line"
+
+
+def test_a_pack_cannot_be_put_back_to_an_older_revision(home):
+    """`version` is for people and cannot be ordered reliably, so the code
+    orders by `revision`. A file from another route must not quietly undo an
+    update; --force is the way to say you mean it."""
+    make_collection("src", {"c.pdf": ["La capital es Madrid."]})
+    old = str(home / "old.ai2pack")
+    new = str(home / "new.ai2pack")
+    pack.export_pack("src", old, dict(TEMPLATE, id="everyday", version="2026-08-01", revision=1))
+    pack.export_pack("src", new, dict(TEMPLATE, id="everyday", version="2026-09-16", revision=2))
+    assert pack.install_pack(old)[0] == "everyday"
+    assert pack.revision_of(pack.manifest_of("everyday")) == 1
+    # a higher revision updates
+    name, m, previous = pack.install_pack(new)
+    assert pack.revision_of(m) == 2 and previous["version"] == "2026-08-01"
+    # the same revision is allowed (a reinstall of the same pack)
+    assert pack.install_pack(new)[2]["version"] == "2026-09-16"
+    # an older one is refused, and the installed pack is untouched
+    with pytest.raises(pack.PackError, match="which is older; install it anyway with --force"):
+        pack.install_pack(old)
+    assert pack.manifest_of("everyday")["version"] == "2026-09-16"
+    assert pack.install_pack(old, force=True)[1]["version"] == "2026-08-01"
+    # a manifest with no revision counts as 1, and a bad one is refused
+    assert pack.revision_of({"id": "x"}) == 1
+    assert any("revision" in p for p in pack.check_manifest(dict(pack.read_manifest(new), revision=0)))
+    assert any("revision" in p for p in pack.check_manifest(dict(pack.read_manifest(new), revision="2")))
+
+
+def test_the_cli_refuses_an_older_pack_and_says_how(home, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    make_collection("src", {"c.pdf": ["La capital es Madrid."]})
+    old, new = str(home / "old.ai2pack"), str(home / "new.ai2pack")
+    pack.export_pack("src", old, dict(TEMPLATE, id="everyday", version="2026-08-01", revision=1))
+    pack.export_pack("src", new, dict(TEMPLATE, id="everyday", version="2026-09-16", revision=2))
+    assert cli.main(["knowledge", "install", new]) == 0
+    assert "Installed everyday" in capsys.readouterr().out
+    assert cli.main(["knowledge", "install", old]) == 1
+    assert "which is older; install it anyway with --force" in capsys.readouterr().err
+    assert cli.main(["knowledge", "install", old, "--force"]) == 0
+    assert "Put everyday back from version 2026-09-16 to the older" in capsys.readouterr().out
+    # and a reinstall of the same file says so rather than claiming an update
+    assert cli.main(["knowledge", "install", old]) == 0
+    assert "Reinstalled everyday, replacing version 2026-08-01 with" in capsys.readouterr().out

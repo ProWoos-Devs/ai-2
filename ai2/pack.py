@@ -9,6 +9,12 @@ SHA-256 of its file (vectors only compare with the exact model that made
 them), and the SHA-256 of the index. Installing one makes a collection like
 any other, so `ai-2 doc search` and `ask` find it with no extra step.
 
+Two fields carry the version: `version` is what a person reads, and
+`revision`, a whole number, is what the code orders by, because arbitrary
+version strings cannot be compared reliably. A pack replaces an installed one
+of the same id when its revision is the same or higher; an older revision is
+refused unless the caller forces it.
+
 A pack is a SQLite file made on someone else's computer, so install follows
 https://www.sqlite.org/security.html for untrusted database files: cell size
 checks on, schema functions untrusted, no memory-mapped I/O, no triggers or
@@ -39,7 +45,12 @@ FORMAT = 1
 SUFFIX = ".ai2pack"
 MANIFEST = "manifest.yml"
 INDEX = "index.sqlite"
-_TEMPLATE_KEYS = ("id", "version", "title", "languages", "license", "attribution", "modified", "sources")
+_TEMPLATE_KEYS = ("id", "version", "title", "languages", "license", "attribution", "modified", "sources",
+                  "revision")
+# `version` is what a person reads ("2026-09-16"); `revision` is what the code
+# orders by, because arbitrary version strings cannot be compared reliably. A
+# pack without one counts as revision 1.
+DEFAULT_REVISION = 1
 # what `ai-2 doc` creates, nothing else (autoindexes back the UNIQUE and TEXT PRIMARY KEY columns)
 _SCHEMA = {("table", "meta"), ("table", "docs"), ("table", "chunks"), ("index", "chunks_doc"),
            ("index", "sqlite_autoindex_meta_1"), ("index", "sqlite_autoindex_docs_1")}
@@ -110,6 +121,7 @@ def export_pack(collection: str, out_path: str, template: dict | None = None) ->
             "format": FORMAT,
             "id": template.get("id", collection),
             "version": str(template.get("version", time.strftime("%Y-%m-%d"))),
+            "revision": int(template.get("revision", DEFAULT_REVISION)),
             "title": template.get("title", collection),
             "languages": template.get("languages", []),
             "license": template.get("license", "unspecified"),
@@ -153,6 +165,9 @@ def check_manifest(m: object) -> list[str]:
         problems.append(f"embedding model {emb.get('id')!r} is not in this AI-2's catalog")
     elif emb.get("sha256") != model["sha256"]:
         problems.append(f"the pack was built with a different file of {model['id']} than the catalog's")
+    revision = m.get("revision", DEFAULT_REVISION)
+    if not isinstance(revision, int) or isinstance(revision, bool) or revision < 1:
+        problems.append(f"revision {revision!r} is not a positive whole number")
     idx = m.get("index") if isinstance(m.get("index"), dict) else {}
     if not isinstance(idx.get("sha256"), str) or len(idx["sha256"]) != 64:
         problems.append("index sha256 is missing")
@@ -221,11 +236,22 @@ def read_manifest(pack_path: str) -> dict:
     return manifest
 
 
-def install_pack(pack_path: str, name: str | None = None) -> tuple[str, dict, dict | None]:
+def revision_of(manifest: dict | None) -> int:
+    """The revision a manifest declares, or 1 when it does not."""
+    try:
+        return int((manifest or {}).get("revision", DEFAULT_REVISION))
+    except (TypeError, ValueError):
+        return DEFAULT_REVISION
+
+
+def install_pack(pack_path: str, name: str | None = None,
+                 force: bool = False) -> tuple[str, dict, dict | None]:
     """Unpack, check and install a pack as a collection. Returns (collection,
     manifest, manifest of the version it replaced or None). A pack replaces an
-    installed pack of the same id (an update); it never overwrites a
-    collection of one's own or a different pack."""
+    installed pack of the same id when its revision is the same or higher; an
+    older revision is refused unless `force`, so a file handed over by another
+    route cannot quietly put a pack back. It never overwrites a collection of
+    one's own or a different pack."""
     manifest = read_manifest(pack_path)
     target = name or manifest["id"]
     if not doc.valid_collection(target):
@@ -236,6 +262,11 @@ def install_pack(pack_path: str, name: str | None = None) -> tuple[str, dict, di
         if previous is None or previous.get("id") != manifest["id"]:
             raise PackError(f"a collection named {target!r} already exists and is not this pack; "
                             "install under another name with --as NAME")
+        here, incoming = revision_of(previous), revision_of(manifest)
+        if incoming < here and not force:
+            raise PackError(f"{target} is at revision {here} ({previous.get('version')}) and this file is "
+                            f"revision {incoming} ({manifest.get('version')}), which is older; "
+                            "install it anyway with --force")
     root = doc.doc_root()
     os.makedirs(root, exist_ok=True)
     with zipfile.ZipFile(pack_path) as z:
