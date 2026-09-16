@@ -10,4 +10,47 @@
 # size_bytes, sha256, documents, parts. An entry is added only after the pack
 # has been built from its recipe, checked by a person and published.
 version: 1
-packs: []
+packs:
+- id: ai2-help
+  title: AI-2 Help
+  version: '2026-09-16'
+  languages:
+  - en
+  license: MIT
+  attribution: AI-2's own documentation, by Rafael Minuesa. MIT licensed, like the rest of the project.
+  embedder: nomic-embed-text-v1.5
+  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-09-16/ai2-help.ai2pack
+  size_bytes: 345691
+  sha256: 368688068de102ea5bfd9dfd4876ec610141c2e394fe5c56421029edce24114b
+  documents: 16
+  parts: 107
+  built_with: ai-2 0.16.0
+- id: everyday
+  title: Everyday Reference
+  version: '2026-09-16'
+  languages:
+  - en
+  license: CC0-1.0
+  attribution: Facts from Wikidata (https://www.wikidata.org), CC0. No attribution is required; this line
+    records where the facts come from.
+  embedder: nomic-embed-text-v1.5
+  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-09-16/everyday.ai2pack
+  size_bytes: 593733
+  sha256: 53eef48dbca21f67def700045bee2c8710b536969a7b38e4394cb5170d9e5546
+  documents: 196
+  parts: 196
+  built_with: ai-2 0.16.0
+- id: linux-essentials
+  title: Linux Essentials
+  version: '2026-09-16'
+  languages:
+  - en
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa. MIT licensed, like the rest of the project.
+  embedder: nomic-embed-text-v1.5
+  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-09-16/linux-essentials.ai2pack
+  size_bytes: 128458
+  sha256: 97d1938fff66501f39276c3410a99299da601d19cf5408b8f8b892e7f0d9244e
+  documents: 20
+  parts: 40
+  built_with: ai-2 0.16.0
