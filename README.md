@@ -69,7 +69,7 @@ ai-2 doc index FILE  # read a PDF, text file, DOCX or scan into the documents in
 ai-2 doc ask "..."   # the closest parts of your documents go to the AI with the question; sources named (PDF pages)
 ai-2 doc search "..." # the closest parts themselves, with their pages; no chat model, seconds instead of minutes
 ai-2 doc list        # what is indexed, by collection (--in NAME on index/ask/search);  ai-2 doc forget NAME  removes one
-ai-2 gopher                          # serve the knowledge packs over Gopher for the other machines in the house
+ai-2 gopher                          # serve the knowledge packs over Gopher (read them elsewhere with w3m)
 ai-2 knowledge available             # knowledge packs you can install by name (ai-2 knowledge install ID)
 ai-2 knowledge install FILE.ai2pack  # add a pack file;  ai-2 knowledge export NAME  makes one from your own documents
 ai-2 transcribe FILE # speech to text with whisper.cpp: a recording or a video's audio into FILE.txt

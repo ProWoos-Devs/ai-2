@@ -34,6 +34,10 @@ rootfs:
     # burner) only what the desktop actually uses; everything else is a pacman
     # install away. mousepad replaces leafpad (gtk2) and is the live text editor.
     - mousepad
+    # AI-2: w3m reads the knowledge packs another AI-2 machine serves with
+    # `ai-2 gopher` (Gopher, which it speaks; links does not), and is a usable
+    # text browser for the web on a machine where Epiphany is heavy. 1.8 MB.
+    - w3m
     - xfce4-notifyd
     - xfce4-pulseaudio-plugin
     - xfce4-screenshooter
