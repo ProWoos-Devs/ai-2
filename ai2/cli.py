@@ -809,36 +809,180 @@ def _ensure_server(hw, model: dict, port: int, record: str, wait: int = 180,
 
 
 def cmd_doc(args) -> int:
-    """`ai-2 doc index|ask|list|forget`: questions about your own documents."""
+    """`ai-2 doc index|ask|search|list|forget`: questions about your own documents."""
     from . import doc as docmod
     action = getattr(args, "doc_cmd", None)
+    collection = getattr(args, "collection", None)
+    if collection is not None and not docmod.valid_collection(collection):
+        print(f"error: {collection!r} is not a collection name (lower-case letters, digits, '.', '-', '_')",
+              file=sys.stderr)
+        return 1
     if action == "index":
         return _doc_index(args, docmod)
     if action == "ask":
         return _doc_ask(args, docmod)
-    conn = docmod.open_store()
+    if action == "search":
+        return _doc_search(args, docmod)
     if action == "forget":
-        if not args.name and not args.all:
-            print("error: name a document (ai-2 doc list) or pass --all", file=sys.stderr)
-            return 1
-        n = docmod.forget(conn, name=args.name, everything=args.all)
-        if n:
-            print(f"Forgot {n} document{'s' if n != 1 else ''}.")
-        elif args.all:
-            print("The index was already empty.")
-        else:
-            print(f"No document named {args.name!r} (ai-2 doc list shows the names).")
-        return 0 if n or args.all else 1
-    docs = docmod.list_documents(conn)
-    model_id = docmod.store_model(conn)
-    if not docs:
+        return _doc_forget(args, docmod)
+    names = docmod.list_collections()
+    shown = [(n, docmod.open_store(docmod.index_path(n))) for n in names]
+    shown = [(n, c) for n, c in shown if docmod.list_documents(c)]
+    if not shown:
         print("No documents indexed yet. Add one with:  ai-2 doc index FILE   (text, PDF, DOCX or a scan)")
         return 0
-    print(f"Documents the AI can answer about (index at {docmod.index_path()}, embedder {model_id}):")
-    for d in docs:
-        print(f"  {d['name']:<40} {d['words']:>7} words  {d['chunks']:>5} parts  added {d['added']}")
-    print('Ask:  ai-2 doc ask "your question"        Remove:  ai-2 doc forget NAME')
+    from . import pack as packmod
+    print("Documents the AI can answer about:")
+    for name, conn in shown:
+        manifest = packmod.manifest_of(name)
+        what = (f"pack {manifest.get('title')}, version {manifest.get('version')}, license {manifest.get('license')}"
+                if manifest else docmod.index_path(name))
+        print(f"\n  {name}  (embedder {docmod.store_model(conn)}, {what})")
+        for d in docmod.list_documents(conn):
+            print(f"    {d['name']:<40} {d['words']:>7} words  {d['chunks']:>5} parts  added {d['added']}")
+    print('\nAsk:  ai-2 doc ask "your question"    Passages only:  ai-2 doc search "..."    Remove:  ai-2 doc forget NAME')
     return 0
+
+
+def _doc_forget(args, docmod) -> int:
+    """One document by name (wherever it is, unless that is ambiguous), or
+    --all of a collection, which removes the collection itself."""
+    names = docmod.list_collections()
+    if args.all:
+        target = args.collection or docmod.DEFAULT_COLLECTION
+        if target not in names:
+            if args.collection:
+                print(f"No collection named {target!r} (ai-2 doc list shows them).")
+                return 1
+            print("The index was already empty.")
+            return 0
+        n = len(docmod.list_documents(docmod.open_store(docmod.index_path(target))))
+        docmod.remove_collection(target)
+        if n:
+            print(f"Forgot {n} document{'s' if n != 1 else ''} and the collection {target}.")
+        else:
+            print("The index was already empty." if target == docmod.DEFAULT_COLLECTION
+                  else f"Removed the empty collection {target}.")
+        return 0
+    if not args.name:
+        print("error: name a document (ai-2 doc list) or pass --all", file=sys.stderr)
+        return 1
+    where = [n for n in ([args.collection] if args.collection else names)
+             if n in names and args.name in {d["name"] for d in docmod.list_documents(docmod.open_store(docmod.index_path(n)))}]
+    if not where:
+        print(f"No document named {args.name!r} (ai-2 doc list shows the names).")
+        return 1
+    if len(where) > 1:
+        print(f"error: {args.name!r} is in more than one collection ({', '.join(where)}); say which with --in NAME",
+              file=sys.stderr)
+        return 1
+    docmod.forget(docmod.open_store(docmod.index_path(where[0])), name=args.name)
+    print(f"Forgot 1 document." + ("" if where[0] == docmod.DEFAULT_COLLECTION else f" (collection {where[0]})"))
+    return 0
+
+
+def cmd_knowledge(args) -> int:
+    """`ai-2 knowledge export|install|list|remove`: knowledge packs, a
+    collection of documents in one file that other computers can install."""
+    import yaml
+    from . import doc as docmod
+    from . import pack as packmod
+    action = getattr(args, "knowledge_cmd", None)
+    try:
+        if action == "export":
+            if not docmod.valid_collection(args.name) or args.name not in docmod.list_collections():
+                print(f"error: no collection named {args.name!r} (ai-2 doc list shows them)", file=sys.stderr)
+                return 1
+            template = None
+            if args.manifest:
+                with open(args.manifest, encoding="utf-8") as fh:
+                    template = yaml.safe_load(fh) or {}
+                if not isinstance(template, dict):
+                    print(f"error: {args.manifest} is not a YAML mapping", file=sys.stderr)
+                    return 1
+            out = args.output or f"{(template or {}).get('id', args.name)}{packmod.SUFFIX}"
+            m = packmod.export_pack(args.name, out, template)
+            print(f"Wrote {out} ({os.path.getsize(out) // 1024} KB): {m['title']}, version {m['version']}, "
+                  f"{m['index']['documents']} document(s), {m['index']['parts']} parts, embedder {m['embedder']['id']}, "
+                  f"license {m['license']}.")
+            print("Document paths on this computer are not included. On the other computer:  "
+                  f"ai-2 knowledge install {os.path.basename(out)}")
+            return 0
+        if action == "available":
+            entries = packmod.load_catalog()
+            if args.term:
+                term = args.term.lower()
+                entries = [e for e in entries if term in f"{e.get('id')} {e.get('title')}".lower()]
+            if not entries:
+                print("No knowledge packs to fetch by name yet. A pack file works the same way:  "
+                      "ai-2 knowledge install FILE.ai2pack")
+                print("Packs and how to make one:  https://github.com/ProWoos-Devs/ai2-knowledge")
+                return 0
+            installed = {m.get("id"): m for _, m in packmod.installed_packs()}
+            print("Knowledge packs (ai-2 knowledge install ID):")
+            for e in entries:
+                here = installed.get(e["id"])
+                state = "" if here is None else (
+                    "  [installed]" if str(here.get("version")) == str(e.get("version")) else
+                    f"  [installed {here.get('version')}, newer available]")
+                print(f"  {e['id']:<22} {e.get('title')}  ({e.get('parts')} parts, "
+                      f"{int(e.get('size_bytes', 0)) // 1024} KB, {', '.join(e.get('languages') or [])}, "
+                      f"{e.get('license')}){state}")
+            return 0
+        if action == "install":
+            source = args.file
+            entry = packmod.catalog_entry(source)
+            if entry is None and not os.path.exists(source):
+                print(f"error: no pack file at {source!r} and nothing by that name in the catalog "
+                      "(ai-2 knowledge available)", file=sys.stderr)
+                return 1
+            if entry is not None:
+                print(f"{entry['title']} ({int(entry.get('size_bytes', 0)) // 1024} KB), "
+                      f"{entry.get('license')}. Downloading ...")
+
+                def progress(done, total):
+                    print(f"\r  {done // 1024} KB of {total // 1024} KB   " if total else
+                          f"\r  {done // 1024} KB   ", end="", flush=True)
+
+                source = packmod.download_pack(entry, os.path.join(docmod.data_dir(), "packs"),
+                                               progress=progress)
+                print()
+            collection, m, previous = packmod.install_pack(source, name=args.as_name)
+            model = _catalog_entry(m["embedder"]["id"])
+            verb = f"Updated {collection} from version {previous.get('version')} to" if previous else f"Installed {collection},"
+            print(f"{verb} {m['title']} version {m['version']}: {m['index']['documents']} document(s), "
+                  f"{m['index']['parts']} parts. License {m['license']}.")
+            if m.get("attribution"):
+                print(m["attribution"])
+            if model and find_model_file(model["file"]) is None:
+                print(f"The pack is searched with {model['label']} ({model['file_mb']} MB); downloading it now.")
+                if _pull_model(model) != 0:
+                    print("The pack is installed; the download can be repeated with:  "
+                          f"ai-2 model pull {model['id']}", file=sys.stderr)
+                    return 1
+            print(f'Search it:  ai-2 doc search --in {collection} "your question"')
+            return 0
+        if action == "remove":
+            if packmod.manifest_of(args.name) is None:
+                print(f"error: {args.name!r} is not an installed knowledge pack (ai-2 knowledge list); "
+                      "a collection of your own goes with:  ai-2 doc forget --all --in NAME", file=sys.stderr)
+                return 1
+            docmod.remove_collection(args.name)
+            print(f"Removed the pack {args.name}.")
+            return 0
+        packs = packmod.installed_packs()
+        if not packs:
+            print("No knowledge packs installed. Install one with:  ai-2 knowledge install FILE.ai2pack")
+            return 0
+        print("Knowledge packs:")
+        for name, m in packs:
+            idx = m.get("index") or {}
+            print(f"  {name:<24} {m.get('title')}, version {m.get('version')}, {idx.get('parts')} parts, "
+                  f"license {m.get('license')}")
+        return 0
+    except (packmod.PackError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
 
 def _doc_index(args, docmod) -> int:
@@ -846,7 +990,8 @@ def _doc_index(args, docmod) -> int:
     import time
     import zipfile
     hw = detect()
-    conn = docmod.open_store()
+    collection = args.collection or docmod.DEFAULT_COLLECTION
+    conn = docmod.open_store(None if collection == docmod.DEFAULT_COLLECTION else docmod.index_path(collection))
     model_id = docmod.store_model(conn)
     model = _catalog_entry(model_id) if model_id else docmod.choose_embedder(hw.ram_mib)
     if model is None:
@@ -868,19 +1013,18 @@ def _doc_index(args, docmod) -> int:
     for path in args.files:
         name = os.path.basename(path)
         try:
-            text = docmod.extract_text(path, lang=args.lang)
+            pages, paged = docmod.extract_pages(path, lang=args.lang)
         except (RuntimeError, subprocess.CalledProcessError, OSError, zipfile.BadZipFile, KeyError) as exc:
             print(f"  skipped {name}: {exc}", file=sys.stderr)
             rc = 1
             continue
-        words = len(text.split())
-        if not words:
+        if not any(p.split() for p in pages):
             print(f"  skipped {name}: no text found (a scanned PDF needs OCR: ai-2 workflow info documents)",
                   file=sys.stderr)
             rc = 1
             continue
-        chunks = docmod.fit_chunks(docmod.chunk_words(text), lambda c: client.ntokens(prefix + c),
-                                   client.token_limit())
+        chunks, spans, words = docmod.make_chunks(pages, paged, lambda c: client.ntokens(prefix + c),
+                                                  client.token_limit())
         print(f"{name}: {words} words in {len(chunks)} parts, indexing with {model['label']} "
               "(slow on an old CPU; you can leave it running) ...", flush=True)
         t0 = time.monotonic()
@@ -896,10 +1040,103 @@ def _doc_index(args, docmod) -> int:
         except OSError as exc:
             print(f"\n  error: the embedding server went away ({exc}); run the command again", file=sys.stderr)
             return 1
-        docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, words)
+        docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, words, pages=spans)
         print(f"\r  {name}: {len(chunks)} parts indexed in {time.monotonic() - t0:.0f} s" + " " * 12)
-    print('Ask about them:  ai-2 doc ask "your question"')
+    print('Ask about them:  ai-2 doc ask "your question"'
+          + ("" if collection == docmod.DEFAULT_COLLECTION else f"   (or only these: --in {collection})"))
     return rc
+
+
+def _doc_hits(args, docmod, hw, question: str) -> list[dict] | None:
+    """The parts of the indexed documents closest to the question, found by
+    the embedding server (started on demand), across every collection unless
+    --in names one. A question is embedded once, so collections built with
+    another embedding model are left out, and the command says which. None,
+    with the reason printed, when there is nothing to search or no server."""
+    names = docmod.list_collections()
+    if args.collection:
+        if args.collection not in names:
+            print(f"No collection named {args.collection!r} (ai-2 doc list shows them).", file=sys.stderr)
+            return None
+        names = [args.collection]
+    stores = {n: docmod.open_store(docmod.index_path(n)) for n in names}
+    info = {n: (docmod.store_model(c), docmod.list_documents(c)) for n, c in stores.items()}
+    usable = [n for n, (model_id, docs) in info.items() if model_id and docs]
+    if not usable:
+        print("No documents indexed yet. Add one with:  ai-2 doc index FILE", file=sys.stderr)
+        return None
+    if args.doc:
+        usable = [n for n in usable if args.doc in {d["name"] for d in info[n][1]}]
+        if not usable:
+            print(f"No document named {args.doc!r} (ai-2 doc list shows the names).", file=sys.stderr)
+            return None
+    groups: dict[str, list[str]] = {}
+    for n in usable:
+        groups.setdefault(info[n][0], []).append(n)
+    preferred = (docmod.choose_embedder(hw.ram_mib) or {}).get("id")
+    model_id = docmod.pick_embedder_group(groups, preferred,
+                                          {n: sum(d["chunks"] for d in info[n][1]) for n in usable})
+    left_out = [n for n in usable if info[n][0] != model_id]
+    if left_out:
+        print(f"Not searched, built with another embedding model: {', '.join(left_out)} "
+              "(search one of them with --in NAME)")
+    emb = _catalog_entry(model_id)
+    if emb is None:
+        print(f"error: {', '.join(groups[model_id])} was built with {model_id}, which is no longer in the catalog; "
+              "rebuild it:  ai-2 doc forget --all --in NAME", file=sys.stderr)
+        return None
+    url = _ensure_server(hw, emb, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait)
+    if url is None:
+        return None
+    qvec = docmod.EmbedClient(url, emb).embed_query(question)
+    hits = docmod.search_collections({n: stores[n] for n in groups[model_id]}, qvec, top=args.top, doc=args.doc)
+    if not hits:
+        print("Nothing in the indexed documents matches the question.")
+        return None
+    from . import pack as packmod
+    several = len(groups[model_id]) > 1
+    manifests = {n: packmod.manifest_of(n) for n in groups[model_id]}
+    for h in hits:
+        h["cite"] = docmod.cite(h, with_collection=several)
+        h["url"] = packmod.source_url(manifests.get(h["collection"]), h["doc"])
+        h["manifest"] = manifests.get(h["collection"])
+    return hits
+
+
+def _pack_terms(hits: list[dict]) -> list[str]:
+    """One line per pack the hits came from: its license and attribution, which
+    CC BY-SA and the BOE reuse terms ask to show wherever the text is reused."""
+    out = []
+    seen = set()
+    for h in hits:
+        m = h.get("manifest")
+        if m and m.get("id") not in seen:
+            seen.add(m.get("id"))
+            attribution = str(m.get("attribution") or "").strip()
+            out.append(f"From the pack {m.get('title')} ({m.get('license')})" + (f". {attribution}" if attribution else ""))
+    return out
+
+
+def _doc_search(args, docmod) -> int:
+    """The closest parts themselves, with where they come from, and no chat
+    model: seconds instead of minutes on the old machines, and the text is
+    the document's own, so nothing can be made up."""
+    import shutil
+    import textwrap
+    question = " ".join(args.question).strip()
+    hits = _doc_hits(args, docmod, detect(), question)
+    if hits is None:
+        return 1
+    width = max(40, min(100, shutil.get_terminal_size((80, 24)).columns) - 4)
+    for i, h in enumerate(hits, 1):
+        print(f"\n[{i}] {h['cite']}" + (f"  {h['url']}" if h.get("url") else ""))
+        print(textwrap.fill(h["text"], width=width, initial_indent="    ", subsequent_indent="    "))
+    terms = _pack_terms(hits)
+    if terms:
+        print()
+        for line in terms:
+            print(textwrap.fill(line, width=width + 4))
+    return 0
 
 
 def _doc_ask(args, docmod) -> int:
@@ -907,28 +1144,14 @@ def _doc_ask(args, docmod) -> int:
     from .chatterm import sentences, stream_reply
     from .sysinfo import mem_available_mib
     hw = detect()
-    conn = docmod.open_store()
-    model_id = docmod.store_model(conn)
-    if not model_id or not docmod.list_documents(conn):
-        print("No documents indexed yet. Add one with:  ai-2 doc index FILE", file=sys.stderr)
-        return 1
-    emb = _catalog_entry(model_id)
-    if emb is None:
-        print(f"error: the index was built with {model_id}, which is no longer in the catalog; "
-              "rebuild it:  ai-2 doc forget --all", file=sys.stderr)
-        return 1
     question = " ".join(args.question).strip()
     cfg = remote.load()
     if args.remote and cfg is None:
         print("error: no remote AI configured. Set one up with:  ai-2 remote set <url> [--api-key KEY]",
               file=sys.stderr)
         return 1
-    url = _ensure_server(hw, emb, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait)
-    if url is None:
-        return 1
-    hits = docmod.search(conn, docmod.EmbedClient(url, emb).embed_query(question), top=args.top, doc=args.doc)
-    if not hits:
-        print("Nothing in the indexed documents matches the question.")
+    hits = _doc_hits(args, docmod, hw, question)
+    if hits is None:
         return 1
     score = _load_score()
     if args.model:
@@ -987,8 +1210,10 @@ def _doc_ask(args, docmod) -> int:
     except OSError as exc:
         print(f"error: the AI server went away ({exc}); run the command again", file=sys.stderr)
         return 1
-    print("\nSources: " + "; ".join(f"[{i}] {h['doc']}, part {h['ord'] + 1} of {h['of']}"
+    print("\nSources: " + "; ".join(f"[{i}] {h['cite']}" + (f" {h['url']}" if h.get("url") else "")
                                    for i, h in enumerate(hits, 1)))
+    for line in _pack_terms(hits):
+        print(line)
     return 0
 
 
@@ -1438,6 +1663,8 @@ def main(argv: list[str] | None = None) -> int:
     p_d_index = d_sub.add_parser("index", help="read files into the index (text, PDF, DOCX, images through OCR)")
     p_d_index.add_argument("files", nargs="+", help="files to add (a file of the same name replaces the old one)")
     p_d_index.add_argument("--lang", default="eng", help="OCR language for scans, a tesseract code: eng, spa, deu")
+    p_d_index.add_argument("--in", dest="collection", metavar="NAME",
+                           help="the collection to add them to (default: documents); a new name starts a new one")
     p_d_index.add_argument("--wait", type=int, default=180, help="seconds to wait for the embedding server")
     p_d_index.set_defaults(func=cmd_doc)
     p_d_ask = d_sub.add_parser("ask", help="ask a question; the closest parts of your documents go to the AI with it")
@@ -1445,17 +1672,47 @@ def main(argv: list[str] | None = None) -> int:
     p_d_ask.add_argument("-m", "--model", help="catalog id of the chat model that answers (default: the largest on disk that fits RAM and is fast enough by the AI Score)")
     p_d_ask.add_argument("--top", type=int, default=3, help="how many parts to hand the AI (default 3)")
     p_d_ask.add_argument("--doc", help="search only this document (name as in ai-2 doc list)")
+    p_d_ask.add_argument("--in", dest="collection", metavar="NAME", help="only this collection (ai-2 doc list shows them)")
     p_d_ask.add_argument("--remote", action="store_true", help="answer with the remote AI (ai-2 remote); the excerpts leave this computer")
     p_d_ask.add_argument("--local", action="store_true", help="answer with this computer's own AI even when it would be slow")
     p_d_ask.add_argument("--stream", action="store_true", help="print token by token instead of whole sentences")
     p_d_ask.add_argument("--port", type=int, default=8080, help="the chat server's port")
     p_d_ask.add_argument("--wait", type=int, default=180, help="seconds to wait for a server to come up")
     p_d_ask.set_defaults(func=cmd_doc)
-    d_sub.add_parser("list", help="the documents in the index").set_defaults(func=cmd_doc)
-    p_d_forget = d_sub.add_parser("forget", help="remove a document from the index (or --all)")
+    p_d_search = d_sub.add_parser("search", help="show the parts of your documents closest to a question, with their pages; no chat model")
+    p_d_search.add_argument("question", nargs="+")
+    p_d_search.add_argument("--top", type=int, default=3, help="how many parts to show (default 3)")
+    p_d_search.add_argument("--doc", help="search only this document (name as in ai-2 doc list)")
+    p_d_search.add_argument("--in", dest="collection", metavar="NAME", help="only this collection (ai-2 doc list shows them)")
+    p_d_search.add_argument("--wait", type=int, default=180, help="seconds to wait for the embedding server")
+    p_d_search.set_defaults(func=cmd_doc)
+    d_sub.add_parser("list", help="the documents in the index, by collection").set_defaults(func=cmd_doc)
+    p_d_forget = d_sub.add_parser("forget", help="remove a document from the index (or --all of a collection)")
     p_d_forget.add_argument("name", nargs="?")
-    p_d_forget.add_argument("--all", action="store_true", help="remove every document and the index itself")
+    p_d_forget.add_argument("--all", action="store_true",
+                            help="remove every document of the collection and the collection itself (default: documents)")
+    p_d_forget.add_argument("--in", dest="collection", metavar="NAME", help="the collection the document is in")
     p_d_forget.set_defaults(func=cmd_doc)
+    p_kn = sub.add_parser("knowledge", help="knowledge packs: install one, or make one from your own documents")
+    kn_sub = p_kn.add_subparsers(dest="knowledge_cmd", metavar="action")
+    p_kn_avail = kn_sub.add_parser("available", help="the knowledge packs this AI-2 can fetch by name")
+    p_kn_avail.add_argument("term", nargs="?", help="only those whose name or title contains this")
+    p_kn_avail.set_defaults(func=cmd_knowledge)
+    p_kn_inst = kn_sub.add_parser("install", help="install a pack: a .ai2pack file, or a name from ai-2 knowledge available")
+    p_kn_inst.add_argument("file", metavar="FILE-OR-ID")
+    p_kn_inst.add_argument("--as", dest="as_name", metavar="NAME", help="collection name (default: the pack's id)")
+    p_kn_inst.set_defaults(func=cmd_knowledge)
+    kn_sub.add_parser("list", help="the knowledge packs installed here").set_defaults(func=cmd_knowledge)
+    p_kn_rm = kn_sub.add_parser("remove", help="remove an installed knowledge pack")
+    p_kn_rm.add_argument("name")
+    p_kn_rm.set_defaults(func=cmd_knowledge)
+    p_kn_exp = kn_sub.add_parser("export", help="make a knowledge pack from one of your collections (document paths left out)")
+    p_kn_exp.add_argument("name", help="the collection (ai-2 doc list)")
+    p_kn_exp.add_argument("-o", "--output", help="file to write (default: ID.ai2pack here)")
+    p_kn_exp.add_argument("--manifest", help="YAML with id, version, title, languages, license, attribution, modified, sources")
+    p_kn_exp.set_defaults(func=cmd_knowledge)
+    p_kn.set_defaults(func=cmd_knowledge)
+
     p_docs.set_defaults(func=cmd_doc)
 
     p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")

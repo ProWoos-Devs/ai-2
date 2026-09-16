@@ -1,0 +1,13 @@
+# Knowledge packs AI-2 can install by name (`ai-2 knowledge install ID`).
+#
+# This list ships inside the ai-2 package, which is signed, so the SHA-256 of
+# every pack here is covered by the repository key: the file that arrives is
+# the file the project published. The recipes that build them, the packs
+# contributed by other people and the rules for adding one are at
+# https://github.com/ProWoos-Devs/ai2-knowledge
+#
+# Fields: id, title, version, languages, license, attribution, embedder, url,
+# size_bytes, sha256, documents, parts. An entry is added only after the pack
+# has been built from its recipe, checked by a person and published.
+version: 1
+packs: []

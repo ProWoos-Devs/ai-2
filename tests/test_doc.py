@@ -33,6 +33,77 @@ def test_fit_chunks_splits_until_under_the_limit():
     assert doc.fit_chunks(["singleword"], lambda c: 99, limit=8) == ["singleword"]
 
 
+def test_fit_ranges_keeps_positions():
+    words = "a b c d e f g h".split()
+    count = lambda c: len(c.split()) * 2
+    assert doc.fit_ranges(words, [(0, 8)], count, limit=8) == [(0, 4), (4, 8)]
+    assert doc.fit_ranges(words, [(0, 1)], lambda c: 99, limit=8) == [(0, 1)]
+
+
+def test_pdf_pages_come_from_the_form_feeds(tmp_path, monkeypatch):
+    """pdftotext ends every page with a form feed (39 in the 39-page
+    Constitution PDF, checked 2026-09-15); the one after the last page is not a
+    page of its own."""
+    pdf = tmp_path / "c.pdf"
+    pdf.write_bytes(b"%PDF")
+    monkeypatch.setattr(doc.shutil, "which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(doc.subprocess, "run",
+                        lambda *a, **k: type("R", (), {"stdout": "uno dos\ftres\f\fcuatro\f"})())
+    pages, paged = doc.extract_pages(str(pdf))
+    assert paged and pages == ["uno dos", "tres", "", "cuatro"]      # an empty page keeps its number
+    assert doc.extract_text(str(pdf)).split() == ["uno", "dos", "tres", "cuatro"]
+    (tmp_path / "n.txt").write_text("hola\fmundo", encoding="utf-8")
+    assert doc.extract_pages(str(tmp_path / "n.txt")) == (["hola\fmundo"], False)
+
+
+def test_make_chunks_names_the_pages_each_chunk_spans():
+    pages = [" ".join(f"p1w{i}" for i in range(100)), " ".join(f"p2w{i}" for i in range(100)), "", "fin"]
+    texts, spans, words = doc.make_chunks(pages, True, lambda c: 0, limit=512, size=110, overlap=20)
+    assert words == 201
+    assert texts[0].split()[0] == "p1w0" and texts[0].split()[-1] == "p2w9"
+    assert spans[0] == (1, 2)                       # runs across the page break
+    assert spans[1] == (1, 2) and texts[1].split()[0] == "p1w90"
+    assert spans[-1] == (2, 4) and texts[-1].split()[-1] == "fin"   # page 3 is empty, "fin" is on page 4
+    # split to fit: the halves keep their own pages
+    t2, s2, _ = doc.make_chunks(pages[:2], True, lambda c: len(c.split()), limit=60, size=110, overlap=20)
+    assert all(len(t.split()) <= 60 for t in t2) and s2[0] == (1, 1) and (2, 2) in s2
+    t3, s3, w3 = doc.make_chunks(["sin páginas aquí"], False, lambda c: 0, limit=512)
+    assert t3 == ["sin páginas aquí"] and s3 is None and w3 == 3
+    assert doc.make_chunks(["", "  "], True, lambda c: 0, limit=512) == ([], [], 0)
+
+
+def test_cite_prefers_pages_over_parts():
+    assert doc.cite({"doc": "c.pdf", "ord": 4, "of": 49, "page": 12, "page_end": 12}) == "c.pdf, page 12"
+    assert doc.cite({"doc": "c.pdf", "ord": 4, "of": 49, "page": 12, "page_end": 13}) == "c.pdf, pages 12-13"
+    assert doc.cite({"doc": "n.txt", "ord": 4, "of": 49, "page": None, "page_end": None}) == "n.txt, part 5 of 49"
+    assert doc.cite({"doc": "n.txt", "ord": 0, "of": 1}) == "n.txt, part 1 of 1"
+
+
+def test_pages_are_stored_and_old_stores_gain_the_columns(tmp_path):
+    import sqlite3
+    path = str(tmp_path / "old.sqlite")
+    old = sqlite3.connect(path)          # the 0.14.0 schema, with a document in it
+    old.executescript("""
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE docs (id INTEGER PRIMARY KEY, name TEXT UNIQUE, path TEXT, added TEXT, words INTEGER, chunks INTEGER);
+        CREATE TABLE chunks (id INTEGER PRIMARY KEY, doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
+                             ord INTEGER, text TEXT, vec BLOB);
+    """)
+    old.execute("INSERT INTO docs VALUES (1, 'old.txt', '/old.txt', 'x', 1, 1)")
+    old.execute("INSERT INTO chunks VALUES (1, 1, 0, 'Madrid', ?)", (doc.to_blob(fake_vec("Madrid")),))
+    old.commit()
+    old.close()
+    conn = doc.open_store(path)
+    hit = doc.search(conn, fake_vec("Madrid"), top=1)[0]
+    assert hit["doc"] == "old.txt" and hit["page"] is None and doc.cite(hit) == "old.txt, part 1 of 1"
+    doc.add_document(conn, "c.pdf", "/c.pdf", ["La capital es Madrid.", "El castellano."],
+                     [fake_vec("Madrid"), fake_vec("castellano")], words=5, pages=[(3, 3), (3, 4)])
+    hits = doc.search(conn, fake_vec("castellano"), top=1, doc="c.pdf")
+    assert hits[0]["page"] == 3 and hits[0]["page_end"] == 4
+    conn.close()
+    doc.open_store(path).close()          # opening twice does not add the columns twice
+
+
 def test_store_roundtrip_search_and_forget(tmp_path):
     conn = doc.open_store(str(tmp_path / "index.sqlite"))
     assert doc.store_model(conn) is None
@@ -128,12 +199,12 @@ def test_answer_model_prefers_the_biggest_usable_over_the_starter():
 
 def test_build_messages_numbers_the_excerpts():
     hits = [{"text": "El castellano es la lengua oficial.", "doc": "c.pdf", "ord": 2, "of": 37, "score": 0.9},
-            {"text": "Madrid es la capital.", "doc": "c.pdf", "ord": 4, "of": 37, "score": 0.8}]
+            {"text": "Madrid es la capital.", "doc": "c.pdf", "ord": 4, "of": 37, "score": 0.8, "page": 7, "page_end": 7}]
     msgs = doc.build_messages("¿Cuál es la capital?", hits)
     assert msgs[0] == {"role": "system", "content": doc.SYSTEM_PROMPT}
     user = msgs[1]["content"]
     assert user.startswith("Question: ¿Cuál es la capital?\n")          # question first
-    assert "[1] (c.pdf, part 3 of 37)" in user and "[2] (c.pdf, part 5 of 37)" in user
+    assert "[1] (c.pdf, part 3 of 37)" in user and "[2] (c.pdf, page 7)" in user
     assert user.rstrip().endswith("If the excerpts do not contain the answer, say so.")
     assert 'Answer the question "¿Cuál es la capital?" in one or two complete sentences' in user
 
@@ -208,3 +279,125 @@ def test_doc_list_and_forget_cli(tmp_path, monkeypatch, capsys):
     assert "already empty" in capsys.readouterr().out
     assert cli.main(["doc", "forget", "ghost.txt"]) == 1
     assert "No document named 'ghost.txt'" in capsys.readouterr().out
+
+
+def test_doc_search_prints_passages_without_a_chat_model(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    started = []
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: started.append((model["id"], record)) or "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    assert cli.main(["doc", "search", "capital"]) == 1
+    assert "No documents indexed yet" in capsys.readouterr().err and started == []
+    conn = doc.open_store()
+    doc.set_store_model(conn, "nomic-embed-text-v2-moe", 8)
+    doc.add_document(conn, "c.pdf", "/c.pdf", ["La capital del Estado es la villa de Madrid.", "El castellano es la lengua oficial."],
+                     [fake_vec("Madrid"), fake_vec("castellano")], words=14, pages=[(3, 3), (3, 4)])
+    doc.add_document(conn, "n.txt", "/n.txt", ["Notas sin páginas sobre la bandera."], [fake_vec("bandera")], words=5)
+    conn.close()
+    assert cli.main(["doc", "search", "--top", "2", "¿Dónde", "está", "Madrid?"]) == 0
+    out = capsys.readouterr().out
+    assert "[1] c.pdf, page 3\n    La capital del Estado es la villa de Madrid." in out
+    assert "[2] " in out and "[3] " not in out
+    assert started == [("nomic-embed-text-v2-moe", serverstate.EMBED)]      # the embedding server only, no chat model
+    assert cli.main(["doc", "search", "--doc", "n.txt", "bandera"]) == 0
+    assert "[1] n.txt, part 1 of 1" in capsys.readouterr().out
+    assert cli.main(["doc", "search", "--doc", "ghost.pdf", "x"]) == 1
+    assert "No document named 'ghost.pdf'" in capsys.readouterr().err
+
+
+def _store(name, model, docs):
+    conn = doc.open_store(doc.index_path(name))
+    doc.set_store_model(conn, model, 8)
+    for doc_name, texts in docs.items():
+        doc.add_document(conn, doc_name, "/" + doc_name, texts, [fake_vec(t) for t in texts], words=len(texts))
+    conn.close()
+
+
+def test_collection_names_and_the_legacy_index_moves_in_place(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    assert doc.valid_collection("constitucion-es") and doc.valid_collection("python3.14_docs")
+    for bad in ("", "Docs", "../x", "a/b", ".hidden", "-x", "x" * 65):
+        assert not doc.valid_collection(bad)
+    assert doc.list_collections() == []
+    legacy = tmp_path / "data" / "ai2" / "doc" / "index.sqlite"      # where 0.14 and 0.15 kept it
+    conn = doc.open_store(str(legacy))
+    doc.set_store_model(conn, "nomic-embed-text-v1.5", 8)
+    doc.add_document(conn, "old.txt", "/old.txt", ["Madrid"], [fake_vec("Madrid")], words=1)
+    conn.close()
+    assert doc.list_collections() == ["documents"]
+    assert not legacy.exists() and os.path.isfile(doc.index_path("documents"))
+    assert doc.list_documents(doc.open_store())[0]["name"] == "old.txt"
+    os.makedirs(doc.doc_root() + "/Not-A-Name")
+    assert doc.list_collections() == ["documents"]
+
+
+def test_search_across_collections_merges_and_names_them(tmp_path):
+    a = doc.open_store(str(tmp_path / "a.sqlite"))
+    b = doc.open_store(str(tmp_path / "b.sqlite"))
+    for conn, name, text in ((a, "a.txt", "La capital es Madrid."), (b, "b.txt", "Madrid, capital y bandera.")):
+        doc.set_store_model(conn, "m", 8)
+        doc.add_document(conn, name, "/" + name, [text, "otra cosa"], [fake_vec(text), fake_vec("x")], words=4)
+    hits = doc.search_collections({"documents": a, "packs": b}, fake_vec("Madrid bandera"), top=3)
+    assert [h["collection"] for h in hits[:1]] == ["packs"] and len(hits) == 3
+    assert doc.cite(hits[0], with_collection=True) == "packs/b.txt, part 1 of 2"
+    assert doc.cite(hits[0]) == "b.txt, part 1 of 2"
+    chunks = {"documents": 10, "big": 500, "small": 5}
+    assert doc.pick_embedder_group({"v2": ["documents"], "v1": ["big"]}, "v2", chunks) == "v2"   # what this machine indexes with
+    assert doc.pick_embedder_group({"v2": ["small"], "v1": ["big"]}, "none", chunks) == "v1"     # else the most parts
+
+
+def test_doc_cli_with_collections(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": "nomic-embed-text-v2-moe"})
+    _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["Madrid es la capital."]})
+    _store("constitucion", "nomic-embed-text-v2-moe", {"c.pdf": ["La bandera de España.", "Madrid, la capital."]})
+    _store("english", "nomic-embed-text-v1.5", {"e.txt": ["Madrid is the capital."]})
+    assert cli.main(["doc", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "  constitucion  (embedder nomic-embed-text-v2-moe" in out and "    notas.txt" in out and "  english  " in out
+    # every collection built with this machine's embedder, named in the citations; the other one is said
+    assert cli.main(["doc", "search", "--top", "3", "Madrid capital"]) == 0
+    out = capsys.readouterr().out
+    assert "Not searched, built with another embedding model: english" in out
+    assert "constitucion/c.pdf, part" in out and "documents/notas.txt, part 1 of 1" in out and "e.txt" not in out
+    # --in picks one collection, whatever its model; citations stay short
+    assert cli.main(["doc", "search", "--in", "english", "Madrid"]) == 0
+    out = capsys.readouterr().out
+    assert "[1] e.txt, part 1 of 1" in out and "Not searched" not in out
+    assert cli.main(["doc", "search", "--in", "ghost", "x"]) == 1
+    assert "No collection named 'ghost'" in capsys.readouterr().err
+    assert cli.main(["doc", "search", "--in", "Bad/Name", "x"]) == 1
+    assert "not a collection name" in capsys.readouterr().err
+    # forget finds the document's collection, refuses when ambiguous, --all --in removes a collection
+    _store("otra", "nomic-embed-text-v2-moe", {"notas.txt": ["Otra copia."]})
+    assert cli.main(["doc", "forget", "notas.txt"]) == 1
+    assert "more than one collection (documents, otra)" in capsys.readouterr().err
+    assert cli.main(["doc", "forget", "notas.txt", "--in", "otra"]) == 0
+    assert "Forgot 1 document. (collection otra)" in capsys.readouterr().out
+    assert cli.main(["doc", "forget", "c.pdf"]) == 0
+    assert cli.main(["doc", "forget", "--all", "--in", "english"]) == 0
+    assert "Forgot 1 document and the collection english." in capsys.readouterr().out
+    assert "english" not in doc.list_collections() and "otra" in doc.list_collections()
+    assert cli.main(["doc", "forget", "--all", "--in", "english"]) == 1
+
+
+def test_doc_index_into_a_named_collection(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    monkeypatch.setattr(doc.EmbedClient, "ntokens", lambda self, text: len(text.split()))
+    monkeypatch.setattr(doc.EmbedClient, "embed_documents", lambda self, chunks, progress=None: [fake_vec(c) for c in chunks])
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: next(
+        m for m in embedding_models() if m["id"] == "nomic-embed-text-v1.5"))
+    f = tmp_path / "ley.txt"
+    f.write_text("La capital del Estado es la villa de Madrid. " * 30, encoding="utf-8")
+    assert cli.main(["doc", "index", "--in", "leyes", str(f)]) == 0
+    assert "--in leyes" in capsys.readouterr().out
+    assert doc.list_collections() == ["leyes"]
+    conn = doc.open_store(doc.index_path("leyes"))
+    assert doc.store_model(conn) == "nomic-embed-text-v1.5" and doc.list_documents(conn)[0]["name"] == "ley.txt"

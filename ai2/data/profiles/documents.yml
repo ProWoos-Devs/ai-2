@@ -28,6 +28,9 @@ tiers:
 usage:
   - "ai-2 doc index file.pdf             read a PDF, text file, DOCX or scan (OCR, --lang spa) into the index"
   - "ai-2 doc ask \"your question\"        the closest parts of your documents go to the AI with the question"
-  - "ai-2 doc list                       what is indexed;  ai-2 doc forget NAME  removes one"
+  - "ai-2 doc search \"your question\"     the closest parts themselves, with their pages (no chat model, seconds)"
+  - "ai-2 doc list                       what is indexed, by collection;  ai-2 doc forget NAME  removes one"
+  - "ai-2 doc index --in work report.pdf  keep documents in a named collection; ask/search --in work look only there"
+  - "ai-2 knowledge install pack.ai2pack   add a knowledge pack;  ai-2 knowledge export work  makes one"
   - "Indexing is slow on an old CPU (about 9 tokens a second on the 2016 reference laptop); start it and come back."
   - "tesseract scan.png page -l eng      a scanned image to page.txt by hand (spa, deu for Spanish, German)"
