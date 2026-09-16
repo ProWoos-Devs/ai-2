@@ -70,4 +70,40 @@ if [ ! -f "$CACHE/$GEMMA_FILE" ] || [ "$(sha256sum "$CACHE/$GEMMA_FILE" | cut -d
 fi
 install -Dm644 "$CACHE/$GEMMA_FILE" "$DST/root-overlay/var/lib/ai2/models/$GEMMA_FILE"
 
+# AI-2: bundle the English embedding model as well, because a knowledge pack
+# cannot be searched without the model that built it, and the whole point of
+# shipping packs is that they work before the machine has a network. 85 MB.
+EMBED_FILE=nomic-embed-text-v1.5.Q4_K_M.gguf
+EMBED_SHA=d4e388894e09cf3816e8b0896d81d265b55e7a9fff9ab03fe8bf4ef5e11295ac
+EMBED_URL=https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/$EMBED_FILE
+if [ ! -f "$CACHE/$EMBED_FILE" ] || [ "$(sha256sum "$CACHE/$EMBED_FILE" | cut -d" " -f1)" != "$EMBED_SHA" ]; then
+  echo "Downloading bundled embedding model $EMBED_FILE ..."
+  curl -fL --retry 3 -o "$CACHE/$EMBED_FILE" "$EMBED_URL"
+  echo "$EMBED_SHA  $CACHE/$EMBED_FILE" | sha256sum -c - || { echo "bundled embedder checksum FAILED"; exit 1; }
+fi
+install -Dm644 "$CACHE/$EMBED_FILE" "$DST/root-overlay/var/lib/ai2/models/$EMBED_FILE"
+
+# AI-2: the knowledge packs go into /etc/skel, so every account the installer
+# creates starts with them already installed (Calamares copies skel into the
+# new user's home). They are small, about 1 MB in total, and each is checked
+# against the sha256 in the catalog the ai-2 package ships.
+PACKS_DIR="$SRC/iso/packs"
+SKEL_DOC="$DST/root-overlay/etc/skel/.local/share/ai2/doc"
+python3 - "$SRC" "$PACKS_DIR" <<'PYCHECK' || { echo "bundled pack checksum FAILED"; exit 1; }
+import hashlib, sys, os, yaml
+src, packs = sys.argv[1], sys.argv[2]
+catalog = yaml.safe_load(open(os.path.join(src, "ai2/data/packs.yml")))
+for entry in catalog["packs"]:
+    path = os.path.join(packs, entry["id"] + ".ai2pack")
+    got = hashlib.sha256(open(path, "rb").read()).hexdigest()
+    assert got == entry["sha256"], f"{entry['id']}: {got} != {entry['sha256']}"
+    print(f"  {entry['id']} matches the catalog")
+PYCHECK
+for pack in "$PACKS_DIR"/*.ai2pack; do
+  id=$(basename "$pack" .ai2pack)
+  mkdir -p "$SKEL_DOC/$id"
+  bsdtar -xf "$pack" -C "$SKEL_DOC/$id" index.sqlite manifest.yml
+done
+chmod -R go-w "$DST/root-overlay/etc/skel/.local"
+
 echo "Staged $(find "$DST" -type f | wc -l) files into $DST"

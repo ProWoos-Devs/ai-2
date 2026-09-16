@@ -22,3 +22,22 @@ def test_no_broadcom_installer_job():
         assert not list((ISO / f"live-overlay/etc/calamares-{cfg}/modules").glob("*broadcom*")), cfg
     assert not (ISO / "live-overlay/usr/share/ai2/broadcom-install.sh").exists()
     assert "broadcom" not in pathlib.Path("iso/stage-profile.sh").read_text()
+
+
+def test_bundled_packs_match_the_catalog():
+    """The knowledge packs staged into /etc/skel are the files the catalog
+    describes. A stale pack file in git would otherwise ship silently and
+    disagree with the checksum every other install path verifies."""
+    import hashlib
+    import pathlib
+    import yaml
+    root = pathlib.Path(__file__).resolve().parent.parent
+    catalog = yaml.safe_load((root / "ai2/data/packs.yml").read_text())
+    entries = {p["id"]: p for p in catalog["packs"]}
+    files = sorted((root / "iso/packs").glob("*.ai2pack"))
+    assert {f.stem for f in files} == set(entries), "iso/packs and the catalog list different packs"
+    for f in files:
+        data = f.read_bytes()
+        entry = entries[f.stem]
+        assert hashlib.sha256(data).hexdigest() == entry["sha256"], f"{f.name}: sha256"
+        assert len(data) == entry["size_bytes"], f"{f.name}: size"
