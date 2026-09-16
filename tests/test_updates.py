@@ -424,3 +424,36 @@ def test_notify_is_spoken_to_a_screen_reader(monkeypatch):
     monkeypatch.setattr(a11y, "speak_once", lambda text: spoken.append(text))
     assert updates.notify(4) is False        # nothing visual, no notify-send
     assert spoken and "ai-2 update" in spoken[0]
+
+
+def test_the_loop_rechecks_every_interval_not_every_max_age(tmp_path, monkeypatch, capsys):
+    """--max-age keeps repeated logins from re-checking, but it must not make
+    the session loop skip its own rounds. On 2026-09-16 both reference
+    machines ran `--max-age 20 --every 6`, woke every 6 hours with a cache
+    12 hours old, called it fresh and never noticed that day's release."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    asked, slept = [], []
+    monkeypatch.setattr(updates, "notify", lambda n: True)
+    _pamac_open(monkeypatch, False)
+    # the cache is 12 hours old throughout
+    monkeypatch.setattr(updates, "state_is_fresh", lambda hours: 12.0 < hours)
+    monkeypatch.setattr(updates, "load_state", lambda: {"count": 0, "packages": []})
+    def check_now():
+        asked.append(1)
+        return {"count": 0, "packages": []}
+    monkeypatch.setattr(updates, "check_now", check_now)
+    def sleep(s):
+        slept.append(s)
+        if len(slept) == 3:
+            raise KeyboardInterrupt
+    import argparse
+    args = argparse.Namespace(notify=True, max_age=20.0, every=6.0)
+    try:
+        cli.cmd_update_check(args, sleep=sleep)
+    except KeyboardInterrupt:
+        pass
+    # the login round trusts the 12-hour-old cache (max-age 20), every round
+    # after it re-checks, because 12 hours is older than the 6-hour interval
+    # three rounds: the login one trusts the cache, the two after it re-check
+    assert len(asked) == 2, f"the loop ran {len(asked)} real checks, expected one per round after the first"

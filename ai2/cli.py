@@ -1450,8 +1450,9 @@ def cmd_update_check(args, sleep=None) -> int:
     from . import software, updates
     sleep = sleep or time.sleep
     owed = True                       # the login round always reminds
+    max_age = args.max_age
     while True:
-        cached = bool(args.max_age) and updates.state_is_fresh(args.max_age)
+        cached = bool(max_age) and updates.state_is_fresh(max_age)
         st = (updates.load_state() or {}) if cached else (updates.check_now() or updates.load_state() or {})
         count = st.get("count")
         if count is None:
@@ -1469,6 +1470,12 @@ def cmd_update_check(args, sleep=None) -> int:
         if not args.every:
             return 0
         owed = owed and count is not None
+        # A round that only reads the cache announces nothing new, so after
+        # the login round the cache may be at most one interval old: with
+        # --max-age 20 --every 6 both machines woke every 6 hours, found a
+        # 12-hour-old cache still "fresh", and so never saw a release
+        # published that morning (2026-09-16, ai-2 0.16.0).
+        max_age = min(args.max_age, args.every) if args.max_age else args.every
         sleep(args.every * 3600)
 
 

@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.16.1] - 2026-09-16
+### Fixed
+- **The update bubble could lag a release by a day.** The session check runs `--max-age 20 --every 6`: it wakes every 6 hours, but only ran a real check when the cached result was more than 20 hours old, so a wake-up with a 12-hour-old cache reused it and announced nothing. Found on both reference machines the evening 0.16.0 was published: each had last checked that morning, both had been up for a day without suspending, and neither had seen the release. `--max-age` still keeps repeated logins from re-checking; after the login round the cache may now be at most one interval old, so a machine running the loop notices a release within its interval.
+
 ## [0.16.0] - 2026-09-16
 ### Changed
 - **`ai-2 doc` cites PDF pages.** The sources under an answer name the page of the PDF each excerpt came from ("constitucion.pdf, page 8", or "pages 8-9" when a part runs across a page break) instead of "part 47 of 219"; text files, DOCX and scans, which have no pages, keep the part number. pdftotext ends every page with a form feed, so this costs nothing at indexing time. Parts still run across page breaks, so a sentence continued on the next page stays whole. Indexes made by 0.14 and 0.15 keep working and cite parts until the file is indexed again. Checked on the 39-page Spanish Constitution: all 219 parts carry the page range pdftotext gives for those pages.
