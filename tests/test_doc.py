@@ -401,3 +401,60 @@ def test_doc_index_into_a_named_collection(tmp_path, monkeypatch, capsys):
     assert doc.list_collections() == ["leyes"]
     conn = doc.open_store(doc.index_path("leyes"))
     assert doc.store_model(conn) == "nomic-embed-text-v1.5" and doc.list_documents(conn)[0]["name"] == "ley.txt"
+
+
+def test_doc_search_with_no_question_asks_and_keeps_asking(tmp_path, monkeypatch, capsys):
+    """What the Search Knowledge menu entry runs. The first screen has to say
+    that this is not AI-2 Chat, because that difference is the point."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": "nomic-embed-text-v2-moe"})
+    _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["La capital del Estado es Madrid."]})
+    asked = iter(["madrid", "", "never reached"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(asked))
+    assert cli.main(["doc", "search"]) == 0
+    out = capsys.readouterr().out
+    assert "It is not AI-2 Chat" in out and "nothing can be made up" in out
+    assert "Searching: documents" in out
+    assert "[1] notas.txt, part 1 of 1" in out
+    assert "La capital del Estado es Madrid." in out
+    assert out.rstrip().endswith("Done.")
+
+
+def test_the_search_loop_says_when_there_is_nothing_to_search(tmp_path, monkeypatch, capsys):
+    """The case of an older AI-2 brought up to date: the packs are not added
+    by an update, so the menu entry must not look broken."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    assert cli.main(["doc", "search"]) == 1
+    out = capsys.readouterr().out
+    assert "nothing to search on this computer yet" in out
+    assert "ai-2 knowledge available" in out and "ai-2 doc index FILE" in out
+
+
+def test_the_search_loop_warns_when_collections_use_different_embedders(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": "nomic-embed-text-v2-moe"})
+    _store("packs", "nomic-embed-text-v1.5", {"english.txt": ["Madrid is the capital."]})
+    _store("mine", "nomic-embed-text-v2-moe", {"notas.txt": ["La capital es Madrid."]})
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    assert cli.main(["doc", "search"]) == 0
+    out = capsys.readouterr().out
+    assert "cannot search them together" in out and "--in NAME" in out
+    assert out.rstrip().endswith("Nothing asked.")
+
+
+def test_the_search_loop_survives_ctrl_c(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["Madrid"]})
+    def interrupt(prompt=""):
+        raise KeyboardInterrupt
+    monkeypatch.setattr("builtins.input", interrupt)
+    assert cli.main(["doc", "search"]) == 0
+    assert "Nothing asked." in capsys.readouterr().out

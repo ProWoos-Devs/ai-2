@@ -39,11 +39,15 @@
         <Include>
             <Category>X-AI2</Category>
         </Include>
-        <!-- About AI-2 first (Rafael, 2026-09-15), then every other entry in
-             garcon's own name order. Explicit, because name order alone
-             would put the German "Über AI-2" last. -->
+        <!-- About AI-2 first (Rafael, 2026-09-15), then Search Knowledge
+             (2026-09-17: on the machines AI-2 is built for this is the
+             capability that answers fastest and with sources, so it sits
+             above both chat entries), then every other entry in garcon's own
+             name order. Explicit, because name order alone would put the
+             German "Über AI-2" last. -->
         <Layout>
             <Filename>ai2-about.desktop</Filename>
+            <Filename>ai2-search.desktop</Filename>
             <Merge type="all"/>
         </Layout>
     </Menu>

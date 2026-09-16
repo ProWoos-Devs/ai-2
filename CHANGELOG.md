@@ -2,7 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.17.1] - 2026-09-17
+## [0.18.0] - 2026-09-17
+### Added
+- **Search Knowledge, a menu entry that reaches the packs** (workspace#17). A fresh install carries three knowledge packs, and until now the menu offered Chat but nothing that opened them, which is backwards: on the machines AI-2 is built for, searching answers in seconds with real sources while chat takes minutes and can be wrong. The entry is second in Applications > AI-2, above both chat entries, in English, Spanish and German, and it runs `ai-2 doc search` with no question, which now asks for one and keeps asking until an empty line. The first screen says plainly that this is not AI-2 Chat and that nothing is written by the AI. It names the collections it will search, says when they were built with different embedding models and cannot be searched together, and on a machine with nothing indexed (an older AI-2 brought up to date, where an update adds packages and not documents) it says so and names `ai-2 knowledge available` instead of looking broken.
+
 ### Fixed
 - **`ai-2 gopher` answers one question at a time.** It used a threading server with no bound, so a few simultaneous searches from one eager client on the network could each start the vector scan at once, which is seconds of a core on a two-core machine. The default server is now sequential and extra connections queue in the listen backlog; `--workers N` allows more and bounds them, and a request that waits too long is told the machine is busy rather than left hanging. The socket timeout for a client that connects and says nothing came down from 30 seconds to 10.
 - **Gopher says where the text came from, the way the command line does.** A search result now carries the document's own source URL from the pack's manifest, and both search results and whole documents end with the pack, its licence, its version and the attribution. Before, search named the pack's licence but no URL, and a document printed the attribution without the licence.

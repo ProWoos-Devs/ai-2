@@ -1189,17 +1189,8 @@ def _pack_terms(hits: list[dict]) -> list[str]:
     return out
 
 
-def _doc_search(args, docmod) -> int:
-    """The closest parts themselves, with where they come from, and no chat
-    model: seconds instead of minutes on the old machines, and the text is
-    the document's own, so nothing can be made up."""
-    import shutil
+def _doc_show_hits(hits, width) -> None:
     import textwrap
-    question = " ".join(args.question).strip()
-    hits = _doc_hits(args, docmod, detect(), question)
-    if hits is None:
-        return 1
-    width = max(40, min(100, shutil.get_terminal_size((80, 24)).columns) - 4)
     for i, h in enumerate(hits, 1):
         print(f"\n[{i}] {h['cite']}" + (f"  {h['url']}" if h.get("url") else ""))
         print(textwrap.fill(h["text"], width=width, initial_indent="    ", subsequent_indent="    "))
@@ -1208,6 +1199,70 @@ def _doc_search(args, docmod) -> int:
         print()
         for line in terms:
             print(textwrap.fill(line, width=width + 4))
+
+
+def _doc_search(args, docmod) -> int:
+    """The closest parts themselves, with where they come from, and no chat
+    model: seconds instead of minutes on the old machines, and the text is
+    the document's own, so nothing can be made up.
+
+    With no question it asks for one and keeps asking, which is what the
+    Search Knowledge menu entry runs."""
+    import shutil
+    question = " ".join(args.question).strip()
+    width = max(40, min(100, shutil.get_terminal_size((80, 24)).columns) - 4)
+    if question:
+        hits = _doc_hits(args, docmod, detect(), question)
+        if hits is None:
+            return 1
+        _doc_show_hits(hits, width)
+        return 0
+    return _doc_search_loop(args, docmod, width)
+
+
+def _doc_search_loop(args, docmod, width) -> int:
+    """Ask, search, print, ask again. The first screen says what this is,
+    because the difference from AI-2 Chat is the point: these are passages
+    from the documents on this computer, not something a model wrote."""
+    import textwrap
+    hw = detect()
+    print(branding.compact())
+    print(textwrap.fill("This searches the documents and knowledge packs on this computer and shows "
+                        "the passages that match, each with the document it came from. It is not AI-2 "
+                        "Chat: nothing here is written by the AI, so nothing can be made up.", width=width + 4))
+    names = docmod.list_collections()
+    if not names:
+        print("\nThere is nothing to search on this computer yet.")
+        print("Knowledge packs to install:  ai-2 knowledge available")
+        print("Your own documents:          ai-2 doc index FILE")
+        return 1
+    print("\nSearching: " + ", ".join(names))
+    models = {}
+    for name in names:
+        model_id = docmod.store_model(docmod.open_store(docmod.index_path(name)))
+        if model_id:
+            models.setdefault(model_id, []).append(name)
+    if len(models) > 1:
+        print(textwrap.fill("Not all of these were built with the same embedding model, so one question "
+                            "cannot search them together. Whichever group this computer indexes with is "
+                            "searched; ai-2 doc search --in NAME searches another.", width=width + 4))
+    print("\nType a question, or press Enter on an empty line to finish.")
+    asked = 0
+    while True:
+        try:
+            question = input("\nQuestion: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not question:
+            break
+        print()                       # the server's "Starting ..." line has its own line
+        args.question = [question]
+        hits = _doc_hits(args, docmod, hw, question)
+        if hits is not None:
+            asked += 1
+            _doc_show_hits(hits, width)
+    print("\nDone." if asked else "\nNothing asked.")
     return 0
 
 
@@ -1759,7 +1814,7 @@ def main(argv: list[str] | None = None) -> int:
     p_d_ask.add_argument("--wait", type=int, default=180, help="seconds to wait for a server to come up")
     p_d_ask.set_defaults(func=cmd_doc)
     p_d_search = d_sub.add_parser("search", help="show the parts of your documents closest to a question, with their pages; no chat model")
-    p_d_search.add_argument("question", nargs="+")
+    p_d_search.add_argument("question", nargs="*", help="the question; with none, it asks for one and keeps asking")
     p_d_search.add_argument("--top", type=int, default=3, help="how many parts to show (default 3)")
     p_d_search.add_argument("--doc", help="search only this document (name as in ai-2 doc list)")
     p_d_search.add_argument("--in", dest="collection", metavar="NAME", help="only this collection (ai-2 doc list shows them)")

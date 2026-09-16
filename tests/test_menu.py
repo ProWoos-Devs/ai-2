@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 import pytest
 
 DESKTOP = pathlib.Path("branding/desktop")
-ENTRIES = ["ai2-chat", "ai2-chat-terminal", "ai2-guide", "ai2-software-updates", "ai2-about"]
+ENTRIES = ["ai2-chat", "ai2-chat-terminal", "ai2-guide", "ai2-software-updates", "ai2-about", "ai2-search"]
 CATEGORY = "X-AI2"
 
 
@@ -42,7 +42,7 @@ def test_about_ai2_opens_the_submenu():
     sub = ET.parse(DESKTOP / "ai2.menu").getroot().find("Menu")
     layout = [(child.tag, child.get("type") or (child.text or "").strip())
               for child in sub.find("Layout")]
-    assert layout == [("Filename", "ai2-about.desktop"), ("Merge", "all")]
+    assert layout == [("Filename", "ai2-about.desktop"), ("Filename", "ai2-search.desktop"), ("Merge", "all")]
 
 
 def _layout(element):

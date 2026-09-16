@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Search Knowledge
+Name[es]=Buscar conocimiento
+Name[de]=Wissen durchsuchen
+GenericName=Search your documents and knowledge packs
+GenericName[es]=Buscar en tus documentos y paquetes de conocimiento
+GenericName[de]=Deine Dokumente und Wissenspakete durchsuchen
+Comment=Find the passage that answers your question, with its source; no AI writing, and fast on an old PC
+Comment[es]=Encuentra el fragmento que responde a tu pregunta, con su fuente; sin texto generado, y rápido en un PC viejo
+Comment[de]=Finde die Stelle, die deine Frage beantwortet, mit ihrer Quelle; kein erzeugter Text, und schnell auf einem alten PC
+Exec=ai-2 doc search
+Icon=ai2
+Terminal=true
+Categories=X-AI2;
+Keywords=search;knowledge;documents;packs;offline;find;
