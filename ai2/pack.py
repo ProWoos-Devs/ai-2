@@ -1,4 +1,4 @@
-"""Knowledge packs (`ai-2 doc pack`): an `ai-2 doc` collection in one file, so
+"""Knowledge packs (`ai-2 knowledge`): an `ai-2 doc` collection in one file, so
 a computer that indexes fast can do the slow part for one that does not.
 
 A pack is a zip with exactly two members. `index.sqlite` is the collection's

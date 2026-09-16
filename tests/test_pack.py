@@ -1,4 +1,4 @@
-"""`ai-2 doc pack`: export a collection, install it elsewhere, and refuse
+"""`ai-2 knowledge`: export a collection, install it elsewhere, and refuse
 anything that is not exactly what an export writes."""
 import os
 import sqlite3
@@ -159,7 +159,7 @@ def test_install_refuses_a_hostile_or_inconsistent_index(home):
     assert doc.list_collections() == ["c"]
 
 
-def test_pack_cli_export_install_search_list_remove(home, monkeypatch, capsys):
+def test_knowledge_cli_export_install_search_list_remove(home, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
@@ -169,11 +169,11 @@ def test_pack_cli_export_install_search_list_remove(home, monkeypatch, capsys):
     tpl = home / "manifest.yml"
     tpl.write_text(yaml.safe_dump(TEMPLATE, allow_unicode=True), encoding="utf-8")
     out = str(home / "out.ai2pack")
-    assert cli.main(["doc", "pack", "export", "constitucion", "-o", out, "--manifest", str(tpl)]) == 0
+    assert cli.main(["knowledge", "export", "constitucion", "-o", out, "--manifest", str(tpl)]) == 0
     assert "Document paths on this computer are not included" in capsys.readouterr().out
     cli.main(["doc", "forget", "--all", "--in", "constitucion"])
     capsys.readouterr()
-    assert cli.main(["doc", "pack", "install", out]) == 0
+    assert cli.main(["knowledge", "install", out]) == 0
     text = capsys.readouterr().out
     assert "Installed constitucion-es, Constitución Española version 2026-09-16" in text
     assert "Basado en datos de la Agencia Estatal" in text and "--in constitucion-es" in text
@@ -183,14 +183,14 @@ def test_pack_cli_export_install_search_list_remove(home, monkeypatch, capsys):
     assert "From the pack Constitución Española (public-domain (LPI art. 13)). Basado en datos" in " ".join(text.split())
     assert cli.main(["doc", "list"]) == 0
     assert "pack Constitución Española, version 2026-09-16" in capsys.readouterr().out
-    assert cli.main(["doc", "pack", "list"]) == 0
+    assert cli.main(["knowledge", "list"]) == 0
     assert "constitucion-es" in capsys.readouterr().out
     make_collection("mine", {"n.txt": ["nota"]})
-    assert cli.main(["doc", "pack", "remove", "mine"]) == 1
-    assert "not an installed pack" in capsys.readouterr().err
-    assert cli.main(["doc", "pack", "remove", "constitucion-es"]) == 0
+    assert cli.main(["knowledge", "remove", "mine"]) == 1
+    assert "not an installed knowledge pack" in capsys.readouterr().err
+    assert cli.main(["knowledge", "remove", "constitucion-es"]) == 0
     assert doc.list_collections() == ["mine"]
-    assert cli.main(["doc", "pack", "install", str(home / "missing.ai2pack")]) == 1
+    assert cli.main(["knowledge", "install", str(home / "missing.ai2pack")]) == 1
     assert "error: not an AI-2 pack" in capsys.readouterr().err
-    assert cli.main(["doc", "pack", "list"]) == 0
+    assert cli.main(["knowledge", "list"]) == 0
     assert "No knowledge packs installed" in capsys.readouterr().out

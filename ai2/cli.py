@@ -825,8 +825,6 @@ def cmd_doc(args) -> int:
         return _doc_search(args, docmod)
     if action == "forget":
         return _doc_forget(args, docmod)
-    if action == "pack":
-        return _doc_pack(args, docmod)
     names = docmod.list_collections()
     shown = [(n, docmod.open_store(docmod.index_path(n))) for n in names]
     shown = [(n, c) for n, c in shown if docmod.list_documents(c)]
@@ -883,11 +881,13 @@ def _doc_forget(args, docmod) -> int:
     return 0
 
 
-def _doc_pack(args, docmod) -> int:
-    """`ai-2 doc pack export|install|list|remove`: a collection as one file."""
+def cmd_knowledge(args) -> int:
+    """`ai-2 knowledge export|install|list|remove`: knowledge packs, a
+    collection of documents in one file that other computers can install."""
     import yaml
+    from . import doc as docmod
     from . import pack as packmod
-    action = getattr(args, "pack_cmd", None)
+    action = getattr(args, "knowledge_cmd", None)
     try:
         if action == "export":
             if not docmod.valid_collection(args.name) or args.name not in docmod.list_collections():
@@ -906,7 +906,7 @@ def _doc_pack(args, docmod) -> int:
                   f"{m['index']['documents']} document(s), {m['index']['parts']} parts, embedder {m['embedder']['id']}, "
                   f"license {m['license']}.")
             print("Document paths on this computer are not included. On the other computer:  "
-                  f"ai-2 doc pack install {os.path.basename(out)}")
+                  f"ai-2 knowledge install {os.path.basename(out)}")
             return 0
         if action == "install":
             collection, m, previous = packmod.install_pack(args.file, name=args.as_name)
@@ -926,7 +926,7 @@ def _doc_pack(args, docmod) -> int:
             return 0
         if action == "remove":
             if packmod.manifest_of(args.name) is None:
-                print(f"error: {args.name!r} is not an installed pack (ai-2 doc pack list); "
+                print(f"error: {args.name!r} is not an installed knowledge pack (ai-2 knowledge list); "
                       "a collection of your own goes with:  ai-2 doc forget --all --in NAME", file=sys.stderr)
                 return 1
             docmod.remove_collection(args.name)
@@ -934,7 +934,7 @@ def _doc_pack(args, docmod) -> int:
             return 0
         packs = packmod.installed_packs()
         if not packs:
-            print("No knowledge packs installed. Install one with:  ai-2 doc pack install FILE.ai2pack")
+            print("No knowledge packs installed. Install one with:  ai-2 knowledge install FILE.ai2pack")
             return 0
         print("Knowledge packs:")
         for name, m in packs:
@@ -1655,22 +1655,23 @@ def main(argv: list[str] | None = None) -> int:
                             help="remove every document of the collection and the collection itself (default: documents)")
     p_d_forget.add_argument("--in", dest="collection", metavar="NAME", help="the collection the document is in")
     p_d_forget.set_defaults(func=cmd_doc)
-    p_d_pack = d_sub.add_parser("pack", help="a collection as one file: export it here, install it on another computer")
-    pk_sub = p_d_pack.add_subparsers(dest="pack_cmd", metavar="action")
-    p_pk_exp = pk_sub.add_parser("export", help="write a collection as a .ai2pack file (document paths left out)")
-    p_pk_exp.add_argument("name", help="the collection (ai-2 doc list)")
-    p_pk_exp.add_argument("-o", "--output", help="file to write (default: ID.ai2pack here)")
-    p_pk_exp.add_argument("--manifest", help="YAML with id, version, title, languages, license, attribution, modified, sources")
-    p_pk_exp.set_defaults(func=cmd_doc)
-    p_pk_inst = pk_sub.add_parser("install", help="install a .ai2pack file as a collection (a newer version replaces the old)")
-    p_pk_inst.add_argument("file")
-    p_pk_inst.add_argument("--as", dest="as_name", metavar="NAME", help="collection name (default: the pack's id)")
-    p_pk_inst.set_defaults(func=cmd_doc)
-    pk_sub.add_parser("list", help="the installed packs").set_defaults(func=cmd_doc)
-    p_pk_rm = pk_sub.add_parser("remove", help="remove an installed pack")
-    p_pk_rm.add_argument("name")
-    p_pk_rm.set_defaults(func=cmd_doc)
-    p_d_pack.set_defaults(func=cmd_doc)
+    p_kn = sub.add_parser("knowledge", help="knowledge packs: install one, or make one from your own documents")
+    kn_sub = p_kn.add_subparsers(dest="knowledge_cmd", metavar="action")
+    p_kn_inst = kn_sub.add_parser("install", help="install a .ai2pack file as a collection (a newer version replaces the old)")
+    p_kn_inst.add_argument("file")
+    p_kn_inst.add_argument("--as", dest="as_name", metavar="NAME", help="collection name (default: the pack's id)")
+    p_kn_inst.set_defaults(func=cmd_knowledge)
+    kn_sub.add_parser("list", help="the knowledge packs installed here").set_defaults(func=cmd_knowledge)
+    p_kn_rm = kn_sub.add_parser("remove", help="remove an installed knowledge pack")
+    p_kn_rm.add_argument("name")
+    p_kn_rm.set_defaults(func=cmd_knowledge)
+    p_kn_exp = kn_sub.add_parser("export", help="make a knowledge pack from one of your collections (document paths left out)")
+    p_kn_exp.add_argument("name", help="the collection (ai-2 doc list)")
+    p_kn_exp.add_argument("-o", "--output", help="file to write (default: ID.ai2pack here)")
+    p_kn_exp.add_argument("--manifest", help="YAML with id, version, title, languages, license, attribution, modified, sources")
+    p_kn_exp.set_defaults(func=cmd_knowledge)
+    p_kn.set_defaults(func=cmd_knowledge)
+
     p_docs.set_defaults(func=cmd_doc)
 
     p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")
