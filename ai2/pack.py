@@ -21,11 +21,13 @@ table (knowledge packs review 2026-09-15, section 2.3).
 from __future__ import annotations
 
 import hashlib
+import importlib.resources
 import os
 import shutil
 import sqlite3
 import tempfile
 import time
+import urllib.request
 import zipfile
 
 import yaml
@@ -275,3 +277,58 @@ def install_pack(pack_path: str, name: str | None = None) -> tuple[str, dict, di
 
 def installed_packs() -> list[tuple[str, dict]]:
     return [(n, m) for n in doc.list_collections() if (m := manifest_of(n)) is not None]
+
+
+# ----------------------------------------------------------------- catalog
+
+def load_catalog() -> list[dict]:
+    """The packs AI-2 knows how to fetch by name. The list ships inside the
+    ai-2 package, so the SHA-256 of every entry is covered by the signature on
+    the package itself; a pack is only as trustworthy as where its hash came
+    from."""
+    data = yaml.safe_load(importlib.resources.files("ai2").joinpath("data/packs.yml").read_text())
+    return list((data or {}).get("packs") or [])
+
+
+def catalog_entry(pack_id: str) -> dict | None:
+    return next((p for p in load_catalog() if p.get("id") == pack_id), None)
+
+
+def download_pack(entry: dict, dest_dir: str, progress=None) -> str:
+    """Fetch a cataloged pack into dest_dir and return the file. Resumes an
+    interrupted attempt with a Range request (old laptops on wifi), checks the
+    size and the SHA-256, and keeps nothing that does not match."""
+    os.makedirs(dest_dir, exist_ok=True)
+    final = os.path.join(dest_dir, f"{entry['id']}-{entry['version']}{SUFFIX}")
+    if os.path.isfile(final) and sha256_file(final) == entry["sha256"]:
+        return final
+    part = final + ".part"
+    have = os.path.getsize(part) if os.path.isfile(part) else 0
+    headers = {"User-Agent": "ai-2"}
+    if have:
+        headers["Range"] = f"bytes={have}-"
+    req = urllib.request.Request(entry["url"], headers=headers)
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        mode = "ab" if (have and resp.status == 206) else "wb"
+        if mode == "wb":
+            have = 0
+        length = int(resp.headers.get("Content-Length") or 0)
+        total = have + length if length else int(entry.get("size_bytes") or 0)
+        done = have
+        with open(part, mode) as out:
+            for chunk in iter(lambda: resp.read(1 << 20), b""):
+                out.write(chunk)
+                done += len(chunk)
+                if progress:
+                    progress(done, total)
+    size = os.path.getsize(part)
+    if entry.get("size_bytes") and size != entry["size_bytes"]:
+        raise PackError(f"download incomplete: {size} of {entry['size_bytes']} bytes "
+                        "(run the same command again to resume)")
+    got = sha256_file(part)
+    if got != entry["sha256"]:
+        os.remove(part)
+        raise PackError(f"checksum mismatch for {entry['id']}: expected {entry['sha256'][:12]}..., "
+                        f"got {got[:12]}... (file removed)")
+    os.replace(part, final)
+    return final

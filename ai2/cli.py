@@ -908,8 +908,46 @@ def cmd_knowledge(args) -> int:
             print("Document paths on this computer are not included. On the other computer:  "
                   f"ai-2 knowledge install {os.path.basename(out)}")
             return 0
+        if action == "available":
+            entries = packmod.load_catalog()
+            if args.term:
+                term = args.term.lower()
+                entries = [e for e in entries if term in f"{e.get('id')} {e.get('title')}".lower()]
+            if not entries:
+                print("No knowledge packs to fetch by name yet. A pack file works the same way:  "
+                      "ai-2 knowledge install FILE.ai2pack")
+                print("Packs and how to make one:  https://github.com/ProWoos-Devs/ai2-knowledge")
+                return 0
+            installed = {m.get("id"): m for _, m in packmod.installed_packs()}
+            print("Knowledge packs (ai-2 knowledge install ID):")
+            for e in entries:
+                here = installed.get(e["id"])
+                state = "" if here is None else (
+                    "  [installed]" if str(here.get("version")) == str(e.get("version")) else
+                    f"  [installed {here.get('version')}, newer available]")
+                print(f"  {e['id']:<22} {e.get('title')}  ({e.get('parts')} parts, "
+                      f"{int(e.get('size_bytes', 0)) // 1024} KB, {', '.join(e.get('languages') or [])}, "
+                      f"{e.get('license')}){state}")
+            return 0
         if action == "install":
-            collection, m, previous = packmod.install_pack(args.file, name=args.as_name)
+            source = args.file
+            entry = packmod.catalog_entry(source)
+            if entry is None and not os.path.exists(source):
+                print(f"error: no pack file at {source!r} and nothing by that name in the catalog "
+                      "(ai-2 knowledge available)", file=sys.stderr)
+                return 1
+            if entry is not None:
+                print(f"{entry['title']} ({int(entry.get('size_bytes', 0)) // 1024} KB), "
+                      f"{entry.get('license')}. Downloading ...")
+
+                def progress(done, total):
+                    print(f"\r  {done // 1024} KB of {total // 1024} KB   " if total else
+                          f"\r  {done // 1024} KB   ", end="", flush=True)
+
+                source = packmod.download_pack(entry, os.path.join(docmod.data_dir(), "packs"),
+                                               progress=progress)
+                print()
+            collection, m, previous = packmod.install_pack(source, name=args.as_name)
             model = _catalog_entry(m["embedder"]["id"])
             verb = f"Updated {collection} from version {previous.get('version')} to" if previous else f"Installed {collection},"
             print(f"{verb} {m['title']} version {m['version']}: {m['index']['documents']} document(s), "
@@ -1657,8 +1695,11 @@ def main(argv: list[str] | None = None) -> int:
     p_d_forget.set_defaults(func=cmd_doc)
     p_kn = sub.add_parser("knowledge", help="knowledge packs: install one, or make one from your own documents")
     kn_sub = p_kn.add_subparsers(dest="knowledge_cmd", metavar="action")
-    p_kn_inst = kn_sub.add_parser("install", help="install a .ai2pack file as a collection (a newer version replaces the old)")
-    p_kn_inst.add_argument("file")
+    p_kn_avail = kn_sub.add_parser("available", help="the knowledge packs this AI-2 can fetch by name")
+    p_kn_avail.add_argument("term", nargs="?", help="only those whose name or title contains this")
+    p_kn_avail.set_defaults(func=cmd_knowledge)
+    p_kn_inst = kn_sub.add_parser("install", help="install a pack: a .ai2pack file, or a name from ai-2 knowledge available")
+    p_kn_inst.add_argument("file", metavar="FILE-OR-ID")
     p_kn_inst.add_argument("--as", dest="as_name", metavar="NAME", help="collection name (default: the pack's id)")
     p_kn_inst.set_defaults(func=cmd_knowledge)
     kn_sub.add_parser("list", help="the knowledge packs installed here").set_defaults(func=cmd_knowledge)

@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 from ai2 import doc, pack
+from ai2.models import embedding_models
 
 V2 = "nomic-embed-text-v2-moe"
 
@@ -191,6 +192,78 @@ def test_knowledge_cli_export_install_search_list_remove(home, monkeypatch, caps
     assert cli.main(["knowledge", "remove", "constitucion-es"]) == 0
     assert doc.list_collections() == ["mine"]
     assert cli.main(["knowledge", "install", str(home / "missing.ai2pack")]) == 1
-    assert "error: not an AI-2 pack" in capsys.readouterr().err
+    assert "no pack file at" in capsys.readouterr().err
     assert cli.main(["knowledge", "list"]) == 0
     assert "No knowledge packs installed" in capsys.readouterr().out
+
+
+def _serve(directory):
+    """A localhost HTTP server over `directory`, returned with its base URL."""
+    import functools
+    import threading
+    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+    handler = functools.partial(SimpleHTTPRequestHandler, directory=str(directory))
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd, f"http://127.0.0.1:{httpd.server_port}"
+
+
+def test_install_by_name_from_the_catalog(home, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    make_collection("src", {"c.pdf": ["La capital es Madrid.", "El castellano."]})
+    packs = home / "served"
+    packs.mkdir()
+    out = str(packs / "everyday.ai2pack")
+    m = pack.export_pack("src", out, dict(TEMPLATE, id="everyday", title="Everyday Reference",
+                                          license="CC0-1.0", attribution=""))
+    httpd, base = _serve(packs)
+    entry = {"id": "everyday", "title": "Everyday Reference", "version": m["version"], "languages": ["en"],
+             "license": "CC0-1.0", "embedder": V2, "url": base + "/everyday.ai2pack",
+             "size_bytes": os.path.getsize(out), "sha256": pack.sha256_file(out),
+             "documents": 1, "parts": 2}
+    monkeypatch.setattr(pack, "load_catalog", lambda: [entry])
+    try:
+        assert cli.main(["knowledge", "available"]) == 0
+        text = capsys.readouterr().out
+        assert "everyday" in text and "Everyday Reference" in text and "CC0-1.0" in text
+        assert cli.main(["knowledge", "available", "nothing-like-this"]) == 0
+        assert "No knowledge packs to fetch by name yet" in capsys.readouterr().out
+        assert cli.main(["knowledge", "install", "everyday"]) == 0
+        text = capsys.readouterr().out
+        assert "Downloading" in text and "Installed everyday" in text
+        assert pack.manifest_of("everyday")["title"] == "Everyday Reference"
+        assert cli.main(["knowledge", "available"]) == 0
+        assert "[installed]" in capsys.readouterr().out
+        # a wrong hash in the catalog stops the install and leaves nothing behind
+        pack.remove_pack_collection = getattr(pack, "remove_pack_collection", None)
+        doc.remove_collection("everyday")
+        entry["sha256"] = "0" * 64
+        assert cli.main(["knowledge", "install", "everyday"]) == 1
+        assert "checksum mismatch" in capsys.readouterr().err
+        assert "everyday" not in doc.list_collections()
+        assert not [f for f in os.listdir(doc.data_dir() + "/packs") if f.endswith(".part")]
+    finally:
+        httpd.shutdown()
+
+
+def test_the_shipped_catalog_is_usable():
+    """Every entry AI-2 ships must be complete enough to fetch and to show,
+    and its licence must be one that allows redistribution (the same rule the
+    ai2-knowledge repository applies to contributed packs)."""
+    import re
+    allowed = {"CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-SA-3.0", "CC-BY-SA-2.5", "CC-BY-3.0",
+               "MIT", "Apache-2.0", "GFDL-1.3-or-later", "public-domain", "PSF-2.0", "OGL-3.0"}
+    ids = set()
+    for e in pack.load_catalog():
+        for field in ("id", "title", "version", "languages", "license", "embedder", "url",
+                      "size_bytes", "sha256", "documents", "parts"):
+            assert e.get(field) not in (None, "", []), f"{e.get('id')}: {field} missing"
+        assert doc.valid_collection(e["id"]) and e["id"] not in ids
+        ids.add(e["id"])
+        assert re.fullmatch(r"[0-9a-f]{64}", e["sha256"]), f"{e['id']}: sha256"
+        assert e["url"].startswith("https://"), f"{e['id']}: url must be https"
+        assert e["license"] in allowed, f"{e['id']}: licence {e['license']}"
+        assert e["embedder"] in {m["id"] for m in embedding_models()}, f"{e['id']}: unknown embedder"
+        if e["license"].startswith(("CC-BY", "GFDL", "PSF", "OGL")):
+            assert str(e.get("attribution", "")).strip(), f"{e['id']}: needs an attribution line"
