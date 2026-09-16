@@ -2,7 +2,7 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.16.0] - 2026-09-16
 ### Changed
 - **The AI-2 menu is the first entry of Applications**, above Run Program, with a separator under it. A merged menu file can only move it by replacing XFCE's top-level layout, so the ai-2 package carries a copy of garcon 4.20's own; a test compares that copy with the installed xfce-applications.menu wherever one exists, so a garcon update that changes it is caught at the next test run. Checked with garcon 4.20 and in the QEMU install.
 
