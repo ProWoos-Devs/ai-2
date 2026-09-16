@@ -992,6 +992,14 @@ def cmd_knowledge(args) -> int:
                 print(f"  {e['id']:<22} {e.get('title')}  ({e.get('parts')} parts, "
                       f"{int(e.get('size_bytes', 0)) // 1024} KB, {', '.join(e.get('languages') or [])}, "
                       f"{e.get('license')}){state}")
+            # Only this list is fetched by name, because it travels inside the
+            # signed package. Packs other people have made are real and worth
+            # finding; they are installed from their file, after reading who
+            # made them and under what licence.
+            print("\nThese are the project's own packs, checked against the list inside the signed "
+                  "ai-2 package.\nPacks made by other people are listed, with their licence and who "
+                  "made them, at\nhttps://github.com/ProWoos-Devs/ai2-knowledge . Download one and "
+                  "install the file:  ai-2 knowledge install FILE.ai2pack")
             return 0
         if action == "install":
             source = args.file

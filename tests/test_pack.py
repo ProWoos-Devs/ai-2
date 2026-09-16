@@ -227,6 +227,9 @@ def test_install_by_name_from_the_catalog(home, monkeypatch, capsys):
         assert cli.main(["knowledge", "available"]) == 0
         text = capsys.readouterr().out
         assert "everyday" in text and "Everyday Reference" in text and "CC0-1.0" in text
+        # only the signed list is fetched by name, and the listing says where
+        # the packs other people have made are to be found instead
+        assert "ai2-knowledge" in text and "install FILE.ai2pack" in text
         assert cli.main(["knowledge", "available", "nothing-like-this"]) == 0
         assert "No knowledge packs to fetch by name yet" in capsys.readouterr().out
         assert cli.main(["knowledge", "install", "everyday"]) == 0
