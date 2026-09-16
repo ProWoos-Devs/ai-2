@@ -103,6 +103,20 @@ for pack in "$PACKS_DIR"/*.ai2pack; do
   id=$(basename "$pack" .ai2pack)
   mkdir -p "$SKEL_DOC/$id"
   bsdtar -xf "$pack" -C "$SKEL_DOC/$id" index.sqlite manifest.yml
+  # Where the pack came from, the same record `ai-2 knowledge install` writes,
+  # so `ai-2 knowledge list` can say "the AI-2 installation image" instead of
+  # "an unknown source" for the packs the image itself put there. The checksum
+  # is the one just verified against the catalog inside the signed package.
+  python3 - "$SRC" "$pack" "$id" "$SKEL_DOC/$id/origin.yml" <<'PYORIGIN'
+import hashlib, os, sys, time, yaml
+src, pack, pack_id, out = sys.argv[1:5]
+catalog = yaml.safe_load(open(os.path.join(src, "ai2/data/packs.yml")))
+entry = next(e for e in catalog["packs"] if e["id"] == pack_id)
+record = {"from": "AI-2 installation image", "id": pack_id, "url": entry["url"],
+          "sha256": hashlib.sha256(open(pack, "rb").read()).hexdigest(),
+          "version": entry.get("version"), "installed": time.strftime("%Y-%m-%d %H:%M")}
+yaml.safe_dump(record, open(out, "w", encoding="utf-8"), allow_unicode=True, sort_keys=False)
+PYORIGIN
 done
 chmod -R go-w "$DST/root-overlay/etc/skel/.local"
 
