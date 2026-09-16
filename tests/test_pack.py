@@ -333,3 +333,55 @@ def test_a_manifest_that_unpacks_huge_is_refused_before_it_is_read(home):
     with pytest.raises(pack.PackError, match="a manifest is a page of YAML"):
         pack.read_manifest(bomb)
     assert doc.list_collections() == ["c"]
+
+
+def test_where_a_pack_came_from_is_recorded_on_this_machine(home):
+    """Not in the pack (the artifact stays manifest.yml + index.sqlite) but
+    beside it, so `ai-2 knowledge list` can still say where a pack came from
+    when the machine is offline or the catalog has changed since."""
+    make_collection("src", {"c.pdf": ["La capital es Madrid."]})
+    out = str(home / "p.ai2pack")
+    pack.export_pack("src", out, dict(TEMPLATE, id="everyday"))
+    pack.install_pack(out)
+    origin = pack.origin_of("everyday")
+    assert origin["from"] == "file" and origin["file"] == "p.ai2pack"
+    assert origin["sha256"] == pack.sha256_file(out) and origin["installed"]
+    assert pack.origin_of("src") is None                 # a collection of one's own has none
+    # what the catalog path records
+    pack.install_pack(out, origin={"from": "official catalog", "id": "everyday",
+                                   "url": "https://example.org/everyday.ai2pack", "sha256": "a" * 64})
+    assert pack.origin_of("everyday")["from"] == "official catalog"
+    assert pack.origin_of("everyday")["url"].startswith("https://")
+    # the pack file itself is unchanged: an installed pack is still two members plus this local note
+    import zipfile
+    with zipfile.ZipFile(out) as z:
+        assert sorted(z.namelist()) == ["index.sqlite", "manifest.yml"]
+
+
+def test_a_download_stops_when_it_outgrows_the_catalog_and_never_leaves_https(home, monkeypatch):
+    """Two cheap rules: stop reading once the response passes the size the
+    catalog declares, and refuse a redirect that drops out of HTTPS."""
+    import io
+    entry = {"id": "big", "url": "https://example.org/big.ai2pack", "version": "1",
+             "size_bytes": 1024, "sha256": "0" * 64}
+
+    class FakeResp(io.BytesIO):
+        status = 200
+        headers = {"Content-Length": "1024"}
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    monkeypatch.setattr(pack.urllib.request, "build_opener",
+                        lambda *a: type("O", (), {"open": lambda self, req, timeout=0: FakeResp(b"x" * 10_000)})())
+    with pytest.raises(pack.PackError, match="larger than the catalog says"):
+        pack.download_pack(entry, str(home / "dl"))
+    assert not [f for f in os.listdir(home / "dl") if f.endswith(".part")]
+    with pytest.raises(pack.PackError, match="not https"):
+        pack.download_pack(dict(entry, url="http://example.org/big.ai2pack"), str(home / "dl"))
+    # plain http to this machine crosses no network, so it is allowed (the
+    # catalog test above serves a real pack that way)
+    assert pack.is_safe_url("http://127.0.0.1:8000/p.ai2pack") and pack.is_safe_url("https://example.org/p")
+    assert not pack.is_safe_url("http://example.org/p") and not pack.is_safe_url("ftp://example.org/p")
+    handler = pack.HttpsOnlyRedirect()
+    with pytest.raises(pack.PackError, match="not https"):
+        handler.redirect_request(None, None, 302, "Found", {}, "http://elsewhere.example/p.ai2pack")

@@ -995,6 +995,7 @@ def cmd_knowledge(args) -> int:
             return 0
         if action == "install":
             source = args.file
+            origin = None
             entry = packmod.catalog_entry(source)
             if entry is None and not os.path.exists(source):
                 print(f"error: no pack file at {source!r} and nothing by that name in the catalog "
@@ -1011,7 +1012,10 @@ def cmd_knowledge(args) -> int:
                 source = packmod.download_pack(entry, os.path.join(docmod.data_dir(), "packs"),
                                                progress=progress)
                 print()
-            collection, m, previous = packmod.install_pack(source, name=args.as_name, force=args.force)
+                origin = {"from": "official catalog", "id": entry["id"], "url": entry["url"],
+                          "sha256": entry["sha256"], "version": entry.get("version")}
+            collection, m, previous = packmod.install_pack(source, name=args.as_name, force=args.force,
+                                                          origin=origin)
             model = _catalog_entry(m["embedder"]["id"])
             here, incoming = packmod.revision_of(previous or {}), packmod.revision_of(m)
             if previous is None:
@@ -1049,8 +1053,12 @@ def cmd_knowledge(args) -> int:
         print("Knowledge packs:")
         for name, m in packs:
             idx = m.get("index") or {}
+            origin = packmod.origin_of(name) or {}
+            where = str(origin.get("from") or "unknown source")
             print(f"  {name:<24} {m.get('title')}, version {m.get('version')}, {idx.get('parts')} parts, "
                   f"license {m.get('license')}")
+            print(f"  {'':<24} from the {where}" if where != "file"
+                  else f"  {'':<24} installed from the file {origin.get('file')}")
         return 0
     except (packmod.PackError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)

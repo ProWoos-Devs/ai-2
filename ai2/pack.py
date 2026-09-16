@@ -33,6 +33,7 @@ import shutil
 import sqlite3
 import tempfile
 import time
+import urllib.parse
 import urllib.request
 import zipfile
 
@@ -44,6 +45,7 @@ from .models import embedding_models
 FORMAT = 1
 SUFFIX = ".ai2pack"
 MANIFEST = "manifest.yml"
+ORIGIN = "origin.yml"        # where an installed pack came from; local, not part of the pack
 MANIFEST_MAX = 1 << 20      # a manifest is a page of YAML; a "manifest" that
                             # unpacks to more than a megabyte is not one, and
                             # reading it first is how a zip bomb gets in
@@ -69,6 +71,21 @@ def sha256_file(path: str) -> str:
         for block in iter(lambda: fh.read(1 << 20), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def origin_of(collection: str) -> dict | None:
+    """Where an installed pack came from, recorded on this machine at install
+    time: a file someone handed over, or a catalog entry with the URL and the
+    SHA-256 that was fetched. Kept beside the pack rather than inside it, so
+    the artifact stays exactly manifest.yml + index.sqlite, and so the answer
+    survives the catalog changing or the machine being offline."""
+    path = os.path.join(doc.doc_root(), collection, ORIGIN)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def manifest_of(collection: str) -> dict | None:
@@ -256,8 +273,8 @@ def revision_of(manifest: dict | None) -> int:
         return DEFAULT_REVISION
 
 
-def install_pack(pack_path: str, name: str | None = None,
-                 force: bool = False) -> tuple[str, dict, dict | None]:
+def install_pack(pack_path: str, name: str | None = None, force: bool = False,
+                 origin: dict | None = None) -> tuple[str, dict, dict | None]:
     """Unpack, check and install a pack as a collection. Returns (collection,
     manifest, manifest of the version it replaced or None). A pack replaces an
     installed pack of the same id when its revision is the same or higher; an
@@ -298,6 +315,11 @@ def install_pack(pack_path: str, name: str | None = None,
             check_index(dest, manifest)
             with open(os.path.join(staging, MANIFEST), "w", encoding="utf-8") as fh:
                 yaml.safe_dump(manifest, fh, allow_unicode=True, sort_keys=False)
+            record = dict(origin or {"from": "file", "file": os.path.basename(pack_path)})
+            record.setdefault("installed", time.strftime("%Y-%m-%d %H:%M"))
+            record.setdefault("sha256", sha256_file(pack_path))
+            with open(os.path.join(staging, ORIGIN), "w", encoding="utf-8") as fh:
+                yaml.safe_dump(record, fh, allow_unicode=True, sort_keys=False)
             final = os.path.join(root, target)
             old = None
             if os.path.exists(final):
@@ -337,6 +359,28 @@ def catalog_entry(pack_id: str) -> dict | None:
     return next((p for p in load_catalog() if p.get("id") == pack_id), None)
 
 
+def is_safe_url(url: str) -> bool:
+    """HTTPS, or plain HTTP to this machine. A download to 127.0.0.1 crosses
+    no network, so there is nobody to intercept it; that is what the tests
+    and a local mirror use. Anything else must be encrypted, because the
+    hash check afterwards only proves the bytes were wrong, not that they
+    were private."""
+    parsed = urllib.parse.urlparse(str(url))
+    return parsed.scheme == "https" or (parsed.scheme == "http"
+                                        and parsed.hostname in ("127.0.0.1", "localhost", "::1"))
+
+
+class HttpsOnlyRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect may not leave HTTPS. Release assets redirect to a CDN, which
+    is fine; a redirect to http would hand the bytes to anyone on the path,
+    and the hash check afterwards would only tell us they were wrong."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not is_safe_url(newurl):
+            raise PackError(f"the download was redirected to {newurl.split(':')[0]}, which is not https")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def download_pack(entry: dict, dest_dir: str, progress=None) -> str:
     """Fetch a cataloged pack into dest_dir and return the file. Resumes an
     interrupted attempt with a Range request (old laptops on wifi), checks the
@@ -350,8 +394,12 @@ def download_pack(entry: dict, dest_dir: str, progress=None) -> str:
     headers = {"User-Agent": "ai-2"}
     if have:
         headers["Range"] = f"bytes={have}-"
+    if not is_safe_url(entry.get("url", "")):
+        raise PackError(f"{entry.get('id')} has a url that is not https")
+    limit = int(entry.get("size_bytes") or 0)
     req = urllib.request.Request(entry["url"], headers=headers)
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    opener = urllib.request.build_opener(HttpsOnlyRedirect)
+    with opener.open(req, timeout=60) as resp:
         mode = "ab" if (have and resp.status == 206) else "wb"
         if mode == "wb":
             have = 0
@@ -362,6 +410,10 @@ def download_pack(entry: dict, dest_dir: str, progress=None) -> str:
             for chunk in iter(lambda: resp.read(1 << 20), b""):
                 out.write(chunk)
                 done += len(chunk)
+                if limit and done > limit:
+                    out.close()
+                    os.remove(part)
+                    raise PackError(f"the download is larger than the catalog says ({limit} bytes); stopped")
                 if progress:
                     progress(done, total)
     size = os.path.getsize(part)
