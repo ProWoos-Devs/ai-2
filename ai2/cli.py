@@ -916,7 +916,7 @@ def cmd_gopher(args) -> int:
         advertise = args.host if args.host not in ("0.0.0.0", "::") else socket.gethostname()
     try:
         server = gopher.serve(embed_query, host=args.host, port=args.port,
-                              everything=args.all, advertise=advertise)
+                              everything=args.all, advertise=advertise, workers=args.workers)
     except OSError as exc:
         print(f"error: cannot listen on {args.host}:{args.port} ({exc})", file=sys.stderr)
         return 1
@@ -930,6 +930,8 @@ def cmd_gopher(args) -> int:
               "Anything on this network can read them. Your own documents are not served; --all would add them.")
     else:
         print("Only this computer can reach it (--host 0.0.0.0 shares it with the network).")
+    print(f"{args.workers} question at a time; the rest wait." if args.workers == 1
+          else f"Up to {args.workers} questions at a time; the rest wait.")
     print("Stop with Ctrl-C.")
     try:
         server.serve_forever()
@@ -1797,6 +1799,9 @@ def main(argv: list[str] | None = None) -> int:
     p_go.add_argument("--port", type=int, default=gopher.PORT, help=f"port (default {gopher.PORT})")
     p_go.add_argument("--all", action="store_true", help="serve your own indexed documents too, not only knowledge packs")
     p_go.add_argument("--advertise", help="host name to put in the menu links (default: this host)")
+    p_go.add_argument("--workers", type=int, default=gopher.WORKERS, metavar="N",
+                      help=f"how many questions to answer at once (default {gopher.WORKERS}; a search "
+                           "costs seconds of a core on an old machine, so more is rarely better)")
     p_go.add_argument("--wait", type=int, default=180, help="seconds to wait for the embedding server")
     p_go.set_defaults(func=cmd_gopher)
 

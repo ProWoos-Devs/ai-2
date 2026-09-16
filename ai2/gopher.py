@@ -22,6 +22,7 @@ from __future__ import annotations
 import socket
 import socketserver
 import textwrap
+import threading
 
 from . import doc
 
@@ -29,7 +30,9 @@ PORT = 7070                 # 70 needs root; this is the one AI-2 uses by defaul
 MAX_SELECTOR = 512          # a client that sends more is not asking a question
 MAX_HITS = 5
 WRAP = 70                   # Gopher menus are read in 80-column clients
-TIMEOUT = 30.0
+TIMEOUT = 10.0              # a client that opens a socket and says nothing
+WORKERS = 1                 # see Server: one question at a time by default
+BUSY_WAIT = 20.0            # how long a waiting request holds on before saying busy
 CRLF = "\r\n"
 
 
@@ -151,10 +154,26 @@ class Menus:
             return error(f"No document called {doc_name!r} in {name}")
         manifest = dict(self.lib.collections()).get(name)
         header = [doc_name, "=" * len(doc_name), ""]
-        footer = [""]
-        if manifest and manifest.get("attribution"):
-            footer += textwrap.wrap(str(manifest["attribution"]), width=WRAP)
-        return text_page("\n".join(header) + join_parts([r[0] for r in rows]) + "\n".join(footer))
+        return text_page("\n".join(header) + join_parts([r[0] for r in rows])
+                         + "\n" + "\n".join(self.provenance(name, manifest, doc_name)))
+
+    def provenance(self, name: str, manifest: dict | None, doc_name: str | None = None) -> list[str]:
+        """Where this text came from, the way `ai-2 doc search` and `doc ask`
+        put it: the document's own source URL when the manifest has one, then
+        the pack with its licence, then the attribution the licence asks for."""
+        from . import pack
+        if not manifest:
+            return [""]
+        out = [""]
+        url = pack.source_url(manifest, doc_name) if doc_name else None
+        if url:
+            out += textwrap.wrap(f"Source: {url}", width=WRAP)
+        out += textwrap.wrap(f"From the pack {self.lib.title(name, manifest)} "
+                             f"({manifest.get('license', 'licence not stated')}), "
+                             f"version {manifest.get('version', '')}.", width=WRAP)
+        if manifest.get("attribution"):
+            out += textwrap.wrap(str(manifest["attribution"]), width=WRAP)
+        return out
 
     def search(self, name: str, query: str) -> str:
         conn = self.lib.store(name)
@@ -173,17 +192,19 @@ class Menus:
             return error("Nothing here matches that")
         manifest = dict(self.lib.collections()).get(name)
         out = [info(f"{query}"), info()]
+        from . import pack
         for i, hit in enumerate(hits, 1):
             out.append(info(f"[{i}] {doc.cite(hit)}"))
             for wrapped in textwrap.wrap(hit["text"], width=WRAP):
                 out.append(info(f"    {wrapped}"))
+            url = pack.source_url(manifest, hit["doc"])
+            if url:
+                out.append(info(f"    source: {url}"))
             out.append(line("0", f"    the whole of {hit['doc']}", f"/doc/{name}/{hit['doc']}",
                             self.host, self.port))
             out.append(info())
-        if manifest and manifest.get("attribution"):
-            for wrapped in textwrap.wrap(f"From {self.lib.title(name, manifest)} "
-                                         f"({manifest.get('license')}). {manifest['attribution']}", width=WRAP):
-                out.append(info(wrapped))
+        for wrapped in self.provenance(name, manifest):
+            out.append(info(wrapped))
         return "".join(out) + "." + CRLF
 
     def respond(self, request: str) -> str:
@@ -211,27 +232,57 @@ class Handler(socketserver.StreamRequestHandler):
         except (socket.timeout, OSError):
             return
         request = raw.decode("utf-8", "replace").rstrip("\r\n")
-        try:
-            body = self.server.menus.respond(request)
-        except Exception as exc:                        # one bad request must not end the server
-            body = error(f"Something went wrong ({exc})")
+        gate = getattr(self.server, "gate", None)
+        held = gate.acquire(timeout=BUSY_WAIT) if gate is not None else True
+        if not held:
+            body = error("Busy answering another question, try again in a moment")
+        else:
+            try:
+                body = self.server.menus.respond(request)
+            except Exception as exc:                    # one bad request must not end the server
+                body = error(f"Something went wrong ({exc})")
+            finally:
+                if gate is not None:
+                    gate.release()
         try:
             self.wfile.write(body.encode("utf-8", "replace"))
         except OSError:
             pass
 
 
-class Server(socketserver.ThreadingTCPServer):
+class Sequential(socketserver.TCPServer):
+    """One question at a time. A search embeds the question and then scans
+    every vector in the collection in plain Python, which on the machines AI-2
+    is built for is seconds of one of its two cores (3.8 s per 20,000 parts on
+    the 2011 laptop). Threads would let one eager client on the LAN start
+    several of those at once and bury the machine, so the default is to queue
+    in the listen backlog instead."""
+    allow_reuse_address = True
+    request_queue_size = 16
+
+
+class Threaded(socketserver.ThreadingTCPServer):
+    """More than one worker, when the machine can afford it. `gate` bounds how
+    many requests do real work at a time; the rest wait, and say so rather
+    than hanging, if the wait runs long."""
     allow_reuse_address = True
     daemon_threads = True
+    request_queue_size = 16
 
 
 def serve(embed_query, host: str = "127.0.0.1", port: int = PORT, everything: bool = False,
-          advertise: str | None = None) -> Server:
+          advertise: str | None = None, workers: int = WORKERS):
     """A running Gopher server. `embed_query(model_id, text)` returns the
     vector for a question, which is what turns a search item into an answer;
-    `advertise` is the host name put into the menu lines the client follows."""
+    `advertise` is the host name put into the menu lines the client follows;
+    `workers` is how many questions may be answered at once."""
     menus = Menus(Library(everything), embed_query, advertise or host, port)
-    server = Server((host, port), Handler)
+    workers = max(1, int(workers))
+    if workers == 1:
+        server = Sequential((host, port), Handler)
+        server.gate = None
+    else:
+        server = Threaded((host, port), Handler)
+        server.gate = threading.BoundedSemaphore(workers)
     server.menus = menus
     return server

@@ -133,3 +133,94 @@ def test_join_parts_trims_the_overlap_and_text_pages_escape_a_lone_dot():
 def test_menu_lines_cannot_be_broken_by_a_tab_in_a_name():
     out = gopher.line("0", "a\tname\nwith control", "/doc/x\ty", "host", 70)
     assert out == "0a name with control\t/doc/x y\thost\t70\r\n"
+
+
+def test_one_question_at_a_time_by_default(library):
+    """A search embeds the question and then scans every vector in plain
+    Python, seconds of a core on the machines AI-2 is built for. Threads would
+    let one eager client start several at once, so the default server is
+    sequential and `--workers N` bounds the rest."""
+    import threading
+    import time
+    started, done = [], []
+    gate = threading.Event()
+
+    def slow_embed(model_id, text):
+        started.append(time.monotonic())
+        gate.wait(5)
+        done.append(time.monotonic())
+        return vec(text)
+
+    server = serve(embed=slow_embed)
+    assert isinstance(server, gopher.Sequential) and server.gate is None
+    try:
+        first = threading.Thread(target=talk, args=(server, "/search/everyday\tcapital"))
+        first.start()
+        while not started:
+            time.sleep(0.02)
+        # the second request cannot even begin while the first is being answered
+        second = threading.Thread(target=talk, args=(server, "/search/everyday\tcapital"))
+        second.start()
+        time.sleep(0.3)
+        assert len(started) == 1, "a second question was answered while the first was still running"
+        gate.set()
+        first.join(10)
+        second.join(10)
+        assert len(started) == 2 and len(done) == 2
+    finally:
+        gate.set()
+        server.shutdown()
+
+
+def test_workers_bounds_how_many_run_at_once(library):
+    import threading
+    import time
+    inside = []
+    peak = [0]
+    gate = threading.Event()
+
+    def slow_embed(model_id, text):
+        inside.append(1)
+        peak[0] = max(peak[0], len(inside))
+        gate.wait(5)
+        inside.pop()
+        return vec(text)
+
+    server = serve(embed=slow_embed)
+    server.shutdown()
+    server = gopher.serve(slow_embed, host="127.0.0.1", port=0, workers=2)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        assert isinstance(server, gopher.Threaded)
+        threads = [threading.Thread(target=talk, args=(server, "/search/everyday\tcapital")) for _ in range(4)]
+        for t in threads:
+            t.start()
+        time.sleep(0.5)
+        assert peak[0] <= 2, f"{peak[0]} questions ran at once with --workers 2"
+        gate.set()
+        for t in threads:
+            t.join(10)
+    finally:
+        gate.set()
+        server.shutdown()
+
+
+def test_search_and_document_name_the_source_url_and_licence(library, tmp_path):
+    """Gopher says where the text came from the way the command line does:
+    the document's own source URL, the pack and its licence, the attribution."""
+    import yaml
+    manifest = yaml.safe_load((tmp_path / "data/ai2/doc/everyday/manifest.yml").read_text())
+    manifest["sources"] = [{"file": "spain.txt", "title": "Spain", "url": "https://example.org/spain"}]
+    (tmp_path / "data/ai2/doc/everyday/manifest.yml").write_text(yaml.safe_dump(manifest), encoding="utf-8")
+    server = serve()
+    try:
+        out = talk(server, "/search/everyday\twhat is the capital of Spain?")
+        assert "i    source: https://example.org/spain\t" in out
+        assert "From the pack Everyday Reference (CC0-1.0), version 2026-09-16." in out
+        assert "Facts from Wikidata." in out
+        page = talk(server, "/doc/everyday/spain.txt")
+        assert "Source: https://example.org/spain" in page
+        assert "From the pack Everyday Reference (CC0-1.0), version 2026-09-16." in page
+        assert "Facts from Wikidata." in page
+    finally:
+        server.shutdown()

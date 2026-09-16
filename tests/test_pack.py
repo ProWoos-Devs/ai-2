@@ -312,3 +312,24 @@ def test_the_cli_refuses_an_older_pack_and_says_how(home, monkeypatch, capsys):
     # and a reinstall of the same file says so rather than claiming an update
     assert cli.main(["knowledge", "install", old]) == 0
     assert "Reinstalled everyday, replacing version 2026-08-01 with" in capsys.readouterr().out
+
+
+def test_a_manifest_that_unpacks_huge_is_refused_before_it_is_read(home):
+    """read_manifest used to read the whole member before any size check, so
+    a small file could unpack to an enormous manifest. The declared size is
+    checked first, and then the read is capped, because the declared size is
+    the zip's word and not the truth."""
+    import zipfile
+    make_collection("c", {"c.pdf": ["La capital es Madrid."]})
+    good = str(home / "good.ai2pack")
+    pack.export_pack("c", good, TEMPLATE)
+    with zipfile.ZipFile(good) as z:
+        index = z.read("index.sqlite")
+    bomb = str(home / "bomb.ai2pack")
+    with zipfile.ZipFile(bomb, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        z.writestr("manifest.yml", "a: " + "b" * (pack.MANIFEST_MAX + 1000))
+        z.writestr("index.sqlite", index)
+    assert os.path.getsize(bomb) < 100_000            # tiny on disk, large unpacked
+    with pytest.raises(pack.PackError, match="a manifest is a page of YAML"):
+        pack.read_manifest(bomb)
+    assert doc.list_collections() == ["c"]

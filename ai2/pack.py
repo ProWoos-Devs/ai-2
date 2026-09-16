@@ -44,6 +44,9 @@ from .models import embedding_models
 FORMAT = 1
 SUFFIX = ".ai2pack"
 MANIFEST = "manifest.yml"
+MANIFEST_MAX = 1 << 20      # a manifest is a page of YAML; a "manifest" that
+                            # unpacks to more than a megabyte is not one, and
+                            # reading it first is how a zip bomb gets in
 INDEX = "index.sqlite"
 _TEMPLATE_KEYS = ("id", "version", "title", "languages", "license", "attribution", "modified", "sources",
                   "revision")
@@ -180,7 +183,8 @@ def _open_untrusted(path: str) -> sqlite3.Connection:
     """Connection settings first (they read nothing from the file), then
     quick_check as the first statement that does."""
     conn = sqlite3.connect(path)
-    for flag in ("SQLITE_DBCONFIG_TRUSTED_SCHEMA", "SQLITE_DBCONFIG_ENABLE_TRIGGER", "SQLITE_DBCONFIG_ENABLE_VIEW"):
+    for flag in ("SQLITE_DBCONFIG_DEFENSIVE", "SQLITE_DBCONFIG_TRUSTED_SCHEMA",
+                 "SQLITE_DBCONFIG_ENABLE_TRIGGER", "SQLITE_DBCONFIG_ENABLE_VIEW"):
         if hasattr(conn, "setconfig") and hasattr(sqlite3, flag):      # Python 3.12 and later
             conn.setconfig(getattr(sqlite3, flag), False)
     for pragma in ("PRAGMA cell_size_check=ON", "PRAGMA trusted_schema=OFF", "PRAGMA mmap_size=0"):
@@ -227,7 +231,15 @@ def read_manifest(pack_path: str) -> dict:
             if names != {MANIFEST, INDEX}:
                 raise PackError(f"not an AI-2 pack (members {', '.join(sorted(names)) or 'none'}; "
                                 f"expected {MANIFEST} and {INDEX})")
-            manifest = yaml.safe_load(z.read(MANIFEST).decode("utf-8"))
+            declared = z.getinfo(MANIFEST).file_size
+            if declared > MANIFEST_MAX:
+                raise PackError(f"the manifest in this file unpacks to {declared} bytes; "
+                                f"a manifest is a page of YAML (limit {MANIFEST_MAX})")
+            with z.open(MANIFEST) as fh:
+                raw = fh.read(MANIFEST_MAX + 1)        # the declared size is the zip's word, not the truth
+            if len(raw) > MANIFEST_MAX:
+                raise PackError("the manifest in this file is larger than it declares")
+            manifest = yaml.safe_load(raw.decode("utf-8"))
     except (zipfile.BadZipFile, OSError, yaml.YAMLError, UnicodeDecodeError) as exc:
         raise PackError(f"not an AI-2 pack ({exc})") from exc
     problems = check_manifest(manifest)
