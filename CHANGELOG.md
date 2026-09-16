@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Added
+- **`ai-2 gopher`, the knowledge packs over Gopher.** The protocol's search item (type 7) is the same shape as `ai-2 doc search`: the client sends a question, the server sends back a menu. So an old machine holding the packs can answer for every other machine in the house, over a protocol that costs nothing in bandwidth and has clients for anything with a network stack, with no AI-2 on the asking side. The root menu offers, per collection, a search item and a list of its documents; a document comes back as plain text with the parts' overlap trimmed at the seams; every answer names its source and prints the pack's licence and attribution. Only knowledge packs are served by default, because a pack is published material, and `--all` is needed to expose a person's own indexed documents; `--host 0.0.0.0` shares it with the network and the command says plainly what that means. The chat model is deliberately not served: an answer takes minutes on these machines, far longer than any Gopher client waits, and the passages are the reliable part there anyway. Python's standard library only, nothing new on the ISO.
+
 ## [0.16.1] - 2026-09-16
 ### Fixed
 - **The update bubble could lag a release by a day.** The session check runs `--max-age 20 --every 6`: it wakes every 6 hours, but only ran a real check when the cached result was more than 20 hours old, so a wake-up with a 12-hour-old cache reused it and announced nothing. Found on both reference machines the evening 0.16.0 was published: each had last checked that morning, both had been up for a day without suspending, and neither had seen the release. `--max-age` still keeps repeated logins from re-checking; after the login round the cache may now be at most one interval old, so a machine running the loop notices a release within its interval.

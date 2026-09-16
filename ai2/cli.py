@@ -6,7 +6,7 @@ import os
 import sys
 from dataclasses import asdict
 
-from . import __version__, branding, persona, remote
+from . import __version__, branding, gopher, persona, remote
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
@@ -881,6 +881,65 @@ def _doc_forget(args, docmod) -> int:
     return 0
 
 
+def cmd_gopher(args) -> int:
+    """`ai-2 gopher`: serve the knowledge packs over Gopher, so any machine on
+    the network can ask them without AI-2 on it."""
+    import socket
+    from . import doc as docmod
+    from . import gopher
+    hw = detect()
+    names = docmod.list_collections()
+    if not names:
+        print("Nothing is indexed on this computer yet. Install a pack with:  "
+              "ai-2 knowledge install ai2-help", file=sys.stderr)
+        return 1
+    servers = {}
+
+    def embed_query(model_id, text):
+        """The question's vector, starting the embedding server on first use.
+        One server per embedding model, kept for the life of this command."""
+        if model_id not in servers:
+            model = _catalog_entry(model_id)
+            if model is None:
+                raise RuntimeError(f"{model_id} is not in this AI-2's catalog")
+            if find_model_file(model["file"]) is None:
+                raise RuntimeError(f"{model['label']} is not downloaded here")
+            url = _ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait,
+                                 idle_timeout=0)
+            if url is None:
+                raise RuntimeError("the embedding server did not start")
+            servers[model_id] = docmod.EmbedClient(url, model)
+        return servers[model_id].embed_query(text)
+
+    advertise = args.advertise
+    if advertise is None:
+        advertise = args.host if args.host not in ("0.0.0.0", "::") else socket.gethostname()
+    try:
+        server = gopher.serve(embed_query, host=args.host, port=args.port,
+                              everything=args.all, advertise=advertise)
+    except OSError as exc:
+        print(f"error: cannot listen on {args.host}:{args.port} ({exc})", file=sys.stderr)
+        return 1
+    from . import pack as packmod
+    shared = [n for n in names if args.all or packmod.manifest_of(n) is not None]
+    print(f"Serving {len(shared)} collection(s) over Gopher at gopher://{advertise}:{args.port}/")
+    print("  " + ", ".join(shared))
+    if args.host == "0.0.0.0":
+        print("Anything on this network can read them, including your own documents, because --all was given."
+              if args.all else
+              "Anything on this network can read them. Your own documents are not served; --all would add them.")
+    else:
+        print("Only this computer can reach it (--host 0.0.0.0 shares it with the network).")
+    print("Stop with Ctrl-C.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopped.")
+    finally:
+        server.server_close()
+    return 0
+
+
 def cmd_knowledge(args) -> int:
     """`ai-2 knowledge export|install|list|remove`: knowledge packs, a
     collection of documents in one file that other computers can install."""
@@ -1719,6 +1778,14 @@ def main(argv: list[str] | None = None) -> int:
     p_kn_exp.add_argument("--manifest", help="YAML with id, version, title, languages, license, attribution, modified, sources")
     p_kn_exp.set_defaults(func=cmd_knowledge)
     p_kn.set_defaults(func=cmd_knowledge)
+
+    p_go = sub.add_parser("gopher", help="serve the knowledge packs over Gopher for other machines on the network")
+    p_go.add_argument("--host", default="127.0.0.1", help="address to listen on (0.0.0.0 shares it with the network)")
+    p_go.add_argument("--port", type=int, default=gopher.PORT, help=f"port (default {gopher.PORT})")
+    p_go.add_argument("--all", action="store_true", help="serve your own indexed documents too, not only knowledge packs")
+    p_go.add_argument("--advertise", help="host name to put in the menu links (default: this host)")
+    p_go.add_argument("--wait", type=int, default=180, help="seconds to wait for the embedding server")
+    p_go.set_defaults(func=cmd_gopher)
 
     p_docs.set_defaults(func=cmd_doc)
 
