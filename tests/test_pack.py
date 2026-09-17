@@ -388,3 +388,33 @@ def test_a_download_stops_when_it_outgrows_the_catalog_and_never_leaves_https(ho
     handler = pack.HttpsOnlyRedirect()
     with pytest.raises(pack.PackError, match="not https"):
         handler.redirect_request(None, None, 302, "Found", {}, "http://elsewhere.example/p.ai2pack")
+
+
+def test_an_updated_machine_is_told_the_packs_exist(home, monkeypatch, capsys):
+    """An update changes packages, never a person's documents, so a machine
+    brought up to date never gains the packs a fresh ISO install starts with.
+    One line after a successful update is the only thing that says so."""
+    from ai2 import cli
+    entry = {"id": "ai2-help", "title": "AI-2 Help", "version": "2026-09-16", "languages": ["en"],
+             "license": "MIT", "embedder": V2, "url": "https://example.org/a.ai2pack",
+             "size_bytes": 1, "sha256": "0" * 64, "documents": 1, "parts": 1}
+    monkeypatch.setattr(pack, "load_catalog", lambda: [entry])
+
+    from ai2 import software
+    monkeypatch.setattr(software, "update", lambda: 0)
+    args = type("A", (), {"gui": False})()
+    assert cli.cmd_update(args) == 0
+    out = capsys.readouterr().out
+    assert "no knowledge packs" in out and "ai-2 knowledge available" in out and "ai2-help" in out
+
+    # a machine that already has one is not nagged, and a failed update says nothing about packs
+    make_collection("mine", {"a.txt": ["Hello."]})
+    out_path = str(home / "p.ai2pack")
+    pack.export_pack("mine", out_path, dict(TEMPLATE, id="ai2-help"))
+    pack.install_pack(out_path)
+    capsys.readouterr()
+    assert cli.cmd_update(args) == 0
+    assert "no knowledge packs" not in capsys.readouterr().out
+    monkeypatch.setattr(software, "update", lambda: 1)
+    assert cli.cmd_update(args) == 1
+    assert "no knowledge packs" not in capsys.readouterr().out

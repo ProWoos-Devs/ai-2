@@ -7,7 +7,7 @@
 # (git archive of www/ai-2), so a package always maps to a commit.
 
 pkgname=ai-2
-pkgver=0.18.1
+pkgver=0.18.2
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
@@ -24,6 +24,7 @@ optdepends=('pciutils: GPU detection via lspci'
             'earlyoom: userspace OOM killer, installed by ai-2 init --apply on low-RAM tiers'
             'ai2-llama-cpp: the CPU inference engine, every CPU class, the build for this CPU chosen at start'
             'ai2-whisper-cpp: the speech-to-text engine for ai-2 transcribe'
+            'w3m: text browser; reads the knowledge packs another AI-2 serves with ai-2 gopher'
             'ffmpeg: reads audio and video files for ai-2 transcribe'
             'xfce4-terminal: terminal window for the first-login setup wizard'
             'libnotify: desktop notification when system updates are waiting')

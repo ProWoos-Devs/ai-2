@@ -1668,7 +1668,29 @@ def cmd_update(args) -> int:
             return 0
         print("The graphical package manager is not installed on this computer. "
               "Add it with:  ai-2 install pamac\nUpdating here instead.\n")
-    return software.update()
+    rc = software.update()
+    if rc == 0:
+        _mention_knowledge_packs()
+    return rc
+
+
+def _mention_knowledge_packs() -> None:
+    """After a successful update, one line for a machine that has no knowledge
+    packs. An update changes packages, never a person's documents, so a machine
+    brought up to date never gains the packs a fresh ISO install starts with,
+    and nothing else tells it they exist. Nothing is downloaded here."""
+    try:
+        from . import pack
+        if pack.installed_packs():
+            return
+        entries = pack.load_catalog()
+    except Exception:                       # never let a hint break an update
+        return
+    if not entries:
+        return
+    names = ", ".join(e["id"] for e in entries[:3])
+    print(f"\nThis computer has no knowledge packs. {len(entries)} can be installed and then searched with "
+          f"no network at all ({names}).\nSee them with:  ai-2 knowledge available")
 
 
 def cmd_install(args) -> int:
