@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.18.3] - 2026-09-17
+### Fixed
+- **Search Knowledge no longer closes its own window on a machine with nothing to search.** The menu entry runs `ai-2 doc search` in a terminal that closes the moment the command returns. Every round of the question loop waits for input, so the window holds itself open; the round that never happens does not, and on a machine with no packs and no indexed documents the command printed its explanation and returned at once, so the window opened and vanished before anything could be read. Reported on the 2016 reference laptop right after it was brought up to 0.18.1, which is exactly the case: an upgraded AI-2 has no packs, because an update changes packages and not documents. The command now waits for Enter before returning, the same way About AI-2 holds its window, and only when it is attached to a terminal, so scripts and pipes are unaffected.
+
 ## [0.18.2] - 2026-09-17
 ### Added
 - **`ai-2 update` ends by saying that knowledge packs exist**, on a machine that has none. An update changes packages and never a person's documents, so a machine brought up to date never gains the packs a fresh ISO install starts with, and until now nothing told it they were there: verified on the 2016 reference laptop, which came up to 0.18.1 with the three packs published, listed in the catalog it now carries, and no sign of them anywhere. The line names `ai-2 knowledge available` and downloads nothing. A machine that already has a pack is not nagged, and a failed update says nothing about packs.

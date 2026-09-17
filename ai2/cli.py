@@ -1268,7 +1268,18 @@ def _doc_search(args, docmod) -> int:
             return 1
         _doc_show_hits(hits, width)
         return 0
-    return _doc_search_loop(args, docmod, width)
+    rc = _doc_search_loop(args, docmod, width)
+    # The Search Knowledge menu entry runs this in a terminal that closes the
+    # moment the command returns. Every round of the loop waits for input, so
+    # the window stays by itself; a round that never happens does not, and the
+    # message explaining why (nothing indexed, no model, no server) flashes past
+    # unread. Found on the 2016 reference laptop, where an upgraded AI-2 has no
+    # packs: the window opened and vanished (2026-09-17).
+    if rc and sys.stdin.isatty():
+        from . import about
+        print()
+        about.wait_for_enter()
+    return rc
 
 
 def _doc_search_loop(args, docmod, width) -> int:

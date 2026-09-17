@@ -480,3 +480,26 @@ def test_the_search_loop_survives_ctrl_c(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", interrupt)
     assert cli.main(["doc", "search"]) == 0
     assert "Nothing asked." in capsys.readouterr().out
+
+
+def test_search_knowledge_holds_the_window_when_there_is_nothing_to_search(tmp_path, monkeypatch, capsys):
+    """The menu entry runs this in a terminal that closes when the command
+    returns. Every round of the loop waits for input, so the window stays by
+    itself; the round that never happens has to hold it, or the message saying
+    why flashes past unread (rafaminu-pc, upgraded and packless, 2026-09-17)."""
+    from ai2 import about, cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    args = type("A", (), {"question": [], "collection": None, "top": 5, "doc": None, "wait": 1})()
+
+    waited = []
+    monkeypatch.setattr(about, "wait_for_enter", lambda: waited.append(True))
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True, raising=False)
+    assert cli._doc_search(args, doc) == 1
+    out = capsys.readouterr().out
+    assert "nothing to search" in out and "ai-2 knowledge available" in out
+    assert waited == [True]
+
+    # not in a terminal (a script, a pipe), nothing to hold open
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
+    assert cli._doc_search(args, doc) == 1
+    assert waited == [True]
