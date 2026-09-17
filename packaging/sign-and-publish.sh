@@ -77,6 +77,14 @@ echo; echo "Repo state in $REPO:"; ls -la
 [ $push -eq 1 ] || { echo "(--no-push) done"; exit 0; }
 
 # 4. Publish. The release is a rolling one; --clobber replaces assets in place.
+# Every `pacman -Sy` on every AI-2 fetches ai2.db, so its download counter is
+# the closest thing the project has to a heartbeat, and --clobber resets it to
+# zero. Read it here, while it still holds the count since the last publish.
+# The script is private to the workspace and absent for anyone else; a missing
+# number must never stop a release, hence the guards.
+STATS="$HERE/../../../000/stats/download-stats.py"
+[ -f "$STATS" ] && python3 "$STATS" --capture-db || true
+
 if ! gh release view "$RELEASE" -R "$GH_REPO" >/dev/null 2>&1; then
   gh release create "$RELEASE" -R "$GH_REPO" --title "AI-2 package repo ($RELEASE)" \
     --notes "Rolling pacman repository for AI-2. Do not download by hand; add the [ai2] repo to pacman.conf (see the README)."
