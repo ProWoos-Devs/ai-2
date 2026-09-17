@@ -14,8 +14,10 @@
   <rect width="1920" height="1080" fill="url(#grid)"/>
 
   <!-- logo lockup, centered horizontally, upper-middle so desktop icons
-       (left column) and the dock (bottom) stay clear of it -->
-  <g transform="translate(580 230)">
+       (left column) and the dock (bottom) stay clear of it. Dimmed to 30% and
+       drawn at 72% since 2026-09-17: at full strength it was the loudest thing
+       on the screen, and a desktop is something you look past, not at. -->
+  <g transform="translate(686 250) scale(0.72)" opacity="0.30">
     <rect x="0" y="0" width="760" height="176" rx="34" fill="none" stroke="#35D07F" stroke-width="7"/>
     <text x="56" y="122" class="mono" font-size="96" font-weight="700" fill="#35D07F" xml:space="preserve">&gt; AI-2 </text>
     <rect x="640" y="44" width="56" height="88" rx="5" fill="#35D07F">
