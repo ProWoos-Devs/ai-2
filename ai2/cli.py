@@ -1073,6 +1073,43 @@ def cmd_knowledge(args) -> int:
         return 1
 
 
+def _doc_embedder(docmod, hw, wanted: str | None, model_id: str | None, collection: str):
+    """The embedding model a `doc index` run will use, or None after printing
+    why there is none. Without `--embedder` this is what AI-2 picks from the
+    machine's RAM, which on a roomy machine is the multilingual model. That is
+    the right default for a person's own documents and the wrong one for a
+    pack meant to be shared: vectors only compare with vectors from the same
+    model, so an English pack built with the 345 MB multilingual model makes
+    everyone who installs it fetch 345 MB, when the 85 MB English one is
+    already on every machine installed from an ISO."""
+    from .models import RAM_HEADROOM_MIB, embedding_models
+    if model_id and wanted and wanted != model_id:
+        print(f"error: the collection {collection!r} was built with {model_id}, and a collection cannot change "
+              "its embedding model, because vectors made by two models cannot be compared. Index into a new "
+              f"collection instead:  ai-2 doc index --in NEWNAME --embedder {wanted} FILE...", file=sys.stderr)
+        return None
+    if model_id:
+        return _catalog_entry(model_id)
+    if wanted:
+        model = next((m for m in embedding_models() if m["id"] == wanted), None)
+        if model is None:
+            ids = ", ".join(m["id"] for m in embedding_models())
+            print(f"error: no embedding model called {wanted!r} (this AI-2 knows: {ids})", file=sys.stderr)
+            return None
+        budget = max(0, hw.ram_mib - RAM_HEADROOM_MIB)
+        if model["ram_peak_mb"] > budget:
+            print(f"error: {model['label']} needs about {model['ram_peak_mb']} MB while indexing and this "
+                  f"computer can spare {budget} MB. Index on a machine with more memory, or leave --embedder "
+                  "out to let AI-2 pick one that fits.", file=sys.stderr)
+            return None
+        return model
+    model = docmod.choose_embedder(hw.ram_mib)
+    if model is None:
+        print("error: no embedding model fits this computer's RAM (the smallest needs about 300 MB free).",
+              file=sys.stderr)
+    return model
+
+
 def _doc_index(args, docmod) -> int:
     import subprocess
     import time
@@ -1081,10 +1118,8 @@ def _doc_index(args, docmod) -> int:
     collection = args.collection or docmod.DEFAULT_COLLECTION
     conn = docmod.open_store(None if collection == docmod.DEFAULT_COLLECTION else docmod.index_path(collection))
     model_id = docmod.store_model(conn)
-    model = _catalog_entry(model_id) if model_id else docmod.choose_embedder(hw.ram_mib)
+    model = _doc_embedder(docmod, hw, getattr(args, "embedder", None), model_id, collection)
     if model is None:
-        print("error: no embedding model fits this computer's RAM (the smallest needs about 300 MB free).",
-              file=sys.stderr)
         return 1
     if find_model_file(model["file"]) is None:
         print(f"The documents index uses {model['label']} ({model['file_mb']} MB); downloading it first.")
@@ -1815,6 +1850,11 @@ def main(argv: list[str] | None = None) -> int:
     p_d_index.add_argument("--lang", default="eng", help="OCR language for scans, a tesseract code: eng, spa, deu")
     p_d_index.add_argument("--in", dest="collection", metavar="NAME",
                            help="the collection to add them to (default: documents); a new name starts a new one")
+    p_d_index.add_argument("--embedder", metavar="ID",
+                           help="embedding model for a NEW collection (default: the best that fits this "
+                                "machine's RAM); a collection keeps the model it was built with. Use "
+                                "nomic-embed-text-v1.5 for an English knowledge pack: it is 85 MB against the "
+                                "multilingual model's 345 MB, and it ships on the AI-2 image")
     p_d_index.add_argument("--wait", type=int, default=180, help="seconds to wait for the embedding server")
     p_d_index.set_defaults(func=cmd_doc)
     p_d_ask = d_sub.add_parser("ask", help="ask a question; the closest parts of your documents go to the AI with it")

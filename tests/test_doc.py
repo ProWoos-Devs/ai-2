@@ -167,6 +167,28 @@ def test_choose_embedder_prefers_multilingual_when_it_fits():
     assert doc.choose_embedder(1200, cat) is None
 
 
+def test_a_pack_builder_can_choose_the_small_english_embedder(capsys):
+    """Without --embedder a roomy machine picks the multilingual model, which
+    is right for a person's own documents and wrong for a pack meant to be
+    shared: everyone who installs it would have to fetch 345 MB."""
+    from ai2 import cli
+    hw = type("HW", (), {"ram_mib": 8000})()
+    assert cli._doc_embedder(doc, hw, None, None, "mypack")["id"] == "nomic-embed-text-v2-moe"
+    assert cli._doc_embedder(doc, hw, "nomic-embed-text-v1.5", None, "mypack")["id"] == "nomic-embed-text-v1.5"
+
+    # a collection keeps the model it was built with, and says where to go instead
+    assert cli._doc_embedder(doc, hw, "nomic-embed-text-v1.5", "nomic-embed-text-v2-moe", "mypack") is None
+    err = capsys.readouterr().err
+    assert "cannot change" in err and "--in NEWNAME --embedder nomic-embed-text-v1.5" in err
+
+    # an unknown name lists the real ones, and a model too big for the machine is refused
+    assert cli._doc_embedder(doc, hw, "no-such-model", None, "mypack") is None
+    assert "nomic-embed-text-v1.5" in capsys.readouterr().err
+    assert cli._doc_embedder(doc, type("HW", (), {"ram_mib": 2000})(), "nomic-embed-text-v2-moe",
+                             None, "mypack") is None
+    assert "can spare" in capsys.readouterr().err
+
+
 def test_prefill_gate_uses_measured_prompt_speed():
     score = {"pp_tps": 2.38, "bench_params_b": 0.5}
     m05 = {"params_b": 0.5}
