@@ -4,14 +4,18 @@
 #   docker exec ai2-iso-build bash /ai2-repo/www/ai-2/packaging/build-packages.sh [pkg...]
 #
 # pkg is any of: ai2-keyring ai-2 ai2-llama-cpp (default: all three).
-# Output: /ai2-repo/www/ai-2/packaging/out/*.pkg.tar.zst (gitignored).
+# Output: /ai2-repo/www/ai-2/packaging/candidate/*.pkg.tar.zst (gitignored), see OUT below.
 # Signing is deliberately NOT done here; the key lives on the laptop, see
 # sign-and-publish.sh.
 set -euo pipefail
 
 REPO=/ai2-repo
 PKG_SRC=$REPO/www/ai-2/packaging
-OUT=$PKG_SRC/out
+# Builds land in candidate/, NOT out/. sign-and-publish.sh signs whatever is in
+# out/, and a package built and then thought better of was published that way
+# (0.18.2, 2026-09-17). A candidate is first tried on real hardware with an
+# unsigned `pacman -U`; only one that passed is moved to out/ by hand.
+OUT=$PKG_SRC/candidate
 WORK=/home/builder/pkgbuild
 # Persistent source cache: the llama.cpp bare clone is ~2 GB, keep it across runs.
 SRCDEST=/home/builder/srcdest

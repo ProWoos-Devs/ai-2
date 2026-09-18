@@ -61,20 +61,10 @@ def text_page(body: str) -> str:
 
 
 def join_parts(parts: list[str], max_overlap: int = 40) -> str:
-    """The document's text from its parts. Consecutive parts overlap by about
-    twenty words (that is what keeps a sentence whole in at least one part),
-    so the repeated words are trimmed at the seam rather than printed twice."""
-    if not parts:
-        return ""
-    out = parts[0].split()
-    for part in parts[1:]:
-        words = part.split()
-        for n in range(min(max_overlap, len(out), len(words)), 0, -1):
-            if out[-n:] == words[:n]:
-                words = words[n:]
-                break
-        out += words
-    return "\n".join(textwrap.wrap(" ".join(out), width=WRAP)) or ""
+    """The document's text from its parts, at the width a Gopher client reads.
+    The joining itself lives in `doc.join_parts`, shared with the search
+    window's "read more of this one"."""
+    return doc.join_parts(parts, max_overlap=max_overlap, width=WRAP)
 
 
 class Library:

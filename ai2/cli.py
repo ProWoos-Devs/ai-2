@@ -1243,6 +1243,34 @@ def _doc_show_hits(hits, width) -> None:
             print(textwrap.fill(line, width=width + 4))
 
 
+def _doc_read_more(hit: dict, radius: int, docmod, width: int) -> bool:
+    """More of the document one result came from: the whole of a short one, a
+    widening window onto a long one. True while there is still more to show.
+    A passage of 110 words answers a question; deciding whether to trust it, or
+    getting the step after the one it names, takes the text around it. The
+    Gopher menus had this from the start (every hit links to its document); the
+    window a person actually sits at did not (Rafael, 2026-09-18, reading three
+    results of which only the second was the one he wanted)."""
+    import textwrap
+    conn = docmod.open_store(docmod.index_path(hit["collection"]))
+    texts, first, last, total = docmod.parts_around(conn, hit["doc"], hit["ord"], radius)
+    conn.close()
+    if not texts:
+        print("That document is no longer in the index.")
+        return False
+    whole = first == 0 and last == total - 1
+    where = hit["doc"] if whole else f"{hit['doc']}, parts {first + 1} to {last + 1} of {total}"
+    print(f"\n{where}" + (f"  {hit['url']}" if hit.get("url") else ""))
+    print("-" * min(width, len(where)))
+    print(textwrap.indent(docmod.join_parts(texts, width=width - 4), "    "))
+    terms = _pack_terms([hit])
+    if terms:
+        print()
+        for line in terms:
+            print(textwrap.fill(line, width=width + 4))
+    return not whole
+
+
 def _fetch_cataloged_pack(entry: dict, packmod, docmod) -> str:
     """Download a cataloged pack and return the file, showing progress. The
     size and SHA-256 are checked inside download_pack, which keeps nothing that
@@ -1407,6 +1435,8 @@ def _doc_search_loop(args, docmod, width) -> int:
     _doc_more_hints()
     print("\nType a question, or press Enter on an empty line to finish.")
     asked = 0
+    last_hits: list[dict] = []
+    radius: dict[int, int] = {}       # how far each result has been opened so far
     while True:
         try:
             question = input("\nQuestion: ").strip()
@@ -1415,12 +1445,20 @@ def _doc_search_loop(args, docmod, width) -> int:
             break
         if not question:
             break
+        if question.isdigit() and 1 <= int(question) <= len(last_hits):
+            n = int(question)
+            radius[n] = radius.get(n, 0) + 2
+            if _doc_read_more(last_hits[n - 1], radius[n], docmod, width):
+                print(f"\nType {n} again for more of it, another number, or a new question.")
+            continue
         print()                       # the server's "Starting ..." line has its own line
         args.question = [question]
         hits = _doc_hits(args, docmod, hw, question)
         if hits is not None:
             asked += 1
+            last_hits, radius = hits, {}
             _doc_show_hits(hits, width)
+            print("\nType a number to read more of that one, or ask something else.")
     print("\nDone." if asked else "\nNothing asked.")
     return 0
 

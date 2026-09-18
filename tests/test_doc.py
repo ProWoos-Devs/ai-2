@@ -566,3 +566,45 @@ def test_the_first_screen_names_the_packs_and_says_what_else_is_available(tmp_pa
     assert "Also searching your own documents:  recipes" in out, "a collection of one's own is not a pack"
     assert "ai-2 knowledge available" in out and "ai-2 doc index FILE" in out, \
         "the same two hints the empty state gives"
+
+
+def test_a_number_reads_more_of_that_result(tmp_path, monkeypatch, capsys):
+    """Rafael, 2026-09-18, looking at three results of which only the second
+    was the one he wanted: "What if I want to expand just #2". A number opens
+    that result's document; the same number again opens it wider."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    conn = doc.open_store(doc.index_path("manual"))
+    doc.set_store_model(conn, "nomic-embed-text-v2-moe", 8)
+    long_parts = [f"Part {i} of the long manual says thing number {i}." for i in range(30)]
+    doc.add_document(conn, "long.txt", "/x/long.txt", long_parts, [fake_vec("x")] * 30, words=300)
+    doc.add_document(conn, "short.txt", "/x/short.txt", ["Only one thing here.", "And a second."],
+                     [fake_vec("x")] * 2, words=8)
+    conn.close()
+    hits = [{"collection": "manual", "doc": "long.txt", "ord": 15, "of": 30, "text": long_parts[15],
+             "cite": "long.txt, part 16 of 30", "url": None, "manifest": None},
+            {"collection": "manual", "doc": "short.txt", "ord": 0, "of": 2, "text": "Only one thing here.",
+             "cite": "short.txt, part 1 of 2", "url": None, "manifest": None}]
+    monkeypatch.setattr(cli, "_doc_hits", lambda args, docmod, hw, q: hits)
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
+    answers = iter(["anything", "2", "1", "1", "7", ""])
+    asked = []
+
+    def fake_input(prompt=""):
+        a = next(answers)
+        asked.append(a)
+        return a
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    args = type("A", (), {"question": [], "collection": None, "top": 3, "doc": None, "wait": 1})()
+    assert cli._doc_search(args, doc) == 0
+    out = capsys.readouterr().out
+    assert "Type a number to read more of that one" in out
+    # 2: a short document comes back whole, and nothing more is offered for it
+    assert "Only one thing here. And a second." in out
+    # 1: a window onto the long one, centred on the part that matched ...
+    assert "long.txt, parts 14 to 18 of 30" in out and "Type 1 again for more of it" in out
+    # ... and the same number again opens it wider
+    assert "long.txt, parts 12 to 20 of 30" in out
+    # 7 is not one of the results, so it is a question like any other
+    assert asked == ["anything", "2", "1", "1", "7", ""]

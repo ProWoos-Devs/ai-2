@@ -398,6 +398,42 @@ class EmbedClient:
         return int(self.model.get("ctx", 512)) - 8
 
 
+def join_parts(parts: list[str], max_overlap: int = 40, width: int = 70) -> str:
+    """A run of consecutive parts as continuous text. Consecutive parts overlap
+    by about twenty words (that is what keeps a sentence whole in at least one
+    part), so the repeated words are trimmed at the seam rather than printed
+    twice."""
+    import textwrap
+    if not parts:
+        return ""
+    out = parts[0].split()
+    for part in parts[1:]:
+        words = part.split()
+        for n in range(min(max_overlap, len(out), len(words)), 0, -1):
+            if out[-n:] == words[:n]:
+                words = words[n:]
+                break
+        out += words
+    return "\n".join(textwrap.wrap(" ".join(out), width=width)) or ""
+
+
+def parts_around(conn: sqlite3.Connection, doc_name: str, ord_: int, radius: int,
+                 whole_up_to: int = 12) -> tuple[list[str], int, int, int]:
+    """The parts of a document around one of them: (texts, first, last, total),
+    positions counted from 0. A short document comes back whole, because a
+    window onto five parts is just the document with pieces missing."""
+    rows = conn.execute("SELECT chunks.ord, chunks.text FROM chunks JOIN docs ON docs.id = chunks.doc_id "
+                        "WHERE docs.name = ? ORDER BY chunks.ord", (doc_name,)).fetchall()
+    total = len(rows)
+    if total == 0:
+        return [], 0, 0, 0
+    if total <= whole_up_to:
+        first, last = 0, total - 1
+    else:
+        first, last = max(0, ord_ - radius), min(total - 1, ord_ + radius)
+    return [text for o, text in rows if first <= o <= last], first, last, total
+
+
 def choose_embedder(ram_mib: int, catalog: list[dict] | None = None) -> dict | None:
     """The embedder for a new index on this machine: the multilingual one when
     its measured peak fits next to the OS headroom, else the largest that

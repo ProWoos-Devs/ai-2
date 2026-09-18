@@ -5,6 +5,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ## [0.18.6] - 2026-09-18
 ### Changed
 - **The Search Knowledge window names what it is searching and what else there is.** `Searching: ai2-help, everyday, linux-essentials` became "Searching the following Knowledge Packs:" with each pack's id and title, followed by the same two lines the empty state gives, so the way to get more packs or to add one's own documents is on screen whether or not anything is installed (Rafael's wording, from using it on the 2011 laptop). A collection that is not a pack is named as what it is, "Also searching your own documents", rather than being listed under the packs heading.
+- **A number reads more of that result.** Three passages come back and often only one is the one wanted; typing its number now shows the document it came from, whole when it is short, and as a window around the matching part when it is long, where the same number again opens the window wider. The source URL and the pack's licence and attribution come with it. The Gopher menus had this from the start, every hit there links to its document, and the window a person actually sits at did not. Found by Rafael reading real results on the 2011 laptop: the second of three was the relevant one, and there was no way to follow it.
 
 ## [0.18.5] - 2026-09-18
 ### Changed
