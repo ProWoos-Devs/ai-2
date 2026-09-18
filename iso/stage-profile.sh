@@ -58,13 +58,15 @@ cp "$SRC/iso/pacman.conf.d/iso-x86_64.conf" "$HOME/.config/artools/pacman.conf.d
 # pacman.conf into the rootfs, so the root overlay carries the ordinary one to
 # put back: an installed system must never be left pointing at a repo that only
 # existed inside the build container. The layer check greps for it.
-CANDIDATE_REPO=/root/ai2-candidate-repo
+# Not under /root: pacman 7 fetches as the unprivileged `alpm` user, which cannot
+# read there ("Could not open file .../ai2-candidate.db", 2026-09-19).
+CANDIDATE_REPO=/srv/ai2-candidate-repo
 rm -rf "$CANDIDATE_REPO" "$DST/root-overlay/etc/pacman.conf"
 if [ "${AI2_CANDIDATE:-0}" = 1 ]; then
   shopt -s nullglob
   cands=("$SRC"/packaging/candidate/ai-2-*.pkg.tar.zst)
   [ ${#cands[@]} -eq 1 ] || { echo "AI2_CANDIDATE=1 needs exactly one ai-2 package in packaging/candidate/ (found ${#cands[@]})"; exit 1; }
-  mkdir -p "$CANDIDATE_REPO"
+  mkdir -p "$CANDIDATE_REPO" && chmod 755 "$CANDIDATE_REPO"
   cp "${cands[0]}" "$CANDIDATE_REPO/"
   repo-add -q "$CANDIDATE_REPO/ai2-candidate.db.tar.gz" "$CANDIDATE_REPO"/*.pkg.tar.zst
   conf="$HOME/.config/artools/pacman.conf.d/iso-x86_64.conf"
