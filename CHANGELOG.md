@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.18.5] - 2026-09-18
+### Changed
+- **The empty Search Knowledge window offers the packs instead of naming a command.** On a machine with nothing indexed it printed `ai-2 knowledge available` and closed, which is homework rather than an offer, in a window whose entry is called Search Knowledge. It now lists what can be installed with sizes and licences, says the real cost before asking (the three packs are about 1 MB together; the 85 MB embedding model, once, is the part worth consenting to), installs on a yes and goes straight on to ask for a question. A no prints the command and holds the window open. A script or a pipe is never prompted and gets the command as before. `ai-2 knowledge install ID` and the offer now share one fetch-and-install path, so the menu and the command line do the same thing. This is only ever seen on an AI-2 brought up to date, because an installation from the ISO of 2026-09-16 or later already has the packs.
+
 ## [0.18.4] - 2026-09-18
 ### Fixed
 - **One update bubble at a time.** A bubble is held by a forked process that lives until the bubble is clicked or dismissed, and the session loop raised another at every six-hourly round while updates were pending, so they piled up: three identical ones were found stacked on the 2016 reference laptop, and three quiet duplicates are easier to ignore than one that persists, which defeats the point of a sticky notification. `notify()` now hands back its holder's pid and the loop says nothing while that bubble is still on screen. The liveness test is `waitpid` with `WNOHANG` rather than `kill(pid, 0)`, because the holder is the loop's own child and nobody waits on it, so once it goes it is a zombie, and a zombie answers `kill` happily; that would have reported a dismissed bubble as alive for ever and suppressed every bubble after the first.
