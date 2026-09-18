@@ -46,6 +46,41 @@ chmod 755 "$DST/root-overlay/usr/bin/artix-service" "$DST/live-overlay/usr/bin/a
 mkdir -p "$HOME/.config/artools/pacman.conf.d"
 cp "$SRC/iso/pacman.conf.d/iso-x86_64.conf" "$HOME/.config/artools/pacman.conf.d/iso-x86_64.conf"
 
+# AI-2: a TEST image carries the unsigned candidate package instead of the
+# published one (AI2_CANDIDATE=1). A candidate is tried on real hardware before
+# it is signed, and a from-scratch install is the only way to judge first-run
+# surfaces like the setup window, so the image has to be able to hold one
+# without publishing it to every AI-2 out there. The candidate is versioned
+# X.Y.ZrcN, which pacman orders below X.Y.Z, so a machine installed from a test
+# image updates cleanly to the real release.
+#   The build gets a local, unsigned repo listed BEFORE [ai2] (pacman takes a
+# package from the first repo that has it). buildiso -w copies the build's
+# pacman.conf into the rootfs, so the root overlay carries the ordinary one to
+# put back: an installed system must never be left pointing at a repo that only
+# existed inside the build container. The layer check greps for it.
+CANDIDATE_REPO=/root/ai2-candidate-repo
+rm -rf "$CANDIDATE_REPO" "$DST/root-overlay/etc/pacman.conf"
+if [ "${AI2_CANDIDATE:-0}" = 1 ]; then
+  shopt -s nullglob
+  cands=("$SRC"/packaging/candidate/ai-2-*.pkg.tar.zst)
+  [ ${#cands[@]} -eq 1 ] || { echo "AI2_CANDIDATE=1 needs exactly one ai-2 package in packaging/candidate/ (found ${#cands[@]})"; exit 1; }
+  mkdir -p "$CANDIDATE_REPO"
+  cp "${cands[0]}" "$CANDIDATE_REPO/"
+  repo-add -q "$CANDIDATE_REPO/ai2-candidate.db.tar.gz" "$CANDIDATE_REPO"/*.pkg.tar.zst
+  conf="$HOME/.config/artools/pacman.conf.d/iso-x86_64.conf"
+  python3 - "$conf" "$CANDIDATE_REPO" <<'PYCONF'
+import sys
+conf, repo = sys.argv[1], sys.argv[2]
+s = open(conf).read()
+stanza = f"[ai2-candidate]\nSigLevel = Optional TrustAll\nServer = file://{repo}\n\n"
+marker = "# AI-2 signed package repository"
+assert s.count(marker) == 1
+open(conf, "w").write(s.replace(marker, stanza + marker, 1))
+PYCONF
+  install -Dm644 "$SRC/iso/pacman.conf.d/iso-x86_64.conf" "$DST/root-overlay/etc/pacman.conf"
+  echo "TEST IMAGE: carrying the candidate $(basename "${cands[0]}")"
+fi
+
 # basestrap copies the build host's pacman keyring into the rootfs, so the
 # AI-2 signing key must be trusted here (idempotent).
 if ! pacman-key --list-keys F1889E37B4E5FEC8 >/dev/null 2>&1; then
