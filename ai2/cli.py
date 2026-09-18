@@ -1311,7 +1311,8 @@ def _doc_open_reader(hit: dict, docmod, which=None, run=None) -> bool:
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(page)
         try:
-            run(["w3m", "-T", "text/html", f"file://{path}#hit"])
+            # confirm_qq off: q should close the document, not ask whether it may
+            run(["w3m", "-o", "confirm_qq=false", "-T", "text/html", f"file://{path}#hit"])
         except OSError:
             return False
     return True
