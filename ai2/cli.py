@@ -1281,6 +1281,14 @@ def _install_cataloged_pack(entry: dict, packmod, docmod) -> int:
     return 0
 
 
+def _doc_more_hints() -> None:
+    """Where more knowledge comes from. Printed in both states of the Search
+    Knowledge window, with packs and without, because they are the same two
+    things a person can do next (Rafael, 2026-09-18)."""
+    print("\nKnowledge packs to install:  ai-2 knowledge available")
+    print("Your own documents:          ai-2 doc index FILE")
+
+
 def _offer_the_packs(docmod, width) -> bool:
     """The Search Knowledge window has nothing to search. Naming a command in a
     window that closes on the next keypress is not an offer, so this asks, and
@@ -1374,10 +1382,19 @@ def _doc_search_loop(args, docmod, width) -> int:
         if _offer_the_packs(docmod, width):
             names = docmod.list_collections()
         if not names:
-            print("\nKnowledge packs to install:  ai-2 knowledge available")
-            print("Your own documents:          ai-2 doc index FILE")
+            _doc_more_hints()
             return 1
-    print("\nSearching: " + ", ".join(names))
+    from . import pack as packmod
+    found = [(name, packmod.manifest_of(name)) for name in names]
+    packs = [(name, m) for name, m in found if m]
+    own = [name for name, m in found if not m]
+    if packs:
+        print("\nSearching the following Knowledge Packs:")
+        for name, m in packs:
+            print(f"  {name:<18} {m.get('title')}")
+    if own:
+        # not everything indexed is a pack: these are the person's own files
+        print("\nAlso searching your own documents:  " + ", ".join(own))
     models = {}
     for name in names:
         model_id = docmod.store_model(docmod.open_store(docmod.index_path(name)))
@@ -1387,6 +1404,7 @@ def _doc_search_loop(args, docmod, width) -> int:
         print(textwrap.fill("Not all of these were built with the same embedding model, so one question "
                             "cannot search them together. Whichever group this computer indexes with is "
                             "searched; ai-2 doc search --in NAME searches another.", width=width + 4))
+    _doc_more_hints()
     print("\nType a question, or press Enter on an empty line to finish.")
     asked = 0
     while True:

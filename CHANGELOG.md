@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.18.6] - 2026-09-18
+### Changed
+- **The Search Knowledge window names what it is searching and what else there is.** `Searching: ai2-help, everyday, linux-essentials` became "Searching the following Knowledge Packs:" with each pack's id and title, followed by the same two lines the empty state gives, so the way to get more packs or to add one's own documents is on screen whether or not anything is installed (Rafael's wording, from using it on the 2011 laptop). A collection that is not a pack is named as what it is, "Also searching your own documents", rather than being listed under the packs heading.
+
 ## [0.18.5] - 2026-09-18
 ### Changed
 - **The empty Search Knowledge window offers the packs instead of naming a command.** On a machine with nothing indexed it printed `ai-2 knowledge available` and closed, which is homework rather than an offer, in a window whose entry is called Search Knowledge. It now lists what can be installed with sizes and licences, says the real cost before asking (the three packs are about 1 MB together; the 85 MB embedding model, once, is the part worth consenting to), installs on a yes and goes straight on to ask for a question. A no prints the command and holds the window open. A script or a pipe is never prompted and gets the command as before. `ai-2 knowledge install ID` and the offer now share one fetch-and-install path, so the menu and the command line do the same thing. This is only ever seen on an AI-2 brought up to date, because an installation from the ISO of 2026-09-16 or later already has the packs.

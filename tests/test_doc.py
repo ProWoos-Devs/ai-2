@@ -439,7 +439,8 @@ def test_doc_search_with_no_question_asks_and_keeps_asking(tmp_path, monkeypatch
     assert cli.main(["doc", "search"]) == 0
     out = capsys.readouterr().out
     assert "It is not AI-2 Chat" in out and "nothing can be made up" in out
-    assert "Searching: documents" in out
+    # a collection of one's own is named as that, not as a knowledge pack
+    assert "Also searching your own documents:  documents" in out
     assert "[1] notas.txt, part 1 of 1" in out
     assert "La capital del Estado es Madrid." in out
     assert out.rstrip().endswith("Done.")
@@ -538,3 +539,30 @@ def test_the_empty_window_offers_the_packs_instead_of_naming_a_command(tmp_path,
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
     monkeypatch.setattr("builtins.input", lambda prompt="": pytest.fail("must not ask a script"))
     assert cli._offer_the_packs(doc, 76) is False
+
+
+def test_the_first_screen_names_the_packs_and_says_what_else_is_available(tmp_path, monkeypatch, capsys):
+    """Rafael, 2026-09-18: the bare "Searching: a, b, c" became "Searching the
+    following Knowledge Packs:" with the same two hints the empty state gives.
+    Not every collection is a pack, so a person's own documents are named as
+    theirs rather than swept in under the heading."""
+    from ai2 import cli, pack
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    conn = doc.open_store(doc.index_path("recipes"))
+    doc.set_store_model(conn, "nomic-embed-text-v2-moe", 8)
+    doc.add_document(conn, "cake.txt", "/home/me/cake.txt", ["Beat the eggs."], [fake_vec("x")], words=3)
+    conn.close()
+    monkeypatch.setattr(pack, "manifest_of",
+                        lambda name: {"title": "AI-2 Help"} if name == "ai2-help" else None)
+    monkeypatch.setattr(doc, "list_collections", lambda: ["ai2-help", "recipes"])
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")               # finish at once
+
+    args = type("A", (), {"question": [], "collection": None, "top": 3, "doc": None, "wait": 1})()
+    cli._doc_search(args, doc)
+    out = capsys.readouterr().out
+    assert "Searching the following Knowledge Packs:" in out
+    assert "ai2-help           AI-2 Help" in out
+    assert "Also searching your own documents:  recipes" in out, "a collection of one's own is not a pack"
+    assert "ai-2 knowledge available" in out and "ai-2 doc index FILE" in out, \
+        "the same two hints the empty state gives"
