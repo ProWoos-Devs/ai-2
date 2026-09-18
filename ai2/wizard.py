@@ -426,7 +426,7 @@ class Wizard:
         from scratch and looked for them (2026-09-18)."""
         titles = self._installed_packs()
         if titles:
-            self.say(tr("\nWhat this computer is already good at: KNOWLEDGE PACKS.\n"
+            self.say(tr("\nWhat this computer is already good at: Knowledge Packs.\n"
                         "{n} are installed: {titles}.\n"
                         "Ask them a question and the answer comes in seconds, from documents on this computer,\n"
                         "word for word and with its source named, with no internet. No AI writes those answers,\n"
