@@ -436,10 +436,33 @@ class Wizard:
                         "More packs, or one made from your own PDFs and notes:  ai-2 knowledge available\n"
                         "\nThe rest of this setup is about the other half, the chat AI, which depends on the hardware.")
                      .format(n=len(titles), titles=", ".join(titles)))
+            self._first_question()
         else:
             self.say(tr("\nKnowledge Packs let this computer answer from documents, in seconds, offline, naming\n"
                         "the source of every answer. None are installed here yet:  Applications > AI-2 >\n"
                         "Search Knowledge  offers them, and so does  ai-2 knowledge available ."))
+
+    def _first_question(self) -> None:
+        """Stop on the Knowledge Packs screen, and let the first thing a person
+        does with AI-2 be asking it something. Without the stop, steps 1 and 2
+        print straight after and push this text to the top edge of the window,
+        off it on a 768-pixel screen (seen in the first test image, 2026-09-19).
+        Only for a person at a terminal: never in --yes, never under a script."""
+        import sys
+        if self.yes or not sys.stdin.isatty():
+            return
+        try:
+            question = input(tr("\nType a question to try them now, or just press Enter to go on with the setup: ")).strip()
+        except (EOFError, KeyboardInterrupt):
+            return
+        while question:
+            self._asked_the_packs = True
+            self.run([sys.executable, "-c", "import sys; from ai2.cli import main; sys.exit(main())",
+                      "doc", "search", question])
+            try:
+                question = input(tr("\nAnother question, or press Enter to go on with the setup: ")).strip()
+            except (EOFError, KeyboardInterrupt):
+                return
 
     def _try_the_packs(self) -> None:
         """Offer a first question while the person is still looking at the
@@ -447,6 +470,8 @@ class Wizard:
         import sys
         if self.yes or not sys.stdin.isatty() or not self._installed_packs():
             return
+        if getattr(self, "_asked_the_packs", False):
+            return                      # they already did, at the start; asking again is noise
         if self.ask(tr("\nAsk the Knowledge Packs a first question now?"), True):
             self.run([sys.executable, "-c", "import sys; from ai2.cli import main; sys.exit(main())", "doc", "search"])
 
