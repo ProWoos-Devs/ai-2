@@ -1010,16 +1010,7 @@ def cmd_knowledge(args) -> int:
                       "(ai-2 knowledge available)", file=sys.stderr)
                 return 1
             if entry is not None:
-                print(f"{entry['title']} ({int(entry.get('size_bytes', 0)) // 1024} KB), "
-                      f"{entry.get('license')}. Downloading ...")
-
-                def progress(done, total):
-                    print(f"\r  {done // 1024} KB of {total // 1024} KB   " if total else
-                          f"\r  {done // 1024} KB   ", end="", flush=True)
-
-                source = packmod.download_pack(entry, os.path.join(docmod.data_dir(), "packs"),
-                                               progress=progress)
-                print()
+                source = _fetch_cataloged_pack(entry, packmod, docmod)
                 origin = {"from": "official catalog", "id": entry["id"], "url": entry["url"],
                           "sha256": entry["sha256"], "version": entry.get("version")}
             collection, m, previous = packmod.install_pack(source, name=args.as_name, force=args.force,
@@ -1252,6 +1243,91 @@ def _doc_show_hits(hits, width) -> None:
             print(textwrap.fill(line, width=width + 4))
 
 
+def _fetch_cataloged_pack(entry: dict, packmod, docmod) -> str:
+    """Download a cataloged pack and return the file, showing progress. The
+    size and SHA-256 are checked inside download_pack, which keeps nothing that
+    does not match."""
+    print(f"{entry['title']} ({int(entry.get('size_bytes', 0)) // 1024} KB), "
+          f"{entry.get('license')}. Downloading ...")
+
+    def progress(done, total):
+        print(f"\r  {done // 1024} KB of {total // 1024} KB   " if total else
+              f"\r  {done // 1024} KB   ", end="", flush=True)
+
+    path = packmod.download_pack(entry, os.path.join(docmod.data_dir(), "packs"), progress=progress)
+    print()
+    return path
+
+
+def _install_cataloged_pack(entry: dict, packmod, docmod) -> int:
+    """Fetch, install and report one pack from the catalog, and pull the model
+    it is searched with if this machine does not have it yet. 0 when the pack
+    is installed and searchable."""
+    path = _fetch_cataloged_pack(entry, packmod, docmod)
+    origin = {"from": "official catalog", "id": entry["id"], "url": entry["url"],
+              "sha256": entry["sha256"], "version": entry.get("version")}
+    collection, m, _ = packmod.install_pack(path, origin=origin)
+    print(f"Installed {collection}: {m['title']} version {m['version']}, "
+          f"{m['index']['documents']} document(s), {m['index']['parts']} parts. License {m['license']}.")
+    if m.get("attribution"):
+        print(m["attribution"])
+    model = _catalog_entry(m["embedder"]["id"])
+    if model and find_model_file(model["file"]) is None:
+        print(f"The pack is searched with {model['label']} ({model['file_mb']} MB); downloading it now.")
+        if _pull_model(model) != 0:
+            print("The pack is installed; the download can be repeated with:  "
+                  f"ai-2 model pull {model['id']}", file=sys.stderr)
+            return 1
+    return 0
+
+
+def _offer_the_packs(docmod, width) -> bool:
+    """The Search Knowledge window has nothing to search. Naming a command in a
+    window that closes on the next keypress is not an offer, so this asks, and
+    installs. True when something was installed and the search can go on.
+
+    Only when a person is there to answer: a script or a pipe gets the command
+    to run instead."""
+    import textwrap
+    from . import pack as packmod
+    if not sys.stdin.isatty():
+        return False
+    try:
+        entries = packmod.load_catalog()
+    except Exception:                               # a broken catalog must not shadow the message
+        return False
+    if not entries:
+        return False
+    model = _catalog_entry((entries[0].get("embedder") or ""))
+    packs_kb = sum(int(e.get("size_bytes") or 0) for e in entries) // 1024
+    need_model = model is not None and find_model_file(model["file"]) is None
+    print("\nThese are ready to install, and then searchable with no network at all:\n")
+    for e in entries:
+        print(f"  {e['id']:<18} {e.get('title')}  ({e.get('parts')} parts, "
+              f"{int(e.get('size_bytes', 0)) // 1024} KB, {e.get('license')})")
+    total = f"{packs_kb} KB"
+    if need_model:
+        total += f" plus the {model['file_mb']} MB {model['label']}, once, which every pack here is searched with"
+    print(textwrap.fill(f"\nThat is {total}.", width=width + 4))
+    try:
+        answer = input("\nInstall them now? [Y/n]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+    if answer and not answer.startswith("y"):
+        print("\nNothing installed. When you want them:  ai-2 knowledge install ai2-help")
+        return False
+    done = 0
+    for e in entries:
+        print()
+        try:
+            if _install_cataloged_pack(e, packmod, docmod) == 0:
+                done += 1
+        except (packmod.PackError, OSError) as exc:
+            print(f"error: {e['id']}: {exc}", file=sys.stderr)
+    return done > 0
+
+
 def _doc_search(args, docmod) -> int:
     """The closest parts themselves, with where they come from, and no chat
     model: seconds instead of minutes on the old machines, and the text is
@@ -1295,9 +1371,12 @@ def _doc_search_loop(args, docmod, width) -> int:
     names = docmod.list_collections()
     if not names:
         print("\nThere is nothing to search on this computer yet.")
-        print("Knowledge packs to install:  ai-2 knowledge available")
-        print("Your own documents:          ai-2 doc index FILE")
-        return 1
+        if _offer_the_packs(docmod, width):
+            names = docmod.list_collections()
+        if not names:
+            print("\nKnowledge packs to install:  ai-2 knowledge available")
+            print("Your own documents:          ai-2 doc index FILE")
+            return 1
     print("\nSearching: " + ", ".join(names))
     models = {}
     for name in names:

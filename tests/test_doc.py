@@ -494,6 +494,7 @@ def test_search_knowledge_holds_the_window_when_there_is_nothing_to_search(tmp_p
     waited = []
     monkeypatch.setattr(about, "wait_for_enter", lambda: waited.append(True))
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True, raising=False)
+    monkeypatch.setattr(cli, "_offer_the_packs", lambda docmod, width: False)   # declined, or nothing to offer
     assert cli._doc_search(args, doc) == 1
     out = capsys.readouterr().out
     assert "nothing to search" in out and "ai-2 knowledge available" in out
@@ -503,3 +504,37 @@ def test_search_knowledge_holds_the_window_when_there_is_nothing_to_search(tmp_p
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
     assert cli._doc_search(args, doc) == 1
     assert waited == [True]
+
+
+def test_the_empty_window_offers_the_packs_instead_of_naming_a_command(tmp_path, monkeypatch, capsys):
+    """Rafael, 2026-09-18, on a machine with no packs: "it does not offer a way
+    to install a pack. What a terrible UX". Printing a command into a window
+    that closes on the next keypress is homework, not an offer."""
+    from ai2 import cli, pack
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True, raising=False)
+    entries = [{"id": "ai2-help", "title": "AI-2 Help", "parts": 107, "size_bytes": 345691,
+                "license": "MIT", "embedder": "nomic-embed-text-v1.5", "url": "https://x/a.ai2pack",
+                "sha256": "0" * 64, "version": "2026-09-16"}]
+    monkeypatch.setattr(pack, "load_catalog", lambda: entries)
+    monkeypatch.setattr(cli, "find_model_file", lambda f: None)               # the model is not here yet
+    installed = []
+    monkeypatch.setattr(cli, "_install_cataloged_pack",
+                        lambda entry, p, d: installed.append(entry["id"]) or 0)
+
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")               # Enter means yes
+    assert cli._offer_the_packs(doc, 76) is True
+    out = capsys.readouterr().out
+    assert "ai2-help" in out and "337 KB" in out
+    assert "85 MB" in out, "the model is the real cost of the first pack and must be said before the prompt"
+    assert installed == ["ai2-help"]
+
+    installed.clear()
+    monkeypatch.setattr("builtins.input", lambda prompt="": "n")
+    assert cli._offer_the_packs(doc, 76) is False
+    assert installed == [] and "Nothing installed" in capsys.readouterr().out
+
+    # not a terminal: no prompt, and the caller falls back to naming the command
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
+    monkeypatch.setattr("builtins.input", lambda prompt="": pytest.fail("must not ask a script"))
+    assert cli._offer_the_packs(doc, 76) is False
