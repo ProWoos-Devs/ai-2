@@ -28,13 +28,16 @@ def test_missing_os_release_and_unknown_init(tmp_path):
     assert about.base_system(values, "unknown") == "unknown"
 
 
-def test_the_five_lines_in_order():
+def test_the_six_lines_in_order():
     lines = about.about_lines(os_release={"ID": "ai2", "ID_LIKE": "artix arch"},
-                              init_system="runit", score={"ai_score": 29})
+                              init_system="runit", score={"ai_score": 29},
+                              packs=["AI-2 Help", "Everyday Reference"])
     assert lines == [
         ("Version", __version__),
         ("Based on", "Artix Linux (runit)"),
         ("AI Score", "29/100"),
+        # a headline of the distro, so it sits with the version and the score (Rafael, 2026-09-18)
+        ("Knowledge Packs", "2 installed (AI-2 Help, Everyday Reference); ask them: Search Knowledge"),
         ("Website", "https://prowoos.com/software-development/linux/ai-2/"),
         ("License", "MIT"),
     ]
@@ -70,7 +73,7 @@ def test_cli_about_wait_returns_on_end_of_input(monkeypatch, capsys):
 def test_window_uses_the_wizards_terminals_in_order():
     have = {"xterm", "x-terminal-emulator", "xfce4-terminal"}
     cmd = about.window_command(which=lambda name: name in have)
-    assert cmd == ["xfce4-terminal", "--title=About AI-2", "--geometry=70x13", "--hide-menubar",
+    assert cmd == ["xfce4-terminal", "--title=About AI-2", "--geometry=96x14", "--hide-menubar",
                    "-x", "ai-2", "about", "--wait"]
     have.discard("xfce4-terminal")
     assert about.window_command(which=lambda name: name in have)[:2] == ["x-terminal-emulator", "-e"]
@@ -87,4 +90,9 @@ def test_cli_window_without_a_terminal_prints_instead(monkeypatch, capsys):
     assert cli.main(["about", "--window"]) == 0
     captured = capsys.readouterr()
     assert "No terminal program found" in captured.err
-    assert "License   MIT" in captured.out
+    # the label column is as wide as its longest label, now "Knowledge Packs"
+    assert "License          MIT" in captured.out and "Knowledge Packs  " in captured.out
+
+
+def test_about_says_how_to_get_packs_when_there_are_none():
+    assert about.packs_text([]) == "none yet (run: ai-2 knowledge available)"

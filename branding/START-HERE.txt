@@ -101,6 +101,15 @@ minutes, three questions. If you close it, run it again any time with:
 
   ai-2 wizard
 
+The first thing to try needs no setup at all. This computer arrives with
+three Knowledge Packs on it: AI-2's own help, twenty everyday Linux tasks,
+and 196 countries. Open Applications > AI-2 > Search Knowledge (or
+ai-2 doc search  in a terminal), type a question, and it answers in seconds
+from those documents, naming the one each answer came from, with no
+internet. Type a result's number to read the whole document. Nothing there
+is written by the AI, so nothing is made up. You can add more packs, or
+make one from your own PDFs:  ai-2 knowledge available
+
 Then talk to the AI: Applications > AI-2 > AI-2 Chat (or  ai-2 chat  in a
 terminal). It starts the local AI and opens the chat page in the browser;
 the AI stops by itself when you have not used it for a while. The address

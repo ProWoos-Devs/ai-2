@@ -7,13 +7,15 @@
 AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support. 
 It detects the hardware, assigns a capability tier, tunes the system for it, measures what the machine can really do, and recommends models that genuinely fit, locally where possible, remotely by explicit choice.
 
+**It also arrives knowing things.** AI-2 ships with **Knowledge Packs**: sets of documents the computer searches and answers from in seconds, with no internet, naming the document every answer came from. No model writes those answers, so a 2011 laptop answers as well as a new machine, which makes this the most useful thing AI-2 does on exactly the hardware it is built for, where a chat answer takes minutes and can be wrong. Three packs come on the ISO (AI-2's own help, everyday Linux tasks, 196 countries), and **Applications > AI-2 > Search Knowledge** answers right after the install. More can be added, anyone can make one from their own PDFs and notes and share it, and one machine can answer for every other in the house. See [Knowledge Packs](https://github.com/ProWoos-Devs/ai-2/wiki/Knowledge-Packs) and [ai2-knowledge](https://github.com/ProWoos-Devs/ai2-knowledge).
+
 Reference platform is Artix Linux with runit. The oldest validated target is a 2011 laptop (AMD A4-3305M, no SSE4.1, 4 GB RAM, spinning disk) that runs a 0.5B model at about 2 tokens per second from a package built for exactly that CPU class.
 
 ## Install
 
 ### Option 1: the AI-2 ISO (recommended)
 
-A complete system: Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool, with a graphical installer. Lean by design, 1.85 GB.
+A complete system: Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool, with a graphical installer. Lean by design, about 1.9 GB, with three Knowledge Packs and the model that searches them already on board.
 
 1. Download the latest ISO: [ai-2-x86_64.iso](https://github.com/ProWoos-Devs/ai-2/releases/latest/download/ai-2-x86_64.iso) and its [SHA-256](https://github.com/ProWoos-Devs/ai-2/releases/latest/download/ai-2-x86_64.iso.sha256). Every release is also kept under its build date on the [Releases page](https://github.com/ProWoos-Devs/ai-2/releases), and mirrored on [SourceForge](https://sourceforge.net/projects/ai-2/).
 2. Verify it: `sha256sum -c ai-2-x86_64.iso.sha256`

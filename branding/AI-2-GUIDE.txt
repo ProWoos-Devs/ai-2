@@ -20,6 +20,41 @@ Everything below has two ways of doing it, one with the mouse and one in a
 terminal. They do the same thing. Use whichever you prefer.
 
 
+KNOWLEDGE PACKS
+
+This computer already knows things. A Knowledge Pack is a set of documents
+it can search and answer from in seconds, with no internet, and it tells you
+which document every answer came from. Nothing in those answers is written
+by the AI, so nothing is made up. On an older computer this is the fastest
+and most reliable thing AI-2 does.
+
+  Applications > AI-2 > Search Knowledge       type a question, read the answer
+  ai-2 doc search "how do I find a big file?"  the same, in a terminal
+
+After the results, type the number of one of them to read the whole document
+it came from. Press q to come back to your questions.
+
+Three Knowledge Packs come with AI-2:
+
+  AI-2 Help           how to use this system, even when the network is down
+  Linux Essentials    twenty everyday tasks: a full disk, a frozen program...
+  Everyday Reference  196 countries: capitals, currencies, languages, codes
+
+  ai-2 knowledge list        the packs on this computer
+  ai-2 knowledge available   the packs you can add. If this computer has
+                             none, this is how to get them, and Search
+                             Knowledge offers them too.
+
+You can make a Knowledge Pack from your own PDFs and notes on a fast
+computer, and use it on a slow one:
+
+  ai-2 doc index --in recipes ~/Documents/recipes/*.pdf
+  ai-2 knowledge export recipes -o recipes.ai2pack
+  ai-2 knowledge install recipes.ai2pack       (on the other computer)
+
+One computer can also answer for every other one in the house:  ai-2 gopher
+
+
 WHAT THIS COMPUTER CAN DO NOW
 
 A language model runs on this machine itself, on the CPU. There is no
@@ -35,6 +70,10 @@ first login. To see them again:
 An old computer gives short, slow answers from a small model. That is normal
 and it is not broken. A small model can also get facts and simple arithmetic
 wrong, so treat it like a fast helper, not an encyclopedia.
+
+When you want facts you can rely on, use the Knowledge Packs above instead.
+Those answers are taken word for word from documents, not written by the
+model, so they are as good on this computer as on any other.
 
 What it can be used for, judged for this very machine:
 

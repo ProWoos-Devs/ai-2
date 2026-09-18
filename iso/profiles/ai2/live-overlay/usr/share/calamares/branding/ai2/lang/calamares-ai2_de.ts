@@ -16,6 +16,24 @@ und empfiehlt Modelle, die wirklich passen,
 lokal wenn möglich, entfernt wenn nicht.</translation>
     </message>
     <message>
+        <source>it already knows things</source>
+        <translation>er weiß schon etwas</translation>
+    </message>
+    <message>
+        <source>AI-2 arrives with Knowledge Packs: documents this computer searches
+and answers from in seconds, with no internet, naming its source.
+No AI writes those answers, so an old PC answers as well as a new one.</source>
+        <translation>AI-2 bringt Knowledge Packs mit: Dokumente, die dieser Computer durchsucht
+und aus denen er in Sekunden antwortet, ohne Internet, mit Quellenangabe.
+Keine KI schreibt diese Antworten: ein alter PC antwortet so gut wie ein neuer.</translation>
+    </message>
+    <message>
+        <source>Applications &gt; AI-2 &gt; Search Knowledge   works right after install.
+Add more packs, or make one from your own PDFs:  $ ai-2 knowledge available</source>
+        <translation>Anwendungen &gt; AI-2 &gt; Wissen durchsuchen   funktioniert gleich nach der Installation.
+Weitere Pakete, oder eines aus eigenen PDFs:  $ ai-2 knowledge available</translation>
+    </message>
+    <message>
         <source>first steps</source>
         <translation>erste Schritte</translation>
     </message>
@@ -37,11 +55,11 @@ lädt ein erstes Modell und misst deinen AI Score.</translation>
     </message>
     <message>
         <source>AI-2 ships with a small starter model on board, so the chat
-works right after install, even with no internet. Being small,
-it reads well but can get facts and simple math wrong.</source>
+works right after install, even with no internet. Being small, it
+can get facts wrong: for facts, ask the Knowledge Packs instead.</source>
         <translation>AI-2 bringt ein kleines Startmodell mit, der Chat funktioniert
-also direkt nach der Installation, auch ohne Internet. Weil es
-klein ist, liest es sich gut, kann aber bei Fakten danebenliegen.</translation>
+also gleich nach der Installation, auch ohne Internet. Weil es klein ist,
+kann es bei Fakten irren: für Fakten frag die Knowledge Packs.</translation>
     </message>
     <message>
         <source>Once online, the setup wizard measures this machine

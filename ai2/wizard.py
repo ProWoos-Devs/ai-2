@@ -161,6 +161,7 @@ class Wizard:
         self.say(branding.compact())
         self.say(tr("\nAI-2 setup: a few minutes, three questions, and this computer gets an AI brain.\n"
                     "You can stop at any time with Ctrl-C and run  ai-2 wizard  again later."))
+        self._knowledge_packs_intro()
         prev = self.previous_report()
         if prev:
             done = []
@@ -271,6 +272,9 @@ class Wizard:
                 self.say(tr("  Honest note: it is a very small starter model. It answers quickly and\n"
                             "  reads well, but it can get facts and simple math wrong. Good for trying\n"
                             "  things out; for real work, a bigger model below."))
+                self.say(tr("  For answers you can rely on, this computer has Knowledge Packs: they answer\n"
+                            "  from documents, word for word, and name the source. No model writes them, so\n"
+                            "  the size of the model does not matter.  Applications > AI-2 > Search Knowledge"))
             self.report["model"] = ready["id"]
         bench = benchmark_model(catalog)
         bench_path = find_benchmark_model()
@@ -366,6 +370,8 @@ class Wizard:
         # On the low-end tiers (on-demand runtime = RAM is tight) the terminal
         # chat is the recommendation: same AI, no browser eating memory next
         # to the model.
+        self.say(tr("  Knowledge Packs:     ai-2 doc search        (or 'Search Knowledge' in the menu: answers from the\n"
+                    "                                              documents on this computer, in seconds, with their source)"))
         tiers = load_tiers()
         config = resolve_config(assign(hw, tiers), tiers)
         if (config.get("runtime") or {}).get("service") == "on-demand":
@@ -399,7 +405,50 @@ class Wizard:
         mark_setup_done()
         self.report["completed"] = True
         self._save_report()
+        self._try_the_packs()
         return 0
+
+    @staticmethod
+    def _installed_packs() -> list[str]:
+        """Titles of the Knowledge Packs on this computer. Never lets a problem
+        with them get in the way of the setup."""
+        try:
+            from . import pack
+            return [str(m.get("title") or name) for name, m in pack.installed_packs()]
+        except Exception:                                  # noqa: BLE001
+            return []
+
+    def _knowledge_packs_intro(self) -> None:
+        """Knowledge Packs, said first and said plainly. They are the part of
+        AI-2 that works best on the machines it is built for, seconds and
+        sourced where a chat answer takes minutes and can be wrong, and the
+        first-login setup did not mention them at all until Rafael installed
+        from scratch and looked for them (2026-09-18)."""
+        titles = self._installed_packs()
+        if titles:
+            self.say(tr("\nWhat this computer is already good at: KNOWLEDGE PACKS.\n"
+                        "{n} are installed: {titles}.\n"
+                        "Ask them a question and the answer comes in seconds, from documents on this computer,\n"
+                        "word for word and with its source named, with no internet. No AI writes those answers,\n"
+                        "so an old computer answers as well as a new one. They work right now, before this\n"
+                        "setup has done anything:\n"
+                        "    Applications > AI-2 > Search Knowledge        (or in a terminal:  ai-2 doc search )\n"
+                        "More packs, or one made from your own PDFs and notes:  ai-2 knowledge available\n"
+                        "\nThe rest of this setup is about the other half, the chat AI, which depends on the hardware.")
+                     .format(n=len(titles), titles=", ".join(titles)))
+        else:
+            self.say(tr("\nKnowledge Packs let this computer answer from documents, in seconds, offline, naming\n"
+                        "the source of every answer. None are installed here yet:  Applications > AI-2 >\n"
+                        "Search Knowledge  offers them, and so does  ai-2 knowledge available ."))
+
+    def _try_the_packs(self) -> None:
+        """Offer a first question while the person is still looking at the
+        screen. Only for a person: never in --yes, never without a terminal."""
+        import sys
+        if self.yes or not sys.stdin.isatty() or not self._installed_packs():
+            return
+        if self.ask(tr("\nAsk the Knowledge Packs a first question now?"), True):
+            self.run([sys.executable, "-c", "import sys; from ai2.cli import main; sys.exit(main())", "doc", "search"])
 
     def _check_updates(self) -> None:
         """Tell the user, in one line, whether system updates are waiting. The

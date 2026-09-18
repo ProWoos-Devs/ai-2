@@ -115,6 +115,16 @@ schließt, starte es jederzeit neu mit:
 
   ai-2 wizard
 
+Das Erste, was du ausprobieren kannst, braucht keinerlei Einrichtung. Dieser
+Computer bringt drei Knowledge Packs (Wissenspakete) mit: die Hilfe von AI-2
+selbst, zwanzig alltägliche Linux-Aufgaben und 196 Länder. Öffne
+Anwendungen > AI-2 > Wissen durchsuchen (oder  ai-2 doc search  im Terminal),
+gib eine Frage ein, und er antwortet in Sekunden aus diesen Dokumenten,
+nennt zu jeder Antwort das Dokument und braucht kein Internet. Mit der Nummer
+eines Treffers liest du das ganze Dokument. Nichts davon ist von der KI
+geschrieben, also ist nichts erfunden. Weitere Pakete, oder eines aus eigenen
+PDFs:  ai-2 knowledge available
+
 Dann rede mit der KI: Anwendungen > AI-2 Chat (oder  ai-2 chat  in einem
 Terminal). Es startet die lokale KI und öffnet die Chat-Seite im Browser;
 die KI hält von selbst an, wenn du sie eine Weile nicht benutzt hast. Die

@@ -16,6 +16,24 @@ y recomienda modelos que encajan de verdad,
 local cuando se puede, remoto cuando no.</translation>
     </message>
     <message>
+        <source>it already knows things</source>
+        <translation>ya sabe cosas</translation>
+    </message>
+    <message>
+        <source>AI-2 arrives with Knowledge Packs: documents this computer searches
+and answers from in seconds, with no internet, naming its source.
+No AI writes those answers, so an old PC answers as well as a new one.</source>
+        <translation>AI-2 llega con Knowledge Packs: documentos en los que este ordenador busca
+y de los que responde en segundos, sin internet, diciendo su fuente.
+Esas respuestas no las escribe ninguna IA: un PC antiguo responde tan bien como uno nuevo.</translation>
+    </message>
+    <message>
+        <source>Applications &gt; AI-2 &gt; Search Knowledge   works right after install.
+Add more packs, or make one from your own PDFs:  $ ai-2 knowledge available</source>
+        <translation>Aplicaciones &gt; AI-2 &gt; Buscar conocimiento   funciona nada más instalar.
+Añade más paquetes, o crea uno con tus propios PDF:  $ ai-2 knowledge available</translation>
+    </message>
+    <message>
         <source>first steps</source>
         <translation>primeros pasos</translation>
     </message>
@@ -37,11 +55,11 @@ descarga un primer modelo y mide tu AI Score.</translation>
     </message>
     <message>
         <source>AI-2 ships with a small starter model on board, so the chat
-works right after install, even with no internet. Being small,
-it reads well but can get facts and simple math wrong.</source>
-        <translation>AI-2 trae de serie un modelo inicial pequeño, así que el chat
-funciona nada más instalar, incluso sin internet. Al ser pequeño,
-se lee bien pero puede fallar en datos y cuentas sencillas.</translation>
+works right after install, even with no internet. Being small, it
+can get facts wrong: for facts, ask the Knowledge Packs instead.</source>
+        <translation>AI-2 trae un pequeño modelo inicial, así que el chat funciona
+nada más instalar, incluso sin internet. Al ser pequeño, puede
+equivocarse en los datos: para datos, pregunta a los Knowledge Packs.</translation>
     </message>
     <message>
         <source>Once online, the setup wizard measures this machine

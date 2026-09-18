@@ -20,6 +20,42 @@ Alles Folgende geht auf zwei Wegen, mit der Maus oder im Terminal. Beide tun
 dasselbe. Nimm den, der dir lieber ist.
 
 
+KNOWLEDGE PACKS (WISSENSPAKETE)
+
+Dieser Computer weiß schon etwas. Ein Knowledge Pack ist eine Sammlung von
+Dokumenten, die er in Sekunden durchsucht und aus denen er antwortet, ohne
+Internet, und er nennt das Dokument, aus dem jede Antwort stammt. Nichts an
+diesen Antworten ist von der KI geschrieben, also ist nichts erfunden. Auf
+einem älteren Computer ist das das Schnellste und Verlässlichste, was AI-2
+kann.
+
+  Anwendungen > AI-2 > Wissen durchsuchen      Frage eingeben, Antwort lesen
+  ai-2 doc search "wie finde ich eine große Datei?"   dasselbe im Terminal
+
+Gib nach den Ergebnissen die Nummer eines Treffers ein, um das ganze
+Dokument zu lesen, aus dem er stammt. Mit q kommst du zu deinen Fragen zurück.
+
+Drei Knowledge Packs bringt AI-2 mit (auf Englisch):
+
+  AI-2 Help           wie man dieses System benutzt, auch ohne Netz
+  Linux Essentials    zwanzig Alltagsaufgaben: volle Platte, hängendes Programm
+  Everyday Reference  196 Länder: Hauptstädte, Währungen, Sprachen, Codes
+
+  ai-2 knowledge list        die Pakete auf diesem Computer
+  ai-2 knowledge available   die Pakete, die du hinzufügen kannst. Hat dieser
+                             Computer keines, bekommt man sie so, und Wissen
+                             durchsuchen bietet sie ebenfalls an.
+
+Aus eigenen PDFs und Notizen lässt sich auf einem schnellen Computer ein
+Knowledge Pack bauen und auf einem langsamen nutzen:
+
+  ai-2 doc index --in rezepte ~/Dokumente/rezepte/*.pdf
+  ai-2 knowledge export rezepte -o rezepte.ai2pack
+  ai-2 knowledge install rezepte.ai2pack       (auf dem anderen Computer)
+
+Ein Computer kann auch für alle anderen im Haus antworten:  ai-2 gopher
+
+
 WAS DIESER COMPUTER JETZT KANN
 
 Ein Sprachmodell läuft auf diesem Rechner selbst, auf der CPU. Kein Konto,
@@ -36,6 +72,10 @@ Ein alter Computer gibt kurze, langsame Antworten aus einem kleinen Modell.
 Das ist normal und nicht kaputt. Ein kleines Modell kann sich auch bei
 Fakten und einfachem Rechnen irren, behandle es also als schnellen Helfer,
 nicht als Lexikon.
+
+Wenn du verlässliche Fakten willst, nimm stattdessen die Knowledge Packs von
+oben. Diese Antworten stammen wortwörtlich aus Dokumenten und nicht vom
+Modell, sind also auf diesem Computer so gut wie auf jedem anderen.
 
 Wofür er sich eignet, beurteilt für genau diesen Rechner:
 

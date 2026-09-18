@@ -47,6 +47,52 @@ Presentation
         Rectangle {
             anchors.fill: parent
             color: "#0B0F0D"
+            Text {
+                anchors.top: parent.top
+                anchors.topMargin: 36
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: '> AI-2 █'
+                font.family: "monospace"
+                font.pixelSize: 26
+                font.bold: true
+                color: "#35D07F"
+                opacity: 0.9
+            }
+            Column {
+                anchors.centerIn: parent
+                spacing: 18
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: qsTr('it already knows things')
+                    font.family: "monospace"
+                    font.pixelSize: 32
+                    font.bold: true
+                    color: "#35D07F"
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    text: qsTr('AI-2 arrives with Knowledge Packs: documents this computer searches\nand answers from in seconds, with no internet, naming its source.\nNo AI writes those answers, so an old PC answers as well as a new one.')
+                    font.family: "monospace"
+                    font.pixelSize: 18
+                    color: "#B8F5D0"
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    text: qsTr('Applications > AI-2 > Search Knowledge   works right after install.\nAdd more packs, or make one from your own PDFs:  $ ai-2 knowledge available')
+                    font.family: "monospace"
+                    font.pixelSize: 14
+                    color: "#FFB454"
+                }
+            }
+        }
+    }
+
+    Slide {
+        Rectangle {
+            anchors.fill: parent
+            color: "#0B0F0D"
             // wordmark in the otherwise empty top band (2026-08-25)
             Text {
                 anchors.top: parent.top
@@ -159,7 +205,7 @@ Presentation
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     horizontalAlignment: Text.AlignHCenter
-                    text: qsTr('AI-2 ships with a small starter model on board, so the chat\nworks right after install, even with no internet. Being small,\nit reads well but can get facts and simple math wrong.')
+                    text: qsTr('AI-2 ships with a small starter model on board, so the chat\nworks right after install, even with no internet. Being small, it\ncan get facts wrong: for facts, ask the Knowledge Packs instead.')
                     font.family: "monospace"
                     font.pixelSize: 18
                     color: "#B8F5D0"

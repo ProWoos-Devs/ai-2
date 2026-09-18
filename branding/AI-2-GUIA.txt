@@ -20,6 +20,41 @@ Todo lo que sigue se puede hacer de dos maneras, con el ratón o en una
 terminal. Hacen lo mismo. Usa la que prefieras.
 
 
+KNOWLEDGE PACKS (PAQUETES DE CONOCIMIENTO)
+
+Este ordenador ya sabe cosas. Un Knowledge Pack es un conjunto de documentos
+en los que puede buscar y de los que responde en segundos, sin internet, y
+te dice de qué documento sale cada respuesta. Nada de esas respuestas lo
+escribe la IA, así que nada es inventado. En un ordenador antiguo es lo más
+rápido y lo más fiable que hace AI-2.
+
+  Aplicaciones > AI-2 > Buscar conocimiento    escribe una pregunta
+  ai-2 doc search "¿cómo encuentro un archivo grande?"     (en un terminal)
+
+Después de los resultados, escribe el número de uno de ellos para leer el
+documento completo del que salió. Pulsa q para volver a tus preguntas.
+
+AI-2 trae tres Knowledge Packs (en inglés):
+
+  AI-2 Help           cómo usar este sistema, incluso sin red
+  Linux Essentials    veinte tareas cotidianas: disco lleno, programa colgado...
+  Everyday Reference  196 países: capitales, monedas, idiomas, códigos
+
+  ai-2 knowledge list        los paquetes de este ordenador
+  ai-2 knowledge available   los que puedes añadir. Si este ordenador no tiene
+                             ninguno, así se consiguen, y Buscar conocimiento
+                             también los ofrece.
+
+Puedes crear un Knowledge Pack con tus propios PDF y notas en un ordenador
+rápido y usarlo en uno lento:
+
+  ai-2 doc index --in recetas ~/Documentos/recetas/*.pdf
+  ai-2 knowledge export recetas -o recetas.ai2pack
+  ai-2 knowledge install recetas.ai2pack       (en el otro ordenador)
+
+Un ordenador también puede responder por todos los de la casa:  ai-2 gopher
+
+
 QUÉ PUEDE HACER YA ESTE ORDENADOR
 
 Un modelo de lenguaje funciona en esta misma máquina, en la CPU. No hay
@@ -36,6 +71,10 @@ Un ordenador antiguo da respuestas cortas y lentas con un modelo pequeño.
 Eso es normal y no está averiado. Un modelo pequeño también puede
 equivocarse en datos y en cuentas sencillas, así que trátalo como un
 ayudante rápido, no como una enciclopedia.
+
+Cuando quieras datos en los que confiar, usa los Knowledge Packs de arriba.
+Esas respuestas salen palabra por palabra de documentos, no las escribe el
+modelo, así que son tan buenas en este ordenador como en cualquier otro.
 
 Para qué sirve, juzgado para esta máquina en concreto:
 

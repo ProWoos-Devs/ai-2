@@ -108,6 +108,16 @@ preguntas. Si la cierras, vuelve a ejecutarla cuando quieras con:
 
   ai-2 wizard
 
+Lo primero que puedes probar no necesita ninguna configuración. Este
+ordenador llega con tres Knowledge Packs (paquetes de conocimiento): la ayuda
+del propio AI-2, veinte tareas cotidianas de Linux y 196 países. Abre
+Aplicaciones > AI-2 > Buscar conocimiento (o  ai-2 doc search  en un
+terminal), escribe una pregunta y responde en segundos a partir de esos
+documentos, diciendo de cuál sale cada respuesta, sin internet. Escribe el
+número de un resultado para leer el documento completo. Ahí nada lo escribe
+la IA, así que nada es inventado. Puedes añadir más paquetes, o crear uno con
+tus propios PDF:  ai-2 knowledge available
+
 Después, habla con la IA: Aplicaciones > AI-2 Chat (o  ai-2 chat  en una
 terminal). Arranca la IA local y abre la página de chat en el navegador;
 la IA se detiene sola cuando llevas un rato sin usarla. La barra de

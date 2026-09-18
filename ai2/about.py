@@ -59,9 +59,24 @@ def score_text(score: dict | None) -> str:
 _LOAD = object()
 
 
+def packs_text(titles: list[str] | None) -> str:
+    """The Knowledge Packs line: how many, which, and where to ask them. They
+    are a headline of AI-2, so About names them beside the version and the
+    score rather than leaving them to be found."""
+    if titles is None:
+        try:
+            from . import pack
+            titles = [str(m.get("title") or name) for name, m in pack.installed_packs()]
+        except Exception:                                   # noqa: BLE001 - About must always open
+            titles = []
+    if not titles:
+        return tr("none yet (run: ai-2 knowledge available)")
+    return tr("{n} installed ({titles}); ask them: Search Knowledge").format(n=len(titles), titles=", ".join(titles))
+
+
 def about_lines(os_release: dict[str, str] | None = None, init_system: str | None = None,
-                score=_LOAD) -> list[tuple[str, str]]:
-    """The five lines. Each argument is read from this computer when not
+                score=_LOAD, packs: list[str] | None = None) -> list[tuple[str, str]]:
+    """The six lines. Each argument is read from this computer when not
     given; score=None means no AI Score has been measured."""
     if os_release is None:
         os_release = read_os_release()
@@ -73,6 +88,7 @@ def about_lines(os_release: dict[str, str] | None = None, init_system: str | Non
         (tr("Version"), __version__),
         (tr("Based on"), base_system(os_release, init_system)),
         (tr("AI Score"), score_text(score)),
+        (tr("Knowledge Packs"), packs_text(packs)),
         (tr("Website"), PROJECT_PAGE),
         (tr("License"), LICENSE),
     ]
@@ -92,16 +108,16 @@ def wait_for_enter() -> None:
 
 def window_command(which=shutil.which) -> list[str] | None:
     """The terminal command for the menu entry: the same terminals, in the
-    same order, as the first-login wizard. 70x13 fits the logo, the five
+    same order, as the first-login wizard. 96x14 fits the logo, the six
     lines and the prompt in English, Spanish and German."""
     title = tr("About AI-2")
     run = ["ai-2", "about", "--wait"]
     if which("xfce4-terminal"):
-        return ["xfce4-terminal", f"--title={title}", "--geometry=70x13", "--hide-menubar", "-x", *run]
+        return ["xfce4-terminal", f"--title={title}", "--geometry=96x14", "--hide-menubar", "-x", *run]
     if which("x-terminal-emulator"):
         return ["x-terminal-emulator", "-e", *run]
     if which("xterm"):
-        return ["xterm", "-T", title, "-geometry", "70x13", "-e", *run]
+        return ["xterm", "-T", title, "-geometry", "96x14", "-e", *run]
     return None
 
 
