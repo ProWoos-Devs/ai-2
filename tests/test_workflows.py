@@ -87,6 +87,11 @@ def test_denied_on_a_tier_that_grants_nothing():
 def test_cli_list_info_status_install(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     monkeypatch.setenv("AI2_MODEL_DIR", str(tmp_path / "models"))
+    # Models are also looked for under the real home, whatever AI2_MODEL_DIR
+    # says, so a developer machine that has an embedding model on it reported
+    # the documents workflow as ready and failed this test (2026-09-18, after a
+    # pack rebuild had downloaded one). The test gets a home of its own.
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setattr(cli, "detect", lambda: LIGHT)
     monkeypatch.setattr(cli, "_load_score", lambda: _score())
     monkeypatch.setattr(cli, "_recommended_model", lambda hw: REC)

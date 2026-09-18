@@ -585,7 +585,7 @@ def test_a_number_reads_more_of_that_result(tmp_path, monkeypatch, capsys):
              "cite": "long.txt, part 16 of 30", "url": None, "manifest": None},
             {"collection": "manual", "doc": "short.txt", "ord": 0, "of": 2, "text": "Only one thing here.",
              "cite": "short.txt, part 1 of 2", "url": None, "manifest": None}]
-    monkeypatch.setattr(cli, "_doc_hits", lambda args, docmod, hw, q: hits)
+    monkeypatch.setattr(cli, "_doc_hits", lambda args, docmod, hw, q, distinct=False: hits)
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
     answers = iter(["anything", "2", "1", "1", "7", ""])
     asked = []
@@ -644,3 +644,72 @@ def test_a_page_break_is_not_a_paragraph_break():
     closed = ["A chapter ends here.", "A new one begins."]
     texts, _, _ = doc.make_chunks(closed, True, lambda c: 0, limit=512)
     assert doc.paragraphs(texts[0]) == ["A chapter ends here.", "A new one begins."]
+
+
+def _reader_fixture(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    text = "How to find <a> file\n\nFirst paragraph here.\n\nThe big files answer is in this one & nowhere else.\n"
+    parts, _, _ = doc.make_chunks([text], False, lambda c: 0, limit=512)
+    conn = doc.open_store(doc.index_path("manual"))
+    doc.set_store_model(conn, "nomic-embed-text-v2-moe", 8)
+    doc.add_document(conn, "find.txt", "/x/find.txt", parts, [fake_vec("x")] * len(parts), words=20)
+    conn.close()
+    return {"collection": "manual", "doc": "find.txt", "ord": 0, "text": "The big files answer is in this one",
+            "url": "https://example.org/find?a=1&b=2", "manifest": None}
+
+
+def test_the_reader_page_has_paragraphs_an_anchor_and_a_source_link(tmp_path, monkeypatch):
+    from ai2 import cli
+    hit = _reader_fixture(tmp_path, monkeypatch)
+    page = cli._doc_reader_page(hit, doc)
+    assert page.count("<p>") >= 3, "paragraphs, not one block"
+    assert "&lt;a&gt; file" in page and "&amp; nowhere else" in page, "document text is escaped, not interpreted"
+    assert '<a name="hit"></a><p>The big files answer' in page, "the anchor sits where the result begins"
+    assert 'href="https://example.org/find?a=1&amp;b=2"' in page, "the source can be followed from the reader"
+
+
+def test_the_reader_is_w3m_when_there_is_one_and_the_terminal_otherwise(tmp_path, monkeypatch):
+    """A terminal prints text once, at one width; w3m owns its window and
+    re-lays the text out when it is resized (measured, 60 columns to 120). It
+    is on the AI-2 image but not on a machine brought up to date, so its
+    absence must change nothing."""
+    from ai2 import cli
+    hit = _reader_fixture(tmp_path, monkeypatch)
+    ran = []
+
+    def run(cmd):
+        assert os.path.exists(cmd[-1].removeprefix("file://").removesuffix("#hit")), "the page exists while w3m runs"
+        ran.append(cmd)
+
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True, raising=False)
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True, raising=False)
+    assert cli._doc_open_reader(hit, doc, which=lambda name: None, run=run) is False and ran == []
+    assert cli._doc_open_reader(hit, doc, which=lambda name: "/usr/bin/w3m", run=run) is True
+    assert ran[0][0] == "w3m" and ran[0][-1].endswith("/document.html#hit")
+    assert not os.path.exists(ran[0][-1].removeprefix("file://").removesuffix("#hit")), "and is gone afterwards"
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: False, raising=False)
+    assert cli._doc_open_reader(hit, doc, which=lambda name: "/usr/bin/w3m", run=run) is False, "never for a pipe"
+
+
+def test_search_shows_one_result_per_document_and_ask_keeps_every_part(tmp_path, monkeypatch):
+    """"Is Linux safe", Rafael, 2026-09-18: two parts of the same FAQ took two
+    of the three slots. For a person reading, three slots should be three
+    documents; the rest of any of them is one keypress away. The chat model is
+    different: it may need two parts of one document to answer."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    conn = doc.open_store(doc.index_path("documents"))
+    doc.set_store_model(conn, "nomic-embed-text-v2-moe", 8)
+    doc.add_document(conn, "faq.txt", "/x/faq.txt", ["madrid one", "madrid two", "madrid three"],
+                     [fake_vec("madrid")] * 3, words=6)
+    doc.add_document(conn, "other.txt", "/x/other.txt", ["castellano here"], [fake_vec("castellano madrid")], words=2)
+    conn.close()
+    monkeypatch.setattr(cli, "_ensure_server", lambda *a, **k: "http://x")
+    monkeypatch.setattr(cli, "_catalog_entry", lambda model_id: {"id": model_id})
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec("madrid"))
+    hw = type("HW", (), {"ram_mib": 8000})()
+    args = type("A", (), {"collection": None, "top": 3, "doc": None, "wait": 1})()
+    every = cli._doc_hits(args, doc, hw, "madrid?")
+    assert [h["doc"] for h in every] == ["faq.txt"] * 3
+    distinct = cli._doc_hits(args, doc, hw, "madrid?", distinct=True)
+    assert [h["doc"] for h in distinct] == ["faq.txt", "other.txt"]

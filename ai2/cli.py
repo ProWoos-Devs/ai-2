@@ -1161,7 +1161,7 @@ def _doc_index(args, docmod) -> int:
     return rc
 
 
-def _doc_hits(args, docmod, hw, question: str) -> list[dict] | None:
+def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[dict] | None:
     """The parts of the indexed documents closest to the question, found by
     the embedding server (started on demand), across every collection unless
     --in names one. A question is embedded once, so collections built with
@@ -1203,7 +1203,20 @@ def _doc_hits(args, docmod, hw, question: str) -> list[dict] | None:
     if url is None:
         return None
     qvec = docmod.EmbedClient(url, emb).embed_query(question)
-    hits = docmod.search_collections({n: stores[n] for n in groups[model_id]}, qvec, top=args.top, doc=args.doc)
+    # `distinct` is for a person reading results: one per document, because two
+    # parts of the same FAQ took two of Rafael's three slots (2026-09-18) and the
+    # rest of any document is one keypress away. `doc ask` keeps every part: the
+    # chat model may need two parts of one document to answer.
+    fetch = args.top * 4 if distinct else args.top
+    hits = docmod.search_collections({n: stores[n] for n in groups[model_id]}, qvec, top=fetch, doc=args.doc)
+    if distinct:
+        seen, kept = set(), []
+        for h in hits:
+            key = (h["collection"], h["doc"])
+            if key not in seen:
+                seen.add(key)
+                kept.append(h)
+        hits = kept[:args.top]
     if not hits:
         print("Nothing in the indexed documents matches the question.")
         return None
@@ -1242,6 +1255,66 @@ def _doc_show_hits(hits, width) -> None:
         print()
         for line in terms:
             print(textwrap.fill(line, width=width + 4))
+
+
+def _doc_reader_page(hit: dict, docmod) -> str | None:
+    """The whole document a result came from, as a small HTML page for a text
+    browser: its paragraphs, an anchor where the result begins, the source as a
+    link that can be followed, and the pack's licence and attribution."""
+    import html
+    conn = docmod.open_store(docmod.index_path(hit["collection"]))
+    rows = conn.execute("SELECT chunks.text FROM chunks JOIN docs ON docs.id = chunks.doc_id "
+                        "WHERE docs.name = ? ORDER BY chunks.ord", (hit["doc"],)).fetchall()
+    conn.close()
+    if not rows:
+        return None
+    paras = docmod.join_paragraphs([r[0] for r in rows])
+    # where the result begins: the paragraph holding its first words
+    opening = " ".join(docmod.flat(hit["text"]).split()[:8])
+    at = next((i for i, para in enumerate(paras) if opening and opening in para), None)
+    body = []
+    for i, para in enumerate(paras):
+        mark = '<a name="hit"></a>' if i == at else ""
+        body.append(f"{mark}<p>{html.escape(para)}</p>")
+    foot = []
+    if hit.get("url"):
+        u = html.escape(hit["url"], quote=True)
+        foot.append(f'<p>Source: <a href="{u}">{u}</a></p>')
+    foot += [f"<p>{html.escape(line)}</p>" for line in _pack_terms([hit])]
+    title = html.escape(hit["doc"])
+    return (f"<html><head><meta charset=\"utf-8\"><title>{title}</title></head><body>"
+            f"<h1>{title}</h1>{''.join(body)}<hr>{''.join(foot)}"
+            "<p><i>q closes this and returns to your questions. / searches inside the document.</i></p>"
+            "</body></html>")
+
+
+def _doc_open_reader(hit: dict, docmod, which=None, run=None) -> bool:
+    """Open the document in w3m when it is there, positioned at the result.
+    A terminal prints text once, at one width, and cannot re-lay it out; w3m
+    owns its window, so the text follows the window when it is resized
+    (measured: a 60-column window resized to 120, lines went from 62 to 122),
+    scrolls, and searches inside the document. It is on the AI-2 image; a
+    machine brought up to date gets it with `ai-2 install text-browser`, and
+    without it the text is printed in place as before. False when not used."""
+    import shutil
+    import subprocess
+    import tempfile
+    which = which or shutil.which
+    run = run or subprocess.run
+    if not (sys.stdin.isatty() and sys.stdout.isatty()) or not which("w3m"):
+        return False
+    page = _doc_reader_page(hit, docmod)
+    if page is None:
+        return False
+    with tempfile.TemporaryDirectory(prefix="ai2-read-") as tmp:
+        path = os.path.join(tmp, "document.html")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(page)
+        try:
+            run(["w3m", "-T", "text/html", f"file://{path}#hit"])
+        except OSError:
+            return False
+    return True
 
 
 def _doc_read_more(hit: dict, radius: int, docmod, width: int) -> bool:
@@ -1376,7 +1449,7 @@ def _doc_search(args, docmod) -> int:
     question = " ".join(args.question).strip()
     width = max(40, min(100, shutil.get_terminal_size((80, 24)).columns) - 4)
     if question:
-        hits = _doc_hits(args, docmod, detect(), question)
+        hits = _doc_hits(args, docmod, detect(), question, distinct=not args.doc)
         if hits is None:
             return 1
         _doc_show_hits(hits, width)
@@ -1438,6 +1511,7 @@ def _doc_search_loop(args, docmod, width) -> int:
     asked = 0
     last_hits: list[dict] = []
     radius: dict[int, int] = {}       # how far each result has been opened so far
+    told_about_reader = False
     while True:
         try:
             question = input("\nQuestion: ").strip()
@@ -1448,13 +1522,19 @@ def _doc_search_loop(args, docmod, width) -> int:
             break
         if question.isdigit() and 1 <= int(question) <= len(last_hits):
             n = int(question)
+            if _doc_open_reader(last_hits[n - 1], docmod):
+                print("\nBack to your questions. Another number, or ask something else.")
+                continue
             radius[n] = radius.get(n, 0) + 2
             if _doc_read_more(last_hits[n - 1], radius[n], docmod, width):
                 print(f"\nType {n} again for more of it, another number, or a new question.")
+            if not told_about_reader and sys.stdin.isatty():
+                told_about_reader = True
+                print("A reader that scrolls, searches and follows the window's width:  ai-2 install text-browser")
             continue
         print()                       # the server's "Starting ..." line has its own line
         args.question = [question]
-        hits = _doc_hits(args, docmod, hw, question)
+        hits = _doc_hits(args, docmod, hw, question, distinct=not args.doc)
         if hits is not None:
             asked += 1
             last_hits, radius = hits, {}
