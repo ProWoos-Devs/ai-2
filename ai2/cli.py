@@ -1233,9 +1233,10 @@ def _pack_terms(hits: list[dict]) -> list[str]:
 
 def _doc_show_hits(hits, width) -> None:
     import textwrap
+    from .doc import wrap_paragraphs as docmod_wrap
     for i, h in enumerate(hits, 1):
         print(f"\n[{i}] {h['cite']}" + (f"  {h['url']}" if h.get("url") else ""))
-        print(textwrap.fill(h["text"], width=width, initial_indent="    ", subsequent_indent="    "))
+        print(docmod_wrap(h["text"], width, "    "))
     terms = _pack_terms(hits)
     if terms:
         print()

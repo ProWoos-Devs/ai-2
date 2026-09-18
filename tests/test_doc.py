@@ -608,3 +608,39 @@ def test_a_number_reads_more_of_that_result(tmp_path, monkeypatch, capsys):
     assert "long.txt, parts 12 to 20 of 30" in out
     # 7 is not one of the results, so it is a question like any other
     assert asked == ["anything", "2", "1", "1", "7", ""]
+
+
+def test_paragraphs_survive_indexing_and_the_embedder_sees_what_it_always_saw():
+    """Until 0.18.6 a part was its words joined by spaces, so a document read
+    back as one unbroken block (Rafael, 2026-09-18: "it looks like everything
+    is 1 line"). The breaks now live in the stored text, and ONLY there: what
+    is embedded is flat(text), which is exactly the old text, so a rebuilt pack
+    has the same vectors and every measured score still stands."""
+    title = "Finding a file"
+    para1 = " ".join(f"alpha{i}" for i in range(60)) + "."
+    para2 = " ".join(f"beta{i}" for i in range(80)) + "."
+    text = f"{title}\n\n{para1}\n\n{para2}\n"
+    new, _, n_words = doc.make_chunks([text], False, lambda c: 0, limit=512)
+    old = doc.chunk_words(text)                       # the pre-0.18.6 chunker, still there
+    assert [doc.flat(t) for t in new] == old, "the embedder must see byte-for-byte what it saw before"
+    assert n_words == len(text.split())
+    assert doc.paragraphs(new[0])[0] == title and "\n\n" in new[0]
+
+    # parts overlap by twenty words; stitched back, the paragraphs come out whole and once
+    assert doc.join_paragraphs(new) == [title, para1, para2]
+    wrapped = doc.join_parts(new, width=50)
+    assert wrapped.count("\n\n") == 2 and max(len(l) for l in wrapped.split("\n")) <= 50
+
+    # an index made before this has no breaks in it, and reads as it always did
+    assert doc.join_paragraphs(old) == [" ".join(text.split())]
+
+
+def test_a_page_break_is_not_a_paragraph_break():
+    """A sentence runs across pages; a new page starts a paragraph only when
+    the text before it had closed its sentence."""
+    running = ["The sentence starts here and", "continues on the next page. Then more."]
+    texts, _, _ = doc.make_chunks(running, True, lambda c: 0, limit=512)
+    assert doc.paragraphs(texts[0]) == ["The sentence starts here and continues on the next page. Then more."]
+    closed = ["A chapter ends here.", "A new one begins."]
+    texts, _, _ = doc.make_chunks(closed, True, lambda c: 0, limit=512)
+    assert doc.paragraphs(texts[0]) == ["A chapter ends here.", "A new one begins."]

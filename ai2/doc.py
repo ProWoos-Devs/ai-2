@@ -247,7 +247,7 @@ def extract_pages(path: str, lang: str = "eng") -> tuple[list[str], bool]:
         import re
         with zipfile.ZipFile(path) as z:
             xml = z.read("word/document.xml").decode("utf-8", "replace")
-        xml = re.sub(r"</w:p>", "\n", xml)
+        xml = re.sub(r"</w:p>", "\n\n", xml)      # a Word paragraph is a paragraph
         return [re.sub(r"<[^>]+>", "", xml)], False
     if suffix in IMAGE_SUFFIXES:
         if not shutil.which("tesseract"):
@@ -313,14 +313,63 @@ def make_chunks(pages: list[str], paged: bool, count_tokens, limit: int,
     next page stays whole; its chunk then names both pages."""
     words: list[str] = []
     page_of: list[int] = []
+    starts: list[bool] = []             # True where a word begins a paragraph
     for number, page in enumerate(pages, 1):
-        page_words = page.split()
-        words += page_words
-        page_of += [number] * len(page_words)
+        # A page break is not a paragraph break: a sentence runs across it.
+        # pdftotext's whitespace around a form feed says nothing reliable, so
+        # the text decides: the new page begins a paragraph when the last word
+        # before it closed a sentence, and continues one when it did not.
+        begins = not words or words[-1][-1:] in _SENTENCE_END
+        for para in _BLANK_LINE.split(page):
+            para_words = para.split()
+            if not para_words:
+                continue
+            words += para_words
+            page_of += [number] * len(para_words)
+            starts += [begins] + [False] * (len(para_words) - 1)
+            begins = True
     ranges = fit_ranges(words, chunk_ranges(len(words), size, overlap), count_tokens, limit) if words else []
-    texts = [" ".join(words[s:e]) for s, e in ranges]
+    texts = [_with_breaks(words, starts, s, e) for s, e in ranges]
     spans = [(page_of[s], page_of[e - 1]) for s, e in ranges] if paged else None
     return texts, spans, len(words)
+
+
+_BLANK_LINE = re.compile(r"\n[ \t\r\f\v]*\n")
+_SENTENCE_END = set(".!?:;\"'”’)]»")
+PARAGRAPH = "\n\n"
+
+
+def _with_breaks(words: list[str], starts: list[bool], s: int, e: int) -> str:
+    """The words of one part, a blank line where a paragraph began. Until
+    0.18.6 a part was its words joined by spaces, so a document read back as
+    one unbroken block however it had been written (Rafael on the 2011 laptop,
+    2026-09-18: "it looks like everything is 1 line"). The breaks live in the
+    stored text and nowhere else: what is EMBEDDED is `flat(text)`, which is
+    exactly the old text, so vectors, retrieval and every measured score are
+    unchanged, and the pack format is still 1."""
+    out = [words[s]] if s < e else []
+    for i in range(s + 1, e):
+        out.append((PARAGRAPH if starts[i] else " ") + words[i])
+    return "".join(out)
+
+
+def flat(text: str) -> str:
+    """A part's text with its paragraph breaks taken out: what the embedder
+    sees, what a token count is taken of, and what a chat model is handed."""
+    return " ".join(text.split())
+
+
+def paragraphs(text: str) -> list[str]:
+    """The paragraphs of a stored part, each as one line."""
+    return [flat(p) for p in _BLANK_LINE.split(text) if p.strip()]
+
+
+def wrap_paragraphs(text: str, width: int, indent: str = "") -> str:
+    """Stored text for the screen: every paragraph wrapped on its own, a blank
+    line between them."""
+    import textwrap
+    return "\n\n".join(textwrap.fill(p, width=width, initial_indent=indent, subsequent_indent=indent)
+                       for p in paragraphs(text))
 
 
 def cite(hit: dict, with_collection: bool = False) -> str:
@@ -389,7 +438,9 @@ class EmbedClient:
         # batches of 4: on the reference laptops a part takes 10-20 s, and the
         # progress line should move more often than every two minutes
         p = self.model.get("prefix_document", "")
-        return self.embed([p + c for c in chunks], batch=4, progress=progress)
+        # flat(): paragraph breaks are for people. The model gets the same
+        # string it always got, so a rebuilt pack has the same vectors.
+        return self.embed([p + flat(c) for c in chunks], batch=4, progress=progress)
 
     def embed_query(self, question: str) -> list[float]:
         return self.embed([self.model.get("prefix_query", "") + question])[0]
@@ -398,23 +449,54 @@ class EmbedClient:
         return int(self.model.get("ctx", 512)) - 8
 
 
+def _tokens(text: str) -> list[list]:
+    """[word, begins_a_paragraph] for every word of a stored part."""
+    out: list[list] = []
+    first = True
+    for para in _BLANK_LINE.split(text):
+        para_words = para.split()
+        if not para_words:
+            continue
+        out += [[w, (not first) and j == 0] for j, w in enumerate(para_words)]
+        first = False
+    return out
+
+
+def join_paragraphs(parts: list[str], max_overlap: int = 40) -> list[str]:
+    """A run of consecutive parts as the paragraphs they came from, each one
+    line. Consecutive parts overlap by about twenty words (that is what keeps a
+    sentence whole in at least one part), so the repeated words are dropped at
+    the seam rather than printed twice. Whether the first word of a part began
+    a paragraph is not stored with that part, but the part before it holds the
+    same word mid-text with its break, so the two are merged."""
+    toks: list[list] = []
+    for part in parts:
+        new = _tokens(part)
+        if toks:
+            for n in range(min(max_overlap, len(toks), len(new)), 0, -1):
+                if [t[0] for t in toks[-n:]] == [t[0] for t in new[:n]]:
+                    for i in range(n):
+                        toks[-n + i][1] = toks[-n + i][1] or new[i][1]
+                    new = new[n:]
+                    break
+        toks += new
+    out: list[str] = []
+    current: list[str] = []
+    for word, begins in toks:
+        if begins and current:
+            out.append(" ".join(current))
+            current = []
+        current.append(word)
+    if current:
+        out.append(" ".join(current))
+    return out
+
+
 def join_parts(parts: list[str], max_overlap: int = 40, width: int = 70) -> str:
-    """A run of consecutive parts as continuous text. Consecutive parts overlap
-    by about twenty words (that is what keeps a sentence whole in at least one
-    part), so the repeated words are trimmed at the seam rather than printed
-    twice."""
+    """The same, wrapped for a screen of `width` columns with a blank line
+    between paragraphs."""
     import textwrap
-    if not parts:
-        return ""
-    out = parts[0].split()
-    for part in parts[1:]:
-        words = part.split()
-        for n in range(min(max_overlap, len(out), len(words)), 0, -1):
-            if out[-n:] == words[:n]:
-                words = words[n:]
-                break
-        out += words
-    return "\n".join(textwrap.wrap(" ".join(out), width=width)) or ""
+    return "\n\n".join(textwrap.fill(p, width=width) for p in join_paragraphs(parts, max_overlap))
 
 
 def parts_around(conn: sqlite3.Connection, doc_name: str, ord_: int, radius: int,
@@ -491,7 +573,7 @@ def prefill_seconds(n_tokens: int, score: dict | None, model: dict | None) -> fl
 def build_messages(question: str, hits: list[dict], system: str = SYSTEM_PROMPT) -> list[dict]:
     """Question first, excerpts, then the instruction last (small models attend
     to the end): the shape measured above."""
-    excerpts = "\n\n".join(f"[{i}] ({cite(h)})\n{h['text']}" for i, h in enumerate(hits, 1))
+    excerpts = "\n\n".join(f"[{i}] ({cite(h)})\n{flat(h['text'])}" for i, h in enumerate(hits, 1))
     user = (f"Question: {question}\n\nExcerpts from my documents:\n\n{excerpts}\n\n"
             f"Answer the question \"{question}\" in one or two complete sentences, in the language of the "
             "question, citing the excerpt you used as [1] or [2]. If the excerpts do not contain the answer, say so.")
