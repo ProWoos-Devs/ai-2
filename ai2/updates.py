@@ -196,7 +196,9 @@ def notify(count: int, fork=os.fork) -> bool:
     usable from a terminal. Without a button there is nothing to wait for and
     notify-send returns on its own.
 
-    True when the bubble was handed over or shown."""
+    Returns the holder's pid when one was forked, True for a bubble that needs
+    no holder, and False when nothing could be shown. The pid is what lets the
+    caller see that a bubble is still on screen and not stack a second one."""
     if count <= 0:
         return False
     title, body, action = build(count)
@@ -223,7 +225,7 @@ def notify(count: int, fork=os.fork) -> bool:
             show(title, body, action)
         finally:
             os._exit(0)
-    return True
+    return pid
 
 
 def show(title: str, body: str, action: str | None, run=None, popen=None) -> bool:
@@ -272,6 +274,21 @@ def _db_mtime() -> float | None:
         return os.path.getmtime(PACMAN_LOCAL_DB)
     except OSError:
         return None
+
+
+def bubble_alive(pid, waitpid=os.waitpid) -> bool:
+    """True while a bubble raised earlier is still on screen. The holder is our
+    own forked child and nobody waits on it, so once it goes it becomes a
+    zombie, and a zombie answers `kill(pid, 0)` happily: asking that way would
+    report a dismissed bubble as alive for ever. waitpid with WNOHANG both
+    answers the question and reaps the child."""
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    try:
+        done, _ = waitpid(pid, os.WNOHANG)
+    except (ChildProcessError, OSError):
+        return False
+    return done == 0
 
 
 def hold(proc, clock=time.time) -> bool:

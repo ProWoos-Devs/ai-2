@@ -1634,12 +1634,23 @@ def cmd_update_check(args, sleep=None) -> int:
     No bubble while Software Updates (pamac) is open: it already lists the
     same updates. That round's bubble is owed, not dropped, so if pamac is
     closed without updating, the next round still says so; if the user did
-    update, the next check finds nothing and stays quiet."""
+    update, the next check finds nothing and stays quiet.
+
+    One bubble at a time. A holder stays alive until its bubble is clicked or
+    dismissed, so raising another at the next round piles up duplicates: three
+    identical ones were found stacked on a reference machine on 2026-09-18,
+    which is easier to ignore than one. While the previous bubble is still on
+    screen this round says nothing; the reminder is already there.
+
+    A failed check is retried in minutes, not at the next interval. The one
+    that failed on that same machine left it a whole day behind, not because
+    six hours is too long but because nothing looked again sooner."""
     import time
     from . import software, updates
     sleep = sleep or time.sleep
     owed = True                       # the login round always reminds
     max_age = args.max_age
+    holder = None                     # pid of the process holding a bubble up
     while True:
         cached = bool(max_age) and updates.state_is_fresh(max_age)
         st = (updates.load_state() or {}) if cached else (updates.check_now() or updates.load_state() or {})
@@ -1652,8 +1663,10 @@ def cmd_update_check(args, sleep=None) -> int:
             if due and software.gui_running():
                 owed = True
                 print("Software Updates is open, so no desktop notification.", flush=True)
+            elif due and updates.bubble_alive(holder):
+                print("The bubble from the previous check is still on screen.", flush=True)
             elif due:
-                updates.notify(count)
+                holder = updates.notify(count)
             print(f"{count} update(s) available. Update with:  ai-2 update"
                   if count else "The system is current.", flush=True)
         if not args.every:
@@ -1665,7 +1678,9 @@ def cmd_update_check(args, sleep=None) -> int:
         # 12-hour-old cache still "fresh", and so never saw a release
         # published that morning (2026-09-16, ai-2 0.16.0).
         max_age = min(args.max_age, args.every) if args.max_age else args.every
-        sleep(args.every * 3600)
+        # A round that could not reach the checker (asleep wifi, a daemon not
+        # answering) has learnt nothing, so it waits minutes rather than hours.
+        sleep(updates.RECHECK_S if count is None else args.every * 3600)
 
 
 def cmd_update(args) -> int:

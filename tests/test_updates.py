@@ -388,7 +388,8 @@ def test_notify_forks_a_holder_only_when_there_is_a_button(monkeypatch):
     monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
     forks = []
     _gui(monkeypatch, True)
-    assert updates.notify(2, fork=lambda: forks.append(1) or 4242) is True
+    # the pid comes back, so the caller can see the bubble is still on screen
+    assert updates.notify(2, fork=lambda: forks.append(1) or 4242) == 4242
     assert forks == [1], "a bubble with a button must be held by a forked child"
 
     forks.clear()
@@ -457,3 +458,75 @@ def test_the_loop_rechecks_every_interval_not_every_max_age(tmp_path, monkeypatc
     # after it re-checks, because 12 hours is older than the 6-hour interval
     # three rounds: the login one trusts the cache, the two after it re-check
     assert len(asked) == 2, f"the loop ran {len(asked)} real checks, expected one per round after the first"
+
+
+def test_one_bubble_at_a_time(tmp_path, monkeypatch, capsys):
+    """A holder lives until its bubble is clicked or dismissed, so a second
+    bubble at the next round is a duplicate. Three were found stacked on a
+    reference machine on 2026-09-18, which is easier to ignore than one."""
+    from ai2 import cli
+    import argparse
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    _pamac_open(monkeypatch, False)
+    monkeypatch.setattr(updates, "state_is_fresh", lambda hours: False)      # every round re-checks
+    monkeypatch.setattr(updates, "check_now", lambda: {"count": 2, "packages": ["a", "b"]})
+    raised = []
+    monkeypatch.setattr(updates, "notify", lambda n: raised.append(n) or 4242)
+    alive = [True]
+    monkeypatch.setattr(updates, "bubble_alive", lambda pid: pid == 4242 and alive[0])
+
+    rounds = []
+
+    def sleep(_s):
+        rounds.append(1)
+        if len(rounds) == 2:
+            alive[0] = False          # the person dismisses it after the second round
+        if len(rounds) == 3:
+            raise KeyboardInterrupt
+
+    try:
+        cli.cmd_update_check(argparse.Namespace(notify=True, max_age=20.0, every=6.0), sleep=sleep)
+    except KeyboardInterrupt:
+        pass
+    assert raised == [2, 2], f"expected one bubble, then one more after it was dismissed, got {raised}"
+    assert "still on screen" in capsys.readouterr().out
+
+
+def test_a_failed_check_is_retried_in_minutes(tmp_path, monkeypatch):
+    """The round that failed on RMM-PC left it a day behind, not because six
+    hours is too long but because nothing looked again sooner."""
+    from ai2 import cli
+    import argparse
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    _pamac_open(monkeypatch, False)
+    monkeypatch.setattr(updates, "state_is_fresh", lambda hours: False)
+    results = [None, None, {"count": 0, "packages": []}]
+    monkeypatch.setattr(updates, "check_now", lambda: results.pop(0))
+    monkeypatch.setattr(updates, "load_state", lambda: {})
+    slept = []
+
+    def sleep(s):
+        slept.append(s)
+        if len(slept) == 3:
+            raise KeyboardInterrupt
+
+    try:
+        cli.cmd_update_check(argparse.Namespace(notify=True, max_age=20.0, every=6.0), sleep=sleep)
+    except KeyboardInterrupt:
+        pass
+    assert slept[:2] == [updates.RECHECK_S, updates.RECHECK_S], "a failed check must be retried in minutes"
+    assert slept[2] == 6.0 * 3600, "a successful one waits the whole interval"
+
+
+def test_a_dismissed_bubble_is_not_reported_as_still_alive():
+    """The holder is our own child and nobody waits on it, so a finished one is
+    a zombie, and a zombie answers kill(pid, 0). waitpid is the honest test."""
+    assert updates.bubble_alive(None) is False
+    assert updates.bubble_alive(0) is False
+    assert updates.bubble_alive(4242, waitpid=lambda pid, flags: (0, 0)) is True
+    assert updates.bubble_alive(4242, waitpid=lambda pid, flags: (4242, 0)) is False
+
+    def gone(pid, flags):
+        raise ChildProcessError("no such child")
+
+    assert updates.bubble_alive(4242, waitpid=gone) is False
