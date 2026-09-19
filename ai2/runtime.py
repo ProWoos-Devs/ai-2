@@ -43,11 +43,20 @@ def find_runtime(variant: str) -> str | None:
 
 # Searched in order; computed at call time so HOME/env changes (doctor under
 # sudo looking at the invoking user) are honored.
+def user_model_dir() -> str:
+    """Where `ai-2 model pull` puts models for a user, under the same data
+    directory as the documents index (doc.data_dir()). It follows
+    XDG_DATA_HOME: a scratch run that redirects XDG must not download 85 MB
+    into the real home, which is what happened on 2026-09-18."""
+    base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    return os.path.join(base, "ai2", "models")
+
+
 def _model_dirs() -> list[str]:
     return [
         os.environ.get("AI2_MODEL_DIR", ""),
         "/var/lib/ai2/models",
-        os.path.expanduser("~/.local/share/ai2/models"),   # where `ai-2 model pull` puts them as a user
+        user_model_dir(),
         os.path.expanduser("~/models"),
     ]
 
@@ -133,7 +142,7 @@ def model_dir() -> str:
         return env
     if os.access("/var/lib/ai2", os.W_OK) or os.geteuid() == 0:
         return "/var/lib/ai2/models"
-    return os.path.expanduser("~/.local/share/ai2/models")
+    return user_model_dir()
 
 
 def find_model_file(filename: str) -> str | None:

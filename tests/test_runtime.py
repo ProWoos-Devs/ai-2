@@ -216,3 +216,20 @@ def test_mem_available_parses_meminfo(tmp_path):
     f = tmp_path / "meminfo"
     f.write_text("MemTotal:  3462000 kB\nMemFree:  100000 kB\nMemAvailable:  2048000 kB\n")
     assert mem_available_mib(str(f)) == 2000
+
+
+def test_the_user_model_dir_follows_xdg_data_home(monkeypatch, tmp_path):
+    """A scratch run that redirects XDG_DATA_HOME must not download models
+    into the real home (85 MB landed there on 2026-09-18). AI2_MODEL_DIR
+    still wins, and /var/lib/ai2 still wins for root."""
+    monkeypatch.delenv("AI2_MODEL_DIR", raising=False)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(runtime.os, "access", lambda p, mode: False)
+    monkeypatch.setattr(runtime.os, "geteuid", lambda: 1000)
+    assert runtime.model_dir() == str(tmp_path / "data" / "ai2" / "models")
+    assert str(tmp_path / "data" / "ai2" / "models") in runtime._model_dirs()
+    monkeypatch.setenv("AI2_MODEL_DIR", str(tmp_path / "elsewhere"))
+    assert runtime.model_dir() == str(tmp_path / "elsewhere")
+    monkeypatch.delenv("XDG_DATA_HOME")
+    monkeypatch.delenv("AI2_MODEL_DIR")
+    assert runtime.model_dir() == os.path.expanduser("~/.local/share/ai2/models")
