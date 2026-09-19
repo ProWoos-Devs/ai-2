@@ -11,7 +11,7 @@ pkgver=0.18.7rc3
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
-url="https://github.com/ProWoos-Devs/AI-2"
+url="https://github.com/ProWoos-Devs/ai-2"
 license=('MIT')
 depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pamac' 'sqlite')
 # pamac brings libpamac, whose pamac-checkupdates is the update check since 0.14.1 (pacman-contrib and
