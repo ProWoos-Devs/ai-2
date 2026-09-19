@@ -13,6 +13,14 @@ def test_ai2_image_reads_as_artix_with_its_init(tmp_path):
     assert about.base_system(values, "runit") == "Artix Linux (runit)"
 
 
+def test_the_image_claims_no_os_version():
+    """It said VERSION_ID="0.1" on every image up to 0.18, a version that
+    never shipped. AI-2 is rolling; the tool version is `ai-2 --version`."""
+    values = about.read_os_release(str(AI2_OS_RELEASE))
+    assert "VERSION_ID" not in values and "VERSION" not in values
+    assert values["BUILD_ID"] == "rolling"
+
+
 def test_plain_artix_install_with_the_package():
     assert about.base_system({"ID": "artix", "NAME": "Artix Linux"}, "openrc") == "Artix Linux (openrc)"
 

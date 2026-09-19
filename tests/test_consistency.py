@@ -52,6 +52,15 @@ def test_exactly_one_benchmark_model():
     assert flagged == ["qwen2.5-0.5b"]
 
 
+def test_the_pkgbuild_version_matches_the_tool():
+    """build-packages.sh rewrites pkgver from ai2.__version__, so a PKGBUILD
+    that disagrees is a hand edit that the next build would silently undo."""
+    import re
+    from ai2 import __version__
+    pkgbuild = open("packaging/ai-2/PKGBUILD").read()
+    assert re.search(r"^pkgver=(.+)$", pkgbuild, re.M).group(1) == __version__
+
+
 def test_version_single_source():
     import tomllib
     from ai2 import __version__

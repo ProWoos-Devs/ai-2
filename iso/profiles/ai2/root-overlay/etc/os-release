@@ -2,7 +2,9 @@ NAME="AI-2"
 PRETTY_NAME="AI-2 (based on Artix Linux)"
 ID=ai2
 ID_LIKE="artix arch"
-VERSION_ID="0.1"
 BUILD_ID=rolling
+# No VERSION_ID: AI-2 is rolling, like Artix and Arch. It said "0.1" on every
+# image from the first one to 0.18, which is worse than saying nothing. The
+# tool version is `ai-2 --version`, the image is named by its build date.
 ANSI_COLOR="38;2;53;208;127"
 LOGO=ai2
