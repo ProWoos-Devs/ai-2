@@ -454,7 +454,7 @@ def test_the_search_loop_says_when_there_is_nothing_to_search(tmp_path, monkeypa
     assert cli.main(["doc", "search"]) == 1
     out = capsys.readouterr().out
     assert "nothing to search on this computer yet" in out
-    assert "ai-2 knowledge available" in out and "ai-2 doc index FILE" in out
+    assert "ai-2 knowledge browse" in out and "ai-2 doc index FILE" in out
 
 
 def test_the_search_loop_warns_when_collections_use_different_embedders(tmp_path, monkeypatch, capsys):
@@ -498,7 +498,7 @@ def test_search_knowledge_holds_the_window_when_there_is_nothing_to_search(tmp_p
     monkeypatch.setattr(cli, "_offer_the_packs", lambda docmod, width: False)   # declined, or nothing to offer
     assert cli._doc_search(args, doc) == 1
     out = capsys.readouterr().out
-    assert "nothing to search" in out and "ai-2 knowledge available" in out
+    assert "nothing to search" in out and "ai-2 knowledge browse" in out
     assert waited == [True]
 
     # not in a terminal (a script, a pipe), nothing to hold open
@@ -564,7 +564,7 @@ def test_the_first_screen_names_the_packs_and_says_what_else_is_available(tmp_pa
     assert "Searching the following Knowledge Packs:" in out
     assert "ai2-help           AI-2 Help" in out
     assert "Also searching your own documents:  recipes" in out, "a collection of one's own is not a pack"
-    assert "ai-2 knowledge available" in out and "ai-2 doc index FILE" in out, \
+    assert "ai-2 knowledge browse" in out and "ai-2 doc index FILE" in out, \
         "the same two hints the empty state gives"
     assert "https://github.com/ProWoos-Devs/ai2-knowledge" in out, "and where packs are got and shared"
 

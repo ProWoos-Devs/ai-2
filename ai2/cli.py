@@ -993,6 +993,8 @@ def cmd_knowledge(args) -> int:
                 print(f"  {e['id']:<22} {e.get('title')}  ({e.get('parts')} parts, "
                       f"{int(e.get('size_bytes', 0)) // 1024} KB, {', '.join(e.get('languages') or [])}, "
                       f"{e.get('license')}{by}){state}")
+                if e.get("description"):
+                    print(f"  {'':<22} {e['description']}")
             # One catalog, the community's, with the project's own packs in it.
             # What is fetched by name is the copy of it inside the signed
             # package; a pack added to the catalog since is installed from its
@@ -1000,10 +1002,41 @@ def cmd_knowledge(args) -> int:
             print("\nThis is the AI-2 community catalog as this ai-2 release carries it, inside the "
                   "signed package.\nThe catalog itself, with any pack added since, every download, and "
                   f"how to share one you made:\n{packmod.CATALOG_URL}\n"
-                  "A downloaded pack installs with:  ai-2 knowledge install FILE.ai2pack")
+                  "A downloaded pack installs with:  ai-2 knowledge install FILE.ai2pack\n"
+                  "To pick from this list by number:  ai-2 knowledge browse   "
+                  "(Applications > AI-2 > Knowledge Packs)")
             return 0
+        if action == "browse":
+            if args.window:
+                # the menu entry: a window big enough for the list, like the setup's
+                from . import about
+                if about.open_window(about.terminal_window("Knowledge Packs", "100x38",
+                                                           ["ai-2", "knowledge", "browse"])):
+                    return 0
+                print("No terminal program found to open the window; showing it here.", file=sys.stderr)
+            return _knowledge_browse(packmod, docmod)
+        if action == "update":
+            return _knowledge_update(args.ids, packmod, docmod)
         if action == "install":
-            source = args.file
+            sources = list(args.file)
+            if len(sources) > 1:
+                # `ai-2 knowledge install ai2-help everyday`: one after the other,
+                # and one that fails does not stop the rest.
+                if args.as_name:
+                    print("error: --as names one collection, so it goes with one pack", file=sys.stderr)
+                    return 1
+                worst = 0
+                for n, one in enumerate(sources):
+                    if n:
+                        print()
+                    try:
+                        worst = max(worst, cmd_knowledge(argparse.Namespace(
+                            knowledge_cmd="install", file=[one], as_name=None, force=args.force)))
+                    except (packmod.PackError, OSError) as exc:
+                        print(f"error: {one}: {exc}", file=sys.stderr)
+                        worst = 1
+                return worst
+            source = sources[0]
             origin = None
             entry = packmod.catalog_entry(source)
             if entry is None and not os.path.exists(source):
@@ -1370,9 +1403,12 @@ def _install_cataloged_pack(entry: dict, packmod, docmod) -> int:
     path = _fetch_cataloged_pack(entry, packmod, docmod)
     origin = {"from": packmod.CATALOG_ORIGIN, "id": entry["id"], "url": entry["url"],
               "sha256": entry["sha256"], "version": entry.get("version")}
-    collection, m, _ = packmod.install_pack(path, origin=origin)
-    print(f"Installed {collection}: {m['title']} version {m['version']}, "
-          f"{m['index']['documents']} document(s), {m['index']['parts']} parts. License {m['license']}.")
+    collection, m, previous = packmod.install_pack(path, origin=origin)
+    if previous is not None and packmod.revision_of(m) > packmod.revision_of(previous):
+        what = f"Updated {collection} from version {previous.get('version')} to {m['version']}:"
+    else:
+        what = f"Installed {collection}: {m['title']} version {m['version']},"
+    print(f"{what} {m['index']['documents']} document(s), {m['index']['parts']} parts. License {m['license']}.")
     if m.get("attribution"):
         print(m["attribution"])
     model = _catalog_entry(m["embedder"]["id"])
@@ -1385,14 +1421,64 @@ def _install_cataloged_pack(entry: dict, packmod, docmod) -> int:
     return 0
 
 
+def _knowledge_model_cost(entry: dict) -> str | None:
+    """The sentence about the embedding model a pack is searched with, when
+    this computer still has to download it. It is the real cost of a first
+    pack (85 MB against a few hundred KB), so it is said before the download."""
+    model = _catalog_entry(str(entry.get("embedder") or ""))
+    if model is None or find_model_file(model["file"]) is not None:
+        return None
+    return (f"Packs built with {model['label']} are searched with it, and this computer does not have it yet: "
+            f"a {model['file_mb']} MB download, once.")
+
+
+def _knowledge_browse(packmod, docmod) -> int:
+    """Applications > AI-2 > Knowledge Packs, and `ai-2 knowledge browse`."""
+    import shutil
+    from . import packbrowse
+    width = max(60, min(100, shutil.get_terminal_size((100, 30)).columns) - 4)
+    interactive = sys.stdin.isatty() and sys.stdout.isatty()
+    return packbrowse.browse(install=lambda entry: _install_cataloged_pack(entry, packmod, docmod),
+                             model_cost=_knowledge_model_cost, interactive=interactive, width=width,
+                             banner=branding.compact() if interactive else "")
+
+
+def _knowledge_update(ids: list[str], packmod, docmod) -> int:
+    """`ai-2 knowledge update [ID ...]`: bring installed packs up to the newest
+    revision the catalog knows. With no ids, every pack that has one."""
+    from . import packbrowse
+    newer = packbrowse.outdated()
+    if ids:
+        known = {e["id"] for e in newer}
+        for pid in ids:
+            if pid not in known:
+                print(f"{pid}: nothing newer in the catalog this AI-2 carries.")
+        newer = [e for e in newer if e["id"] in ids]
+    if not newer:
+        if not ids:
+            print("Every installed Knowledge Pack is the newest version this AI-2 knows of.\n"
+                  "The list of packs comes with AI-2 itself, so  ai-2 update  is what brings newer ones into view.")
+        return 0
+    worst = 0
+    for n, entry in enumerate(newer):
+        if n:
+            print()
+        try:
+            worst = max(worst, _install_cataloged_pack(entry, packmod, docmod))
+        except (packmod.PackError, OSError) as exc:
+            print(f"error: {entry['id']}: {exc}", file=sys.stderr)
+            worst = 1
+    return worst
+
+
 def _doc_more_hints() -> None:
     """Where more knowledge comes from. Printed in both states of the Search
     Knowledge window, with packs and without, because they are the same two
     things a person can do next (Rafael, 2026-09-18)."""
     from . import pack as packmod
-    print("\nKnowledge packs to install:  ai-2 knowledge available")
-    print("Your own documents:          ai-2 doc index FILE")
-    print(f"Get packs, share yours:      {packmod.CATALOG_URL}")
+    print("\nAdd or update Knowledge Packs:  Applications > AI-2 > Knowledge Packs   (ai-2 knowledge browse)")
+    print("Your own documents:            ai-2 doc index FILE")
+    print(f"Get packs, share yours:        {packmod.CATALOG_URL}")
 
 
 def _offer_the_packs(docmod, width) -> bool:
@@ -1501,6 +1587,13 @@ def _doc_search_loop(args, docmod, width) -> int:
     if own:
         # not everything indexed is a pack: these are the person's own files
         print("\nAlso searching your own documents:  " + ", ".join(own))
+    if packs:
+        # Nothing updates a pack by itself, so the place a person meets their
+        # packs is where they learn a newer version exists.
+        from . import packbrowse
+        notice = packbrowse.update_notice(packbrowse.outdated())
+        if notice:
+            print("\n" + notice)
     models = {}
     for name in names:
         model_id = docmod.store_model(docmod.open_store(docmod.index_path(name)))
@@ -1935,8 +2028,13 @@ def _mention_knowledge_packs() -> None:
     brought up to date never gains the packs a fresh ISO install starts with,
     and nothing else tells it they exist. Nothing is downloaded here."""
     try:
-        from . import pack
+        from . import pack, packbrowse
         if pack.installed_packs():
+            # The update that just ran may have brought a newer copy of the
+            # catalog; the file is read now, from disk, so this sees it.
+            notice = packbrowse.update_notice(packbrowse.outdated())
+            if notice:
+                print("\n" + notice)
             return
         entries = pack.load_catalog()
     except Exception:                       # never let a hint break an update
@@ -1945,7 +2043,8 @@ def _mention_knowledge_packs() -> None:
         return
     names = ", ".join(e["id"] for e in entries[:3])
     print(f"\nThis computer has no knowledge packs. {len(entries)} can be installed and then searched with "
-          f"no network at all ({names}).\nSee them with:  ai-2 knowledge available\n"
+          f"no network at all ({names}).\nChoose among them in  Applications > AI-2 > Knowledge Packs , or with:  "
+          "ai-2 knowledge browse\n"
           f"The community catalog, to get packs and to share one you made:  {pack.CATALOG_URL}")
 
 
@@ -2168,8 +2267,15 @@ def main(argv: list[str] | None = None) -> int:
     p_kn_avail = kn_sub.add_parser("available", help="the packs of the community catalog this AI-2 can fetch by name")
     p_kn_avail.add_argument("term", nargs="?", help="only those whose name or title contains this")
     p_kn_avail.set_defaults(func=cmd_knowledge)
+    p_kn_browse = kn_sub.add_parser("browse", help="see the packs with what is in each, pick by number, install or "
+                                                   "update (the Knowledge Packs menu entry)")
+    p_kn_browse.add_argument("--window", action="store_true", help="open it in its own terminal window (what the menu entry uses)")
+    p_kn_browse.set_defaults(func=cmd_knowledge)
+    p_kn_upd = kn_sub.add_parser("update", help="bring installed packs up to the newest version the catalog knows")
+    p_kn_upd.add_argument("ids", nargs="*", metavar="ID", help="only these (default: every pack with a newer version)")
+    p_kn_upd.set_defaults(func=cmd_knowledge)
     p_kn_inst = kn_sub.add_parser("install", help="install a pack: a .ai2pack file, or a name from ai-2 knowledge available")
-    p_kn_inst.add_argument("file", metavar="FILE-OR-ID")
+    p_kn_inst.add_argument("file", metavar="FILE-OR-ID", nargs="+", help="one or several")
     p_kn_inst.add_argument("--as", dest="as_name", metavar="NAME", help="collection name (default: the pack's id)")
     p_kn_inst.add_argument("--force", action="store_true",
                            help="install even when the file is an older revision than the installed pack")

@@ -220,7 +220,9 @@ def test_the_knowledge_packs_screen_explains_and_breathes(env, monkeypatch, loca
     screen = "\n".join(said)
     lines = screen.split("\n")
     assert "Knowledge Packs" in screen and "AI-2 Help, Linux Essentials, Everyday" in screen
-    assert "ai-2 doc search" in screen and "ai-2 knowledge available" in screen
+    assert "ai-2 doc search" in screen and "ai-2 knowledge browse" in screen
+    assert "AI-2 > Knowledge Packs" in screen, "the menu entry where packs are chosen, installed and updated"
+    assert "https://github.com/ProWoos-Devs/ai2-knowledge" in screen
     for wrong in ("already good at", "ya hace bien", "schon gut kann"):
         assert wrong not in screen
     body = screen.split("─" * 66)[-1]

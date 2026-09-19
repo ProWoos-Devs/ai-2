@@ -114,8 +114,8 @@ and 196 countries. Open Applications > AI-2 > Search Knowledge (or
 ai-2 doc search  in a terminal), type a question, and it answers in seconds
 from those documents, naming the one each answer came from, with no
 internet. Type a result's number to read the whole document. Nothing there
-is written by the AI, so nothing is made up. You can add more packs, or
-make one from your own PDFs:  ai-2 knowledge available
+is written by the AI, so nothing is made up. You can add more packs in
+Applications > AI-2 > Knowledge Packs, or make one from your own PDFs.
 
 The community catalog lists every pack with its download, and it is where
 you share one you made. Anyone can add a pack:

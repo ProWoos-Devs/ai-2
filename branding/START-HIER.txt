@@ -130,8 +130,8 @@ Anwendungen > AI-2 > Wissen durchsuchen (oder  ai-2 doc search  im Terminal),
 gib eine Frage ein, und er antwortet in Sekunden aus diesen Dokumenten,
 nennt zu jeder Antwort das Dokument und braucht kein Internet. Mit der Nummer
 eines Treffers liest du das ganze Dokument. Nichts davon ist von der KI
-geschrieben, also ist nichts erfunden. Weitere Pakete, oder eines aus eigenen
-PDFs:  ai-2 knowledge available
+geschrieben, also ist nichts erfunden. Weitere Pakete gibt es in
+Anwendungen > AI-2 > Knowledge Packs, oder du baust eines aus eigenen PDFs.
 
 Der Community-Katalog listet alle Pakete mit ihrem Download, und dort teilst
 du ein eigenes. Jeder kann ein Paket hinzufügen:

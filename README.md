@@ -7,7 +7,7 @@
 AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support. 
 It detects the hardware, assigns a capability tier, tunes the system for it, measures what the machine can really do, and recommends models that genuinely fit, locally where possible, remotely by explicit choice.
 
-**Knowledge Packs.** A Knowledge Pack is a set of documents the computer searches and answers from in seconds, with no internet, naming the document every answer came from. No model writes those answers, so a 2011 laptop gives the same ones as a new machine, where a chat answer on that laptop takes minutes and can be wrong. Three packs come on the ISO (AI-2's own help, everyday Linux tasks, 196 countries), and **Applications > AI-2 > Search Knowledge** answers right after the install. One machine can also answer for every other in the house. **The community catalog, https://github.com/ProWoos-Devs/ai2-knowledge, is where every pack is listed with its download and where anyone shares one they made** from their own PDFs and notes; the project's own packs are in it with everyone else's. More in the wiki, [Knowledge Packs](https://github.com/ProWoos-Devs/ai-2/wiki/Knowledge-Packs).
+**Knowledge Packs.** A Knowledge Pack is a set of documents the computer searches and answers from in seconds, with no internet, naming the document every answer came from. No model writes those answers, so a 2011 laptop gives the same ones as a new machine, where a chat answer on that laptop takes minutes and can be wrong. Three packs come on the ISO (AI-2's own help, everyday Linux tasks, 196 countries), and **Applications > AI-2 > Search Knowledge** answers right after the install. **Applications > AI-2 > Knowledge Packs** lists the packs there are, with what is in each and who made it, installs the ones you pick by number, and says when one you have has a newer version. One machine can also answer for every other in the house. **The community catalog, https://github.com/ProWoos-Devs/ai2-knowledge, is where every pack is listed with its download and where anyone shares one they made** from their own PDFs and notes; the project's own packs are in it with everyone else's. More in the wiki, [Knowledge Packs](https://github.com/ProWoos-Devs/ai-2/wiki/Knowledge-Packs).
 
 Reference platform is Artix Linux with runit. The oldest validated target is a 2011 laptop (AMD A4-3305M, no SSE4.1, 4 GB RAM, spinning disk) that runs a 0.5B model at about 2 tokens per second from a package built for exactly that CPU class.
 
@@ -73,7 +73,8 @@ ai-2 doc search "..." # the closest parts themselves, with their pages; no chat 
 ai-2 doc search      # with no question it asks for one and keeps asking (the Search Knowledge menu entry)
 ai-2 doc list        # what is indexed, by collection (--in NAME on index/ask/search);  ai-2 doc forget NAME  removes one
 ai-2 gopher                          # serve the knowledge packs over Gopher (read them elsewhere with w3m)
-ai-2 knowledge available             # packs from the community catalog, installed by name (ai-2 knowledge install ID)
+ai-2 knowledge browse                # the Knowledge Packs menu entry: see the packs, pick by number, install or update
+ai-2 knowledge available             # the same list, plain (ai-2 knowledge install ID ..., ai-2 knowledge update)
 ai-2 knowledge install FILE.ai2pack  # add a pack file;  ai-2 knowledge export NAME  makes one from your own documents
 ai-2 transcribe FILE # speech to text with whisper.cpp: a recording or a video's audio into FILE.txt
                      # (--lang es, --model small; slow on an old CPU, leave it running)

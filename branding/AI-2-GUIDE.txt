@@ -39,10 +39,16 @@ Three Knowledge Packs come with AI-2:
   Linux Essentials    twenty everyday tasks: a full disk, a frozen program...
   Everyday Reference  196 countries: capitals, currencies, languages, codes
 
+To add packs, open Applications > AI-2 > Knowledge Packs. It lists the packs
+there are, with what is in each and who made it, and you type the numbers of
+the ones you want. Nothing updates a pack behind your back: when a newer
+version of one you have exists, Search Knowledge and that window say so, and
+typing u there updates it. The list of packs comes with AI-2 itself, so
+updating AI-2 is what brings new and changed packs into view.
+
+  ai-2 knowledge browse      the same window, in a terminal
   ai-2 knowledge list        the packs on this computer
-  ai-2 knowledge available   the packs you can add. If this computer has
-                             none, this is how to get them, and Search
-                             Knowledge offers them too.
+  ai-2 knowledge update      bring the installed packs up to date
 
 You can make a Knowledge Pack from your own PDFs and notes on a fast
 computer, and use it on a slow one:

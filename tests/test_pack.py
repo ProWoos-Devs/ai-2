@@ -410,7 +410,7 @@ def test_an_updated_machine_is_told_the_packs_exist(home, monkeypatch, capsys):
     args = type("A", (), {"gui": False})()
     assert cli.cmd_update(args) == 0
     out = capsys.readouterr().out
-    assert "no knowledge packs" in out and "ai-2 knowledge available" in out and "ai2-help" in out
+    assert "no knowledge packs" in out and "ai-2 knowledge browse" in out and "Applications > AI-2 > Knowledge Packs" in out and "ai2-help" in out
 
     # a machine that already has one is not nagged, and a failed update says nothing about packs
     make_collection("mine", {"a.txt": ["Hello."]})
@@ -437,4 +437,5 @@ def test_every_pack_in_the_packaged_catalog_names_its_maker_and_the_listing_poin
     out = capsys.readouterr().out
     assert "by ProWoos-Devs" in out and "community catalog" in out
     assert pack.CATALOG_URL in out and "share" in out
-    assert "official" not in out
+    assert "official catalog" not in out and "official pack" not in out   # (everyday lists official languages)
+    assert "196 countries" in out, "the sentence about what is in a pack"

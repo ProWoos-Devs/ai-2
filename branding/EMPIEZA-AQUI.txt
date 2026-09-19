@@ -123,8 +123,8 @@ Aplicaciones > AI-2 > Buscar conocimiento (o  ai-2 doc search  en un
 terminal), escribe una pregunta y responde en segundos a partir de esos
 documentos, diciendo de cuál sale cada respuesta, sin internet. Escribe el
 número de un resultado para leer el documento completo. Ahí nada lo escribe
-la IA, así que nada es inventado. Puedes añadir más paquetes, o crear uno con
-tus propios PDF:  ai-2 knowledge available
+la IA, así que nada es inventado. Puedes añadir más paquetes en
+Aplicaciones > AI-2 > Knowledge Packs, o crear uno con tus propios PDF.
 
 El catálogo de la comunidad lista todos los paquetes con su descarga, y es
 donde compartes el que hayas creado. Cualquiera puede añadir uno:

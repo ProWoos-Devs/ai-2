@@ -435,7 +435,7 @@ class Wizard:
                         "computer gives the same ones as a new computer.\n"
                         "\nInstalled on this computer: {titles}.\n"
                         "\n    To ask them        Applications > AI-2 > Search Knowledge    or   ai-2 doc search\n"
-                        "    To get more        ai-2 knowledge available    (or make one from your own PDFs)\n"
+                        "    To get more        Applications > AI-2 > Knowledge Packs     or   ai-2 knowledge browse\n"
                         "    To share yours     https://github.com/ProWoos-Devs/ai2-knowledge    (the community catalog)\n"
                         "\nThe steps that follow set up the other part of AI-2, the chat AI, which depends on\n"
                         "the hardware.")

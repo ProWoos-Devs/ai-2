@@ -80,7 +80,7 @@ Presentation
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     horizontalAlignment: Text.AlignHCenter
-                    text: qsTr('Applications > AI-2 > Search Knowledge   works right after install.\nAdd more packs, or make one from your own PDFs:  $ ai-2 knowledge available\nThe community catalog, to get packs and share yours:  github.com/ProWoos-Devs/ai2-knowledge')
+                    text: qsTr('Applications > AI-2 > Search Knowledge   works right after install.\nAdd more in  Applications > AI-2 > Knowledge Packs , or make one from your own PDFs.\nThe community catalog, to get packs and share yours:  github.com/ProWoos-Devs/ai2-knowledge')
                     font.family: "monospace"
                     font.pixelSize: 14
                     color: "#FFB454"

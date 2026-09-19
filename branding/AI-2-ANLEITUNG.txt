@@ -40,10 +40,17 @@ Drei Knowledge Packs bringt AI-2 mit (auf Englisch):
   Linux Essentials    zwanzig Alltagsaufgaben: volle Platte, hängendes Programm
   Everyday Reference  196 Länder: Hauptstädte, Währungen, Sprachen, Codes
 
+Um Pakete hinzuzufügen, öffne Anwendungen > AI-2 > Knowledge Packs. Dort
+stehen die vorhandenen Pakete, mit dem, was in jedem steckt und wer es
+gemacht hat, und du tippst die Nummern derer ein, die du willst. Nichts
+aktualisiert ein Paket hinter deinem Rücken: Gibt es von einem deiner Pakete
+eine neuere Version, sagen es Wissen durchsuchen und dieses Fenster, und ein
+u dort aktualisiert es. Die Liste der Pakete kommt mit AI-2 selbst, also
+bringt ein Update von AI-2 neue und geänderte Pakete in Sicht.
+
+  ai-2 knowledge browse      dasselbe Fenster, im Terminal
   ai-2 knowledge list        die Pakete auf diesem Computer
-  ai-2 knowledge available   die Pakete, die du hinzufügen kannst. Hat dieser
-                             Computer keines, bekommt man sie so, und Wissen
-                             durchsuchen bietet sie ebenfalls an.
+  ai-2 knowledge update      bringt die installierten Pakete auf den Stand
 
 Aus eigenen PDFs und Notizen lässt sich auf einem schnellen Computer ein
 Knowledge Pack bauen und auf einem langsamen nutzen:

@@ -29,10 +29,10 @@ Esas respuestas no las escribe ninguna IA: un PC antiguo responde tan bien como 
     </message>
     <message>
         <source>Applications &gt; AI-2 &gt; Search Knowledge   works right after install.
-Add more packs, or make one from your own PDFs:  $ ai-2 knowledge available
+Add more in  Applications > AI-2 > Knowledge Packs , or make one from your own PDFs.
 The community catalog, to get packs and share yours:  github.com/ProWoos-Devs/ai2-knowledge</source>
         <translation>Aplicaciones &gt; AI-2 &gt; Buscar conocimiento   funciona nada más instalar.
-Añade más paquetes, o crea uno con tus propios PDF:  $ ai-2 knowledge available
+Añade más en  Aplicaciones > AI-2 > Knowledge Packs , o crea uno con tus propios PDF.
 El catálogo de la comunidad, para obtener paquetes y compartir los tuyos:  github.com/ProWoos-Devs/ai2-knowledge</translation>
     </message>
     <message>

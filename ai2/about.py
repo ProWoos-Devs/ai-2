@@ -111,23 +111,31 @@ def wait_for_enter() -> None:
         pass
 
 
-def window_command(which=shutil.which) -> list[str] | None:
-    """The terminal command for the menu entry: the same terminals, in the
-    same order, as the first-login wizard. 96x16 fits the logo, the seven
-    lines (the Knowledge Packs one wraps with three titles) and the prompt in English, Spanish and German."""
-    title = tr("About AI-2")
-    run = ["ai-2", "about", "--wait"]
+def terminal_window(title: str, geometry: str, run: list[str], which=None) -> list[str] | None:
+    """A command that opens `run` in a titled terminal window of a given size:
+    the same terminals, in the same order, as the first-login wizard. A plain
+    `Terminal=true` menu entry gets whatever size the terminal defaults to,
+    which is 80x24 and too small for a window that shows a list."""
+    which = which or shutil.which          # looked up now, so a test (or a changed PATH) is seen
     if which("xfce4-terminal"):
-        return ["xfce4-terminal", f"--title={title}", "--geometry=96x16", "--hide-menubar", "-x", *run]
+        return ["xfce4-terminal", f"--title={title}", f"--geometry={geometry}", "--hide-menubar", "-x", *run]
     if which("x-terminal-emulator"):
         return ["x-terminal-emulator", "-e", *run]
     if which("xterm"):
-        return ["xterm", "-T", title, "-geometry", "96x16", "-e", *run]
+        return ["xterm", "-T", title, "-geometry", geometry, "-e", *run]
     return None
 
 
-def open_window() -> bool:
-    cmd = window_command()
+def window_command(which=None) -> list[str] | None:
+    """The terminal command for the About menu entry. 96x16 fits the logo, the
+    seven lines (the Knowledge Packs one wraps with three titles) and the
+    prompt in English, Spanish and German."""
+    return terminal_window(tr("About AI-2"), "96x16", ["ai-2", "about", "--wait"], which)
+
+
+def open_window(cmd: list[str] | None = _LOAD) -> bool:
+    if cmd is _LOAD:
+        cmd = window_command()
     if cmd is None:
         return False
     subprocess.Popen(cmd, start_new_session=True)
