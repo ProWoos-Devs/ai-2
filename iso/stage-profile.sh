@@ -2,6 +2,13 @@
 # Stage the AI-2 ISO profile into the artools workspace.
 # Run INSIDE the build container (repo mounted at /ai2-repo):
 #   docker exec ai2-iso-build bash /ai2-repo/www/ai-2/iso/stage-profile.sh
+#
+# After every buildiso, check what actually landed in the image:
+#   docker exec ai2-iso-build bash /ai2-repo/www/ai-2/tools/iso-layer-check.sh \
+#       /ai2-repo/www/ai-2/iso/<the>.iso <expected ai-2 version>
+# (it needs unsquashfs and root, which the container has). Stale overlay
+# copies and a candidate repository in /etc/pacman.conf both shipped once;
+# that script is what would have caught them.
 set -euo pipefail
 
 SRC=/ai2-repo/www/ai-2

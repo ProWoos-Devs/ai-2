@@ -8,10 +8,13 @@
   vm.py click <x> <y> [double]  absolute mouse move+click (screen coords)
   vm.py move <x> <y>
 Screen size assumed 1024x768 unless VM_W/VM_H env set.
+The VM directory (monitor and QMP sockets, screenshots) is $AI2_VM_DIR, or
+~/ai2-vmtmp/vm, which is where the VM disks live anyway; it used to be one
+developer's scratch path.
 """
 import json, os, socket, subprocess, sys, time
 
-D = "/tmp/claude-1000/ai2bt"
+D = os.environ.get("AI2_VM_DIR") or os.path.expanduser("~/ai2-vmtmp/vm")
 MON = f"{D}/mon"
 QMP = f"{D}/qmp"
 W = int(os.environ.get("VM_W", 1024)); H = int(os.environ.get("VM_H", 768))

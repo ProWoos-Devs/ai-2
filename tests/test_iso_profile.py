@@ -133,3 +133,19 @@ def test_the_installed_desktop_never_idle_suspends():
     props = {p.get("name"): p.get("value") for p in ET.parse(conf).getroot().iter("property")}
     assert props["inactivity-on-ac"] == "0" and props["inactivity-on-battery"] == "0"
     assert props["lock-screen-suspend-hibernate"] == "false"
+
+
+def test_the_layer_check_is_committed_and_the_vm_dir_is_not_a_scratch_path():
+    """The checks that catch a stale overlay copy or a candidate repository in
+    an image lived in one developer's notes; they are a script now, and the
+    staging script says to run it after every build."""
+    import os
+    import stat
+    check = pathlib.Path("tools/iso-layer-check.sh")
+    assert check.exists() and stat.S_IMODE(os.stat(check).st_mode) & 0o111, "not executable"
+    body = check.read_text()
+    for must in ("ai2-candidate", "rootfs.img", "branding/motd", "VERSION_ID", "origin.yml"):
+        assert must in body, f"the layer check no longer looks at {must}"
+    assert "iso-layer-check.sh" in pathlib.Path("iso/stage-profile.sh").read_text()
+    vm = pathlib.Path("iso/qemu-vm.py").read_text()
+    assert "/tmp/claude" not in vm and "AI2_VM_DIR" in vm
