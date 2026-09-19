@@ -96,3 +96,28 @@ def test_overlay_copies_of_our_own_files_have_not_drifted():
     assert not drifted, "stale copies in the image overlays, copy the source over them: " + "; ".join(drifted)
     for rel in DELIBERATE_VARIANTS:
         assert (profile / rel).is_file(), f"{rel} is listed as a deliberate variant but is gone"
+
+
+def test_every_installer_job_has_its_config_and_script():
+    """A job left in the sequence after its config or script is deleted fails
+    the install, and a config with no job runs nothing: both are silent."""
+    import re
+    for cfg in ("offline", "online"):
+        base = ISO / f"live-overlay/etc/calamares-{cfg}"
+        if not (base / "settings.conf").exists():
+            continue
+        settings = yaml.safe_load((base / "settings.conf").read_text())
+        declared = {i["id"]: i for i in settings.get("instances") or []}
+        used = {step.split("@", 1)[1] for group in settings["sequence"]
+                for step in (group.get("exec") or []) if "@" in step}
+        assert used == set(declared), f"{cfg}: instances and sequence disagree"
+        for name, inst in declared.items():
+            conf = base / "modules" / inst["config"]
+            assert conf.exists(), f"{cfg}: {conf} is missing"
+            for line in yaml.safe_load(conf.read_text())["script"]:
+                cmd = line["command"] if isinstance(line, dict) else line
+                script = re.search(r"(/usr/share/ai2/[\w.-]+)", cmd)
+                if script:
+                    path = script.group(1).lstrip("/")
+                    assert (ISO / f"root-overlay/{path}").exists() or (ISO / f"live-overlay/{path}").exists(), \
+                        f"{cfg}: {name} runs {script.group(1)}, which no overlay ships"
