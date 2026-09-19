@@ -459,14 +459,14 @@ class Wizard:
             question = input(tr("\nType a question to try them now, or just press Enter to go on with the setup: ")).strip()
         except (EOFError, KeyboardInterrupt):
             return
-        while question:
-            self._asked_the_packs = True
-            self.run([sys.executable, "-c", "import sys; from ai2.cli import main; sys.exit(main())",
-                      "doc", "search", question])
-            try:
-                question = input(tr("\nAnother question, or press Enter to go on with the setup: ")).strip()
-            except (EOFError, KeyboardInterrupt):
-                return
+        if not question:
+            return
+        self._asked_the_packs = True
+        # The same Search Knowledge loop as the menu entry: a number opens the
+        # document, empty line comes back to the setup. Passing the question
+        # makes it the first round, so they are not asked twice.
+        self.run([sys.executable, "-c", "import sys; from ai2.cli import main; sys.exit(main())",
+                  "doc", "search", question])
 
     def _try_the_packs(self) -> None:
         """Offer a first question while the person is still looking at the

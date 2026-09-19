@@ -196,14 +196,24 @@ def check_manifest(m: object) -> list[str]:
     return problems
 
 
+# sqlite.org/security.html for an untrusted database: DEFENSIVE on, the
+# schema/trigger/view switches off. A missing setconfig (Python before 3.12)
+# still has the PRAGMAs below and the schema allowlist in check_index.
+_UNTRUSTED_DBCONFIG = (
+    ("SQLITE_DBCONFIG_DEFENSIVE", True),
+    ("SQLITE_DBCONFIG_TRUSTED_SCHEMA", False),
+    ("SQLITE_DBCONFIG_ENABLE_TRIGGER", False),
+    ("SQLITE_DBCONFIG_ENABLE_VIEW", False),
+)
+
+
 def _open_untrusted(path: str) -> sqlite3.Connection:
     """Connection settings first (they read nothing from the file), then
     quick_check as the first statement that does."""
     conn = sqlite3.connect(path)
-    for flag in ("SQLITE_DBCONFIG_DEFENSIVE", "SQLITE_DBCONFIG_TRUSTED_SCHEMA",
-                 "SQLITE_DBCONFIG_ENABLE_TRIGGER", "SQLITE_DBCONFIG_ENABLE_VIEW"):
-        if hasattr(conn, "setconfig") and hasattr(sqlite3, flag):      # Python 3.12 and later
-            conn.setconfig(getattr(sqlite3, flag), False)
+    for name, on in _UNTRUSTED_DBCONFIG:
+        if hasattr(conn, "setconfig") and hasattr(sqlite3, name):      # Python 3.12 and later
+            conn.setconfig(getattr(sqlite3, name), on)
     for pragma in ("PRAGMA cell_size_check=ON", "PRAGMA trusted_schema=OFF", "PRAGMA mmap_size=0"):
         conn.execute(pragma)
     ok = conn.execute("PRAGMA quick_check").fetchone()

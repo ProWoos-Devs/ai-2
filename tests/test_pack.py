@@ -122,6 +122,24 @@ def test_install_refuses_what_an_export_would_not_write(home):
     assert not [n for n in os.listdir(doc.doc_root()) if n.startswith(".")]
 
 
+def test_untrusted_open_turns_defensive_on(home):
+    """https://www.sqlite.org/security.html wants DEFENSIVE on for a file
+    someone else wrote. The other three switches stay off. Python before 3.12
+    has no setconfig; the PRAGMAs and the schema allowlist still run."""
+    if not hasattr(sqlite3.Connection, "setconfig"):
+        pytest.skip("setconfig needs Python 3.12+")
+    make_collection("c", {"c.pdf": ["La capital es Madrid."]})
+    path = doc.index_path("c")
+    conn = pack._open_untrusted(path)
+    try:
+        assert conn.getconfig(sqlite3.SQLITE_DBCONFIG_DEFENSIVE) is True
+        assert conn.getconfig(sqlite3.SQLITE_DBCONFIG_TRUSTED_SCHEMA) is False
+        assert conn.getconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_TRIGGER) is False
+        assert conn.getconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_VIEW) is False
+    finally:
+        conn.close()
+
+
 def test_install_refuses_a_hostile_or_inconsistent_index(home):
     """A matching sha256 only proves the manifest and index travel together:
     whoever wrote one wrote both. The index itself is checked."""

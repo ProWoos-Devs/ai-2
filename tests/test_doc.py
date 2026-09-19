@@ -381,11 +381,12 @@ def test_doc_cli_with_collections(tmp_path, monkeypatch, capsys):
     assert cli.main(["doc", "list"]) == 0
     out = capsys.readouterr().out
     assert "  constitucion  (embedder nomic-embed-text-v2-moe" in out and "    notas.txt" in out and "  english  " in out
-    # every collection built with this machine's embedder, named in the citations; the other one is said
+    # every collection is searched, even when the machine's default embedder is the other one
     assert cli.main(["doc", "search", "--top", "3", "Madrid capital"]) == 0
     out = capsys.readouterr().out
-    assert "Not searched, built with another embedding model: english" in out
-    assert "constitucion/c.pdf, part" in out and "documents/notas.txt, part 1 of 1" in out and "e.txt" not in out
+    assert "Not searched" not in out
+    assert "constitucion/c.pdf, part" in out and "documents/notas.txt, part 1 of 1" in out
+    assert "e.txt" in out
     # --in picks one collection, whatever its model; citations stay short
     assert cli.main(["doc", "search", "--in", "english", "Madrid"]) == 0
     out = capsys.readouterr().out
@@ -457,7 +458,7 @@ def test_the_search_loop_says_when_there_is_nothing_to_search(tmp_path, monkeypa
     assert "ai-2 knowledge browse" in out and "ai-2 doc index FILE" in out
 
 
-def test_the_search_loop_warns_when_collections_use_different_embedders(tmp_path, monkeypatch, capsys):
+def test_the_search_loop_lists_every_collection_when_embedders_differ(tmp_path, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
@@ -468,8 +469,96 @@ def test_the_search_loop_warns_when_collections_use_different_embedders(tmp_path
     monkeypatch.setattr("builtins.input", lambda prompt="": "")
     assert cli.main(["doc", "search"]) == 0
     out = capsys.readouterr().out
-    assert "cannot search them together" in out and "--in NAME" in out
+    assert "cannot search them together" not in out
+    assert "Also searching your own documents:" in out and "packs" in out and "mine" in out
     assert out.rstrip().endswith("Nothing asked.")
+
+
+def test_search_keeps_knowledge_packs_when_own_documents_use_another_embedder(tmp_path, monkeypatch, capsys):
+    """The headline bug: after `ai-2 doc index FILE` on 4 GB, Search Knowledge
+    used to drop the shipped v1.5 packs because choose_embedder picks v2-moe."""
+    import yaml
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": "nomic-embed-text-v2-moe"})
+    _store("ai2-help", "nomic-embed-text-v1.5",
+           {"find-a-file.txt": ["Madrid, how to find a big file."]})
+    with open(os.path.join(doc.doc_root(), "ai2-help", "manifest.yml"), "w", encoding="utf-8") as fh:
+        yaml.safe_dump({"id": "ai2-help", "title": "AI-2 Help", "languages": ["en"],
+                        "license": "MIT"}, fh)
+    _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["Madrid es la capital."]})
+    assert cli.main(["doc", "search", "--top", "3", "Madrid"]) == 0
+    out = capsys.readouterr().out
+    assert "Not searched" not in out
+    assert "find-a-file.txt" in out
+    assert "ai2-help" in out or "AI-2 Help" in out or "find-a-file.txt" in out
+
+
+def test_own_documents_are_not_crowded_out_by_the_packs(tmp_path, monkeypatch, capsys):
+    """Two embedding models give scores that do not compare, so the groups
+    take turns: three pack hits must not push the person's own file out."""
+    import yaml
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    _store("ai2-help", "nomic-embed-text-v1.5",
+           {"a.txt": ["Wifi setup."], "b.txt": ["Printer setup."], "c.txt": ["Sound setup."]})
+    with open(os.path.join(doc.doc_root(), "ai2-help", "manifest.yml"), "w", encoding="utf-8") as fh:
+        yaml.safe_dump({"id": "ai2-help", "title": "AI-2 Help", "languages": ["en"], "license": "MIT"}, fh)
+    _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["Madrid es la capital."]})
+    assert cli.main(["doc", "search", "--top", "3", "Madrid es la capital."]) == 0
+    out = capsys.readouterr().out
+    assert out.index("[1] ") < out.index("a.txt") < out.index("notas.txt") < out.index("[3] ")
+
+
+def test_a_busy_embedding_server_is_not_stopped_for_a_search(monkeypatch):
+    """Searching while `ai-2 doc index` runs with the other model must not
+    kill the indexing."""
+    from ai2 import cli, serverstate
+    monkeypatch.setattr(serverstate, "read_server", lambda name: {"pid": 1, "model": "nomic-embed-text-v2-moe"})
+    monkeypatch.setattr(cli, "_server_busy", lambda url: True)
+    stopped = []
+    monkeypatch.setattr(serverstate, "stop_server", lambda **kw: stopped.append(kw))
+    monkeypatch.setattr(cli, "_ensure_server", lambda *a, **kw: "http://127.0.0.1:8081/")
+    assert cli._ensure_embed(None, {"id": "nomic-embed-text-v1.5"}, wait=1) is None
+    assert stopped == []
+    monkeypatch.setattr(cli, "_server_busy", lambda url: False)
+    assert cli._ensure_embed(None, {"id": "nomic-embed-text-v1.5"}, wait=1) == "http://127.0.0.1:8081/"
+    assert stopped == [{"name": serverstate.EMBED}]
+
+
+def test_a_running_server_with_another_model_is_not_reused(monkeypatch, capsys):
+    """An index embedded with the wrong model is wrong without any error, so a
+    server that answers on the port must also run the model asked for."""
+    from ai2 import cli, serverstate
+    monkeypatch.setattr(cli, "_server_ready", lambda url, timeout=2.0: True)
+    monkeypatch.setattr(serverstate, "read_server", lambda name: {"pid": 1, "model": "nomic-embed-text-v1.5"})
+    model = {"id": "nomic-embed-text-v2-moe", "file": "x.gguf", "label": "x"}
+    assert cli._ensure_server(None, model, 8081, serverstate.EMBED, wait=1) is None
+    assert "already running with nomic-embed-text-v1.5" in capsys.readouterr().err
+    monkeypatch.setattr(serverstate, "read_server", lambda name: {"pid": 1, "model": "nomic-embed-text-v2-moe"})
+    assert cli._ensure_server(None, model, 8081, serverstate.EMBED, wait=1) == "http://127.0.0.1:8081/"
+
+
+def test_doc_search_with_a_question_on_a_terminal_keeps_asking(tmp_path, monkeypatch, capsys):
+    """A question typed at a terminal is the first round of Search Knowledge,
+    not a one-shot that cannot open the document."""
+    import sys
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["La capital del Estado es Madrid."]})
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    assert cli.main(["doc", "search", "madrid"]) == 0
+    out = capsys.readouterr().out
+    assert "It is not AI-2 Chat" in out
+    assert "[1] notas.txt, part 1 of 1" in out
+    assert out.rstrip().endswith("Done.")
 
 
 def test_the_search_loop_survives_ctrl_c(tmp_path, monkeypatch, capsys):

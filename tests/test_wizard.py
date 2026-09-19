@@ -230,3 +230,29 @@ def test_the_knowledge_packs_screen_explains_and_breathes(env, monkeypatch, loca
     assert max(len(line) for line in lines) <= 96
     assert len(lines) + 2 + 3 <= 38       # + the two setup lines above, + the question under it
     monkeypatch.setattr(i18n, "_catalog", None)
+
+
+def test_the_first_question_opens_the_search_loop_once(env, monkeypatch):
+    """Typing a question at setup must open Search Knowledge, not a one-shot
+    that cannot open a document, and must not wrap a second question loop
+    around it."""
+    import sys
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    ran = []
+    questions = iter(["how do I find a big file?", "must not be asked"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(questions))
+    w = wz.Wizard(ask=lambda q, d: d, say=lambda t: None, run=lambda cmd: ran.append(cmd) or 0)
+    w._first_question()
+    assert len(ran) == 1 and ran[0][-2:] == ["search", "how do I find a big file?"]
+    assert w._asked_the_packs is True
+
+
+def test_an_empty_first_question_leaves_the_search_for_later(env, monkeypatch):
+    import sys
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    ran = []
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    w = wz.Wizard(ask=lambda q, d: d, say=lambda t: None, run=lambda cmd: ran.append(cmd) or 0)
+    w._first_question()
+    assert ran == []
+    assert not getattr(w, "_asked_the_packs", False)

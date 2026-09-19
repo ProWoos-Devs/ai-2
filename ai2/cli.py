@@ -7,6 +7,7 @@ import sys
 from dataclasses import asdict
 
 from . import __version__, branding, gopher, persona, remote
+from .i18n import tr
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
@@ -775,9 +776,11 @@ def _ensure_server(hw, model: dict, port: int, record: str, wait: int = 180,
     import subprocess
     import time
     url = f"http://127.0.0.1:{port}/"
-    if _server_ready(url):
-        return url
     running = serverstate.read_server(record)
+    # a server that answers is only this one if it runs this model: an index
+    # embedded with the wrong model is wrong without any error
+    if _server_ready(url) and not (running and running.get("model") and running["model"] != model["id"]):
+        return url
     if running and running.get("model") and running["model"] != model["id"]:
         print(f"error: a server is already running with {running['model']}, not {model['id']}. "
               f"Stop it first:  ai-2 stop", file=sys.stderr)
@@ -1195,12 +1198,71 @@ def _doc_index(args, docmod) -> int:
     return rc
 
 
+def _server_busy(url: str, timeout: float = 2.0) -> bool:
+    """True when llama-server is working on a request. It answers /slots from
+    the loop that runs the model, so a poll that times out means busy (the
+    same rule as the serve wrapper); a refused connection means nothing is
+    there to be busy."""
+    import json
+    import socket
+    import urllib.error
+    import urllib.request
+    try:
+        with urllib.request.urlopen(url.rstrip("/") + "/slots", timeout=timeout) as r:
+            slots = json.loads(r.read(200000).decode("utf-8", "replace"))
+    except (TimeoutError, socket.timeout):
+        return True
+    except urllib.error.URLError as exc:
+        return isinstance(exc.reason, (TimeoutError, socket.timeout))
+    except (OSError, ValueError):
+        return False
+    return any(isinstance(s, dict) and s.get("is_processing") for s in slots or [])
+
+
+def _ensure_embed(hw, model: dict, wait: int):
+    """The embedding server for this model. Scores only compare inside one
+    model, so a search that covers two groups swaps the server between them
+    (one port). A server busy with another model, an `ai-2 doc index` in
+    progress, is left alone: stopping it would kill the indexing."""
+    from . import doc as docmod
+    running = serverstate.read_server(serverstate.EMBED)
+    if running and running.get("model") and running["model"] != model["id"]:
+        if _server_busy(f"http://127.0.0.1:{docmod.EMBED_PORT}/"):
+            return None
+        serverstate.stop_server(name=serverstate.EMBED)
+    return _ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=wait)
+
+
+def _interleave(groups: list[list[dict]]) -> list[dict]:
+    """One from each group in turn. Scores from two embedding models do not
+    compare, so neither group may crowd the other out of the top results."""
+    merged = []
+    for i in range(max((len(g) for g in groups), default=0)):
+        merged.extend(g[i] for g in groups if i < len(g))
+    return merged
+
+
+def _distinct_docs(hits: list[dict], top: int) -> list[dict]:
+    seen, kept = set(), []
+    for h in hits:
+        key = (h["collection"], h["doc"])
+        if key not in seen:
+            seen.add(key)
+            kept.append(h)
+        if len(kept) >= top:
+            break
+    return kept
+
+
 def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[dict] | None:
     """The parts of the indexed documents closest to the question, found by
     the embedding server (started on demand), across every collection unless
-    --in names one. A question is embedded once, so collections built with
-    another embedding model are left out, and the command says which. None,
-    with the reason printed, when there is nothing to search or no server."""
+    --in names one. Collections built with different embedding models cannot
+    share a question vector, so each group is searched in turn (Knowledge
+    Packs first, then the person's own documents). Scores are not compared
+    across groups. None, with the reason printed, when there is nothing to
+    search or no server for any group."""
+    from . import pack as packmod
     names = docmod.list_collections()
     if args.collection:
         if args.collection not in names:
@@ -1221,42 +1283,56 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
     groups: dict[str, list[str]] = {}
     for n in usable:
         groups.setdefault(info[n][0], []).append(n)
-    preferred = (docmod.choose_embedder(hw.ram_mib) or {}).get("id")
-    model_id = docmod.pick_embedder_group(groups, preferred,
-                                          {n: sum(d["chunks"] for d in info[n][1]) for n in usable})
-    left_out = [n for n in usable if info[n][0] != model_id]
-    if left_out:
-        print(f"Not searched, built with another embedding model: {', '.join(left_out)} "
-              "(search one of them with --in NAME)")
-    emb = _catalog_entry(model_id)
-    if emb is None:
-        print(f"error: {', '.join(groups[model_id])} was built with {model_id}, which is no longer in the catalog; "
-              "rebuild it:  ai-2 doc forget --all --in NAME", file=sys.stderr)
-        return None
-    url = _ensure_server(hw, emb, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait)
-    if url is None:
-        return None
-    qvec = docmod.EmbedClient(url, emb).embed_query(question)
+    pack_models, own_models, seen = [], [], []
+    for n in usable:
+        model_id = info[n][0]
+        if model_id in seen:
+            continue
+        seen.append(model_id)
+        if any(packmod.manifest_of(c) for c in groups[model_id]):
+            pack_models.append(model_id)
+        else:
+            own_models.append(model_id)
     # `distinct` is for a person reading results: one per document, because two
     # parts of the same FAQ took two of Rafael's three slots (2026-09-18) and the
     # rest of any document is one keypress away. `doc ask` keeps every part: the
     # chat model may need two parts of one document to answer.
     fetch = args.top * 4 if distinct else args.top
-    hits = docmod.search_collections({n: stores[n] for n in groups[model_id]}, qvec, top=fetch, doc=args.doc)
-    if distinct:
-        seen, kept = set(), []
-        for h in hits:
-            key = (h["collection"], h["doc"])
-            if key not in seen:
-                seen.add(key)
-                kept.append(h)
-        hits = kept[:args.top]
+    per_group: list[list[dict]] = []
+    searched: list[str] = []
+    last_error = None
+    for model_id in pack_models + own_models:
+        emb = _catalog_entry(model_id)
+        if emb is None:
+            last_error = (f"error: {', '.join(groups[model_id])} was built with {model_id}, "
+                          "which is no longer in the catalog; "
+                          "rebuild it:  ai-2 doc forget --all --in NAME")
+            print(last_error, file=sys.stderr)
+            continue
+        url = _ensure_embed(hw, emb, wait=args.wait)
+        if url is None:
+            last_error = "no embedding server"
+            print(f"Not searched this time: {', '.join(groups[model_id])} (the embedding server is busy "
+                  "or did not start; if a document is being indexed, ask again when it finishes)",
+                  file=sys.stderr)
+            continue
+        qvec = docmod.EmbedClient(url, emb).embed_query(question)
+        hits = docmod.search_collections({n: stores[n] for n in groups[model_id]},
+                                         qvec, top=fetch, doc=args.doc)
+        if distinct:
+            hits = _distinct_docs(hits, args.top)
+        per_group.append(hits)
+        searched.extend(groups[model_id])
+    hits = _interleave(per_group)[:args.top]
     if not hits:
+        if not searched:
+            if last_error is None:
+                print("No documents indexed yet. Add one with:  ai-2 doc index FILE", file=sys.stderr)
+            return None
         print("Nothing in the indexed documents matches the question.")
         return None
-    from . import pack as packmod
-    several = len(groups[model_id]) > 1
-    manifests = {n: packmod.manifest_of(n) for n in groups[model_id]}
+    several = len({h["collection"] for h in hits}) > 1
+    manifests = {n: packmod.manifest_of(n) for n in {h["collection"] for h in hits}}
     for h in hits:
         h["cite"] = docmod.cite(h, with_collection=several)
         h["url"] = packmod.source_url(manifests.get(h["collection"]), h["doc"])
@@ -1476,9 +1552,9 @@ def _doc_more_hints() -> None:
     Knowledge window, with packs and without, because they are the same two
     things a person can do next (Rafael, 2026-09-18)."""
     from . import pack as packmod
-    print("\nAdd or update Knowledge Packs:  Applications > AI-2 > Knowledge Packs   (ai-2 knowledge browse)")
-    print("Your own documents:            ai-2 doc index FILE")
-    print(f"Get packs, share yours:        {packmod.CATALOG_URL}")
+    print(tr("\nAdd or update Knowledge Packs:  Applications > AI-2 > Knowledge Packs   (ai-2 knowledge browse)"))
+    print(tr("Your own documents:            ai-2 doc index FILE"))
+    print(tr("Get packs, share yours:        {url}").format(url=packmod.CATALOG_URL))
 
 
 def _offer_the_packs(docmod, width) -> bool:
@@ -1501,7 +1577,7 @@ def _offer_the_packs(docmod, width) -> bool:
     model = _catalog_entry((entries[0].get("embedder") or ""))
     packs_kb = sum(int(e.get("size_bytes") or 0) for e in entries) // 1024
     need_model = model is not None and find_model_file(model["file"]) is None
-    print("\nThese are ready to install, and then searchable with no network at all:\n")
+    print(tr("\nThese are ready to install, and then searchable with no network at all:\n"))
     for e in entries:
         print(f"  {e['id']:<18} {e.get('title')}  ({e.get('parts')} parts, "
               f"{int(e.get('size_bytes', 0)) // 1024} KB, {e.get('license')})")
@@ -1510,12 +1586,12 @@ def _offer_the_packs(docmod, width) -> bool:
         total += f" plus the {model['file_mb']} MB {model['label']}, once, which every pack here is searched with"
     print(textwrap.fill(f"\nThat is {total}.", width=width + 4))
     try:
-        answer = input("\nInstall them now? [Y/n]: ").strip().lower()
+        answer = input(tr("\nInstall them now? [Y/n]: ")).strip().lower()
     except (EOFError, KeyboardInterrupt):
         print()
         return False
-    if answer and not answer.startswith("y"):
-        print("\nNothing installed. When you want them:  ai-2 knowledge install ai2-help")
+    if answer and not answer.startswith(("y", "s", "j")):
+        print(tr("\nNothing installed. When you want them:  ai-2 knowledge install ai2-help"))
         return False
     done = 0
     for e in entries:
@@ -1534,17 +1610,20 @@ def _doc_search(args, docmod) -> int:
     the document's own, so nothing can be made up.
 
     With no question it asks for one and keeps asking, which is what the
-    Search Knowledge menu entry runs."""
+    Search Knowledge menu entry runs. A question on a terminal is the first
+    round of that same loop (the setup's first question, and typing
+    `ai-2 doc search "..."` in a window), so a number still opens the
+    document. A pipe or a script stays one-shot."""
     import shutil
     question = " ".join(args.question).strip()
     width = max(40, min(100, shutil.get_terminal_size((80, 24)).columns) - 4)
-    if question:
+    if question and not sys.stdin.isatty():
         hits = _doc_hits(args, docmod, detect(), question, distinct=not args.doc)
         if hits is None:
             return 1
         _doc_show_hits(hits, width)
         return 0
-    rc = _doc_search_loop(args, docmod, width)
+    rc = _doc_search_loop(args, docmod, width, first=question or None)
     # The Search Knowledge menu entry runs this in a terminal that closes the
     # moment the command returns. Every round of the loop waits for input, so
     # the window stays by itself; a round that never happens does not, and the
@@ -1558,19 +1637,21 @@ def _doc_search(args, docmod) -> int:
     return rc
 
 
-def _doc_search_loop(args, docmod, width) -> int:
+def _doc_search_loop(args, docmod, width, first: str | None = None) -> int:
     """Ask, search, print, ask again. The first screen says what this is,
     because the difference from AI-2 Chat is the point: these are passages
-    from the documents on this computer, not something a model wrote."""
+    from the documents on this computer, not something a model wrote.
+    `first` is a question already typed (the setup window, or argv); it is
+    searched after the first screen, then the loop continues."""
     import textwrap
     hw = detect()
     print(branding.compact())
-    print(textwrap.fill("This searches the documents and knowledge packs on this computer and shows "
-                        "the passages that match, each with the document it came from. It is not AI-2 "
-                        "Chat: nothing here is written by the AI, so nothing can be made up.", width=width + 4))
+    print(textwrap.fill(tr("This searches the documents and knowledge packs on this computer and shows "
+                           "the passages that match, each with the document it came from. It is not AI-2 "
+                           "Chat: nothing here is written by the AI, so nothing can be made up."), width=width + 4))
     names = docmod.list_collections()
     if not names:
-        print("\nThere is nothing to search on this computer yet.")
+        print(tr("\nThere is nothing to search on this computer yet."))
         if _offer_the_packs(docmod, width):
             names = docmod.list_collections()
         if not names:
@@ -1581,12 +1662,17 @@ def _doc_search_loop(args, docmod, width) -> int:
     packs = [(name, m) for name, m in found if m]
     own = [name for name, m in found if not m]
     if packs:
-        print("\nSearching the following Knowledge Packs:")
+        print(tr("\nSearching the following Knowledge Packs:"))
         for name, m in packs:
             print(f"  {name:<18} {m.get('title')}")
+        langs = set()
+        for _name, m in packs:
+            langs.update(str(x).lower() for x in (m.get("languages") or []))
+        if langs and langs <= {"en", "eng", "english"}:
+            print(tr("The packs on this computer are in English."))
     if own:
         # not everything indexed is a pack: these are the person's own files
-        print("\nAlso searching your own documents:  " + ", ".join(own))
+        print(tr("\nAlso searching your own documents:  {names}").format(names=", ".join(own)))
     if packs:
         # Nothing updates a pack by itself, so the place a person meets their
         # packs is where they learn a newer version exists.
@@ -1594,40 +1680,36 @@ def _doc_search_loop(args, docmod, width) -> int:
         notice = packbrowse.update_notice(packbrowse.outdated())
         if notice:
             print("\n" + notice)
-    models = {}
-    for name in names:
-        model_id = docmod.store_model(docmod.open_store(docmod.index_path(name)))
-        if model_id:
-            models.setdefault(model_id, []).append(name)
-    if len(models) > 1:
-        print(textwrap.fill("Not all of these were built with the same embedding model, so one question "
-                            "cannot search them together. Whichever group this computer indexes with is "
-                            "searched; ai-2 doc search --in NAME searches another.", width=width + 4))
     _doc_more_hints()
-    print("\nType a question, or press Enter on an empty line to finish.")
+    if not first:
+        print(tr("\nType a question, or press Enter on an empty line to finish."))
     asked = 0
     last_hits: list[dict] = []
     radius: dict[int, int] = {}       # how far each result has been opened so far
     told_about_reader = False
+    pending = first
     while True:
-        try:
-            question = input("\nQuestion: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            break
+        if pending is not None:
+            question, pending = pending, None
+        else:
+            try:
+                question = input(tr("\nQuestion: ")).strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                break
         if not question:
             break
         if question.isdigit() and 1 <= int(question) <= len(last_hits):
             n = int(question)
             if _doc_open_reader(last_hits[n - 1], docmod):
-                print("\nBack to your questions. Another number, or ask something else.")
+                print(tr("\nBack to your questions. Another number, or ask something else."))
                 continue
             radius[n] = radius.get(n, 0) + 2
             if _doc_read_more(last_hits[n - 1], radius[n], docmod, width):
-                print(f"\nType {n} again for more of it, another number, or a new question.")
+                print(tr("\nType {n} again for more of it, another number, or a new question.").format(n=n))
             if not told_about_reader and sys.stdin.isatty():
                 told_about_reader = True
-                print("A reader that scrolls, searches and follows the window's width:  ai-2 install text-browser")
+                print(tr("A reader that scrolls, searches and follows the window's width:  ai-2 install text-browser"))
             continue
         print()                       # the server's "Starting ..." line has its own line
         args.question = [question]
@@ -1636,8 +1718,8 @@ def _doc_search_loop(args, docmod, width) -> int:
             asked += 1
             last_hits, radius = hits, {}
             _doc_show_hits(hits, width)
-            print("\nType a number to read more of that one, or ask something else.")
-    print("\nDone." if asked else "\nNothing asked.")
+            print(tr("\nType a number to read more of that one, or ask something else."))
+    print(tr("\nDone.") if asked else tr("\nNothing asked."))
     return 0
 
 

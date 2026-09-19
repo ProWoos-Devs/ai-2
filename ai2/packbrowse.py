@@ -26,6 +26,7 @@ import textwrap
 from typing import Callable
 
 from . import pack
+from .i18n import tr
 
 WINDOW = "Applications > AI-2 > Knowledge Packs"
 
@@ -65,8 +66,11 @@ def update_notice(entries: list[dict]) -> str:
     if not entries:
         return ""
     names = ", ".join(str(e.get("title") or e["id"]) for e in entries)
-    verb = "A newer version is available for" if len(entries) == 1 else "Newer versions are available for"
-    return f"{verb}: {names}.\nUpdate in  {WINDOW} , or with  ai-2 knowledge update"
+    if len(entries) == 1:
+        return tr("A newer version is available for: {names}.\nUpdate in  {window} , or with  ai-2 knowledge update").format(
+            names=names, window=WINDOW)
+    return tr("Newer versions are available for: {names}.\nUpdate in  {window} , or with  ai-2 knowledge update").format(
+        names=names, window=WINDOW)
 
 
 def describe(entry: dict) -> str:
@@ -74,14 +78,15 @@ def describe(entry: dict) -> str:
     size = f"{size_kb / 1024:.1f} MB" if size_kb >= 1024 else f"{max(1, size_kb)} KB"
     bits = [f"{entry.get('parts')} parts", size, ", ".join(entry.get("languages") or []), str(entry.get("license"))]
     if entry.get("contact"):
-        bits.append(f"by {entry['contact']}")
+        bits.append(tr("by {contact}").format(contact=entry["contact"]))
     return ", ".join(b for b in bits if b and b != "None")
 
 
 def render(catalog: list[dict], installed: dict[str, dict], width: int = 96) -> str:
     """The numbered list. Each pack gets its sentence of description, because
     an id and a title do not tell a person whether they want it."""
-    labels = {"": "", "installed": "[installed]", "update": "[installed, newer version available]"}
+    labels = {"": "", "installed": tr("[installed]"),
+              "update": tr("[installed, newer version available]")}
     lines: list[str] = []
     for n, entry in enumerate(catalog, 1):
         head = f"  {n:>2}  {entry['id']:<20} {entry.get('title') or ''}"
@@ -95,8 +100,8 @@ def render(catalog: list[dict], installed: dict[str, dict], width: int = 96) -> 
     cataloged = {e.get("id") for e in catalog}
     others = [(pid, m) for pid, m in installed.items() if pid not in cataloged]
     if others:
-        lines.append("Also installed here, from a file:  " +
-                     ", ".join(f"{m['_collection']} ({m.get('title')})" for pid, m in others))
+        lines.append(tr("Also installed here, from a file:  {names}").format(
+            names=", ".join(f"{m['_collection']} ({m.get('title')})" for pid, m in others)))
         lines.append("")
     return "\n".join(lines).rstrip("\n")
 
@@ -132,32 +137,32 @@ def browse(install: Callable[[dict], int], model_cost: Callable[[dict], str | No
     catalog = pack.load_catalog()
     if banner:
         say(banner)
-    say(textwrap.fill("Knowledge Packs are sets of documents this computer searches and answers from, "
-                      "with no internet, naming the document every answer came from. These are the packs "
-                      "of the community catalog that this AI-2 knows.", width=width))
+    say(textwrap.fill(tr("Knowledge Packs are sets of documents this computer searches and answers from, "
+                         "with no internet, naming the document every answer came from. These are the packs "
+                         "of the community catalog that this AI-2 knows."), width=width))
     if not catalog:
-        say(f"\nThe list is empty. Packs, and how to share one you made:  {pack.CATALOG_URL}")
+        say(tr("\nThe list is empty. Packs, and how to share one you made:  {url}").format(url=pack.CATALOG_URL))
         return 0
     failed = 0
     while True:
         installed = installed_by_id()
         say("\n" + render(catalog, installed, width))
-        say(f"\nMore packs, and how to share one you made:  {pack.CATALOG_URL}")
-        say("A pack file you downloaded:                 ai-2 knowledge install FILE.ai2pack")
-        say("Remove a pack:                              ai-2 knowledge remove ID")
+        say(tr("\nMore packs, and how to share one you made:  {url}").format(url=pack.CATALOG_URL))
+        say(tr("A pack file you downloaded:                 ai-2 knowledge install FILE.ai2pack"))
+        say(tr("Remove a pack:                              ai-2 knowledge remove ID"))
         if not interactive:
             return 0
         newer = [e for e in catalog if state_of(e, installed) == "update"]
         missing = [e for e in catalog if state_of(e, installed) == ""]
         if not newer and not missing:
-            prompt = "\nEvery pack listed is installed and up to date. Press Enter to close. "
+            prompt = tr("\nEvery pack listed is installed and up to date. Press Enter to close. ")
         else:
             # said, not packed into the prompt: a prompt longer than the window
             # wraps, and line editing then misplaces the cursor
-            say("\nTo install packs, type their numbers, for example  1 3")
+            say(tr("\nTo install packs, type their numbers, for example  1 3"))
             if newer:
-                say("To update the ones that have a newer version, type  u")
-            prompt = "Numbers, or just Enter to close: "
+                say(tr("To update the ones that have a newer version, type  u"))
+            prompt = tr("Numbers, or just Enter to close: ")
         try:
             answer = ask(prompt).strip()
         except (EOFError, KeyboardInterrupt):
@@ -167,14 +172,14 @@ def browse(install: Callable[[dict], int], model_cost: Callable[[dict], str | No
             return 1 if failed else 0
         numbers, update_all, unknown = parse_choice(answer, len(catalog))
         if unknown:
-            say(f"Not understood: {' '.join(unknown)}. Use the numbers on the left.")
+            say(tr("Not understood: {what}. Use the numbers on the left.").format(what=" ".join(unknown)))
         wanted = [catalog[n - 1] for n in numbers]
         if update_all:
             wanted += [e for e in newer if e not in wanted]
         todo = []
         for entry in wanted:
             if state_of(entry, installed) == "installed":
-                say(f"{entry['id']} is already installed and up to date.")
+                say(tr("{id} is already installed and up to date.").format(id=entry["id"]))
             else:
                 todo.append(entry)
         if not todo:
@@ -183,12 +188,12 @@ def browse(install: Callable[[dict], int], model_cost: Callable[[dict], str | No
         if costs:
             say("\n" + textwrap.fill(" ".join(sorted(costs)), width=width))
             try:
-                go = ask("Go ahead? [Y/n]: ").strip().lower()
+                go = ask(tr("Go ahead? [Y/n]: ")).strip().lower()
             except (EOFError, KeyboardInterrupt):
                 say("")
                 return 1 if failed else 0
             if go and not go.startswith(("y", "s", "j")):
-                say("Nothing installed.")
+                say(tr("Nothing installed."))
                 continue
         for entry in todo:
             say("")
