@@ -2255,6 +2255,8 @@ def main(argv: list[str] | None = None) -> int:
         # is available instead of argparse's "arguments are required" error.
         {None: parser, "model": p_model, "runtime": p_rt, "remote": p_remote}[args.command].print_help()
         return 0
+    from . import lineedit
+    lineedit.enable()       # arrow keys at every prompt, whichever command asks
     return args.func(args)
 
 

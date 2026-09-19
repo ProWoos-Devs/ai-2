@@ -53,13 +53,13 @@ Estás ejecutando AI-2 desde la memoria USB. Nada en tus discos ha cambiado.
 Pruébalo, mira lo que hay, y si te gusta, instálalo. El usuario de la sesión
 es "ai-2" (contraseña "ai-2") y puede usar sudo.
 
-PRUEBA LOS KNOWLEDGE PACKS AHORA, antes de instalar nada. Abre Aplicaciones >
-AI-2 > Buscar conocimiento y escribe una pregunta (los paquetes incluidos
-están en inglés, por ejemplo "how do I find a big file?"). Responde en
-segundos a partir de documentos de esta memoria, dice de qué documento sale
-cada respuesta y no necesita internet. Escribe el número de un resultado para
-leer el documento completo. Es lo que mejor hace AI-2, y funciona igual en un
-ordenador antiguo que en uno nuevo.
+Puedes probar los Knowledge Packs ahora, antes de instalar nada. Abre
+Applications > AI-2 > Search Knowledge y escribe una pregunta (los paquetes
+incluidos están en inglés, por ejemplo "how do I find a big file?"). Responde
+en segundos a partir de documentos de esta memoria, dice de qué documento
+sale cada respuesta y no necesita internet. Escribe el número de un resultado
+para leer el documento completo. Funciona igual en un ordenador antiguo que
+en uno nuevo.
 
 Si el escritorio nunca apareció o la pantalla se quedó en negro, reinicia y
 elige "Start AI-2 (safe graphics, if the screen stays black)" en el menú de

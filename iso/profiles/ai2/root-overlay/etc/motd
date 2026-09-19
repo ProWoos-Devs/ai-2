@@ -3,6 +3,7 @@
   │ > AI-2 █     │
   ╰──────────────╯
 
-   run  ai-2 detect     to see what this machine is
-   run  ai-2 benchmark  to measure it and get your AI Score
+   run  ai-2 doc search  to ask this computer's Knowledge Packs (offline, sourced)
+   run  ai-2 detect      to see what this machine is
+   run  ai-2 benchmark   to measure it and get your AI Score
 

@@ -198,3 +198,33 @@ def test_failed_download_leaves_the_score_pending(env, monkeypatch):
     assert not w.report.get("completed")
     assert "Download failed" in out
     assert rc == 1
+
+
+@pytest.mark.parametrize("locale", ["en_US.UTF-8", "es_ES.UTF-8", "de_DE.UTF-8"])
+def test_the_knowledge_packs_screen_explains_and_breathes(env, monkeypatch, locale):
+    """The first screen of the setup, as Rafael asked for it on 2026-09-19:
+    Knowledge Packs under their own heading, explained in short paragraphs with
+    a blank line between them, and no claim about what the computer "is already
+    good at". It has to fit the window ai2-first-boot opens (100x38) together
+    with the banner above it and the question under it, in every language, or
+    the top of it scrolls away before anyone reads it."""
+    from ai2 import i18n
+    monkeypatch.setenv("LC_ALL", locale)
+    monkeypatch.setattr(i18n, "_catalog", None)
+    monkeypatch.setattr(wz.Wizard, "_installed_packs",
+                        staticmethod(lambda: ["AI-2 Help", "Linux Essentials", "Everyday"]))
+    said = []
+    w = wz.Wizard(ask=lambda q, d: d, say=said.append, run=lambda cmd: 0, yes=True)
+    w.say(wz.branding.compact())
+    w._knowledge_packs_intro()
+    screen = "\n".join(said)
+    lines = screen.split("\n")
+    assert "Knowledge Packs" in screen and "AI-2 Help, Linux Essentials, Everyday" in screen
+    assert "ai-2 doc search" in screen and "ai-2 knowledge available" in screen
+    for wrong in ("already good at", "ya hace bien", "schon gut kann"):
+        assert wrong not in screen
+    body = screen.split("─" * 66)[-1]
+    assert body.count("\n\n") >= 4, "paragraphs need a blank line between them"
+    assert max(len(line) for line in lines) <= 96
+    assert len(lines) + 2 + 3 <= 38       # + the two setup lines above, + the question under it
+    monkeypatch.setattr(i18n, "_catalog", None)

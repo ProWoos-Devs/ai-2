@@ -419,23 +419,26 @@ class Wizard:
             return []
 
     def _knowledge_packs_intro(self) -> None:
-        """Knowledge Packs, said first and said plainly. They are the part of
-        AI-2 that works best on the machines it is built for, seconds and
-        sourced where a chat answer takes minutes and can be wrong, and the
-        first-login setup did not mention them at all until Rafael installed
-        from scratch and looked for them (2026-09-18)."""
+        """Knowledge Packs, under their own heading before the steps, saying
+        what they are. The first-login setup did not mention them at all until
+        Rafael installed from scratch and looked for them (2026-09-18); the
+        first rewrite then overshot, opening on "What this computer is already
+        good at" in one dense block, and he asked for a plain explanation in
+        spaced paragraphs instead (2026-09-19). It explains, it does not sell."""
         titles = self._installed_packs()
         if titles:
-            self.say(tr("\nWhat this computer is already good at: Knowledge Packs.\n"
-                        "{n} are installed: {titles}.\n"
-                        "Ask them a question and the answer comes in seconds, from documents on this computer,\n"
-                        "word for word and with its source named, with no internet. No AI writes those answers,\n"
-                        "so an old computer answers as well as a new one. They work right now, before this\n"
-                        "setup has done anything:\n"
-                        "    Applications > AI-2 > Search Knowledge        (or in a terminal:  ai-2 doc search )\n"
-                        "More packs, or one made from your own PDFs and notes:  ai-2 knowledge available\n"
-                        "\nThe rest of this setup is about the other half, the chat AI, which depends on the hardware.")
-                     .format(n=len(titles), titles=", ".join(titles)))
+            self.say(f"\n{'─' * 66}\n {tr('Knowledge Packs')}\n{'─' * 66}")
+            self.say(tr("\nA Knowledge Pack is a set of documents that this computer can search. You ask a\n"
+                        "question in your own words, and it shows the passages that answer it, word for\n"
+                        "word, with the name of the document each one comes from.\n"
+                        "\nIt takes seconds and needs no internet. No AI writes the answers, so an old\n"
+                        "computer gives the same ones as a new computer.\n"
+                        "\nInstalled on this computer: {titles}.\n"
+                        "\n    To ask them     Applications > AI-2 > Search Knowledge    or   ai-2 doc search\n"
+                        "    To get more     ai-2 knowledge available    (or make one from your own PDFs)\n"
+                        "\nThe steps that follow set up the other part of AI-2, the chat AI, which depends on\n"
+                        "the hardware.")
+                     .format(titles=", ".join(titles)))
             self._first_question()
         else:
             self.say(tr("\nKnowledge Packs let this computer answer from documents, in seconds, offline, naming\n"

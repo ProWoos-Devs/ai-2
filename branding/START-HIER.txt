@@ -55,13 +55,13 @@ verändert. Probiere es aus, schau dich um, und installiere es, wenn es dir
 gefällt. Der Live-Benutzer ist "ai-2" (Passwort "ai-2") und kann sudo
 benutzen.
 
-PROBIER DIE KNOWLEDGE PACKS JETZT AUS, bevor du irgendetwas installierst.
-Öffne Anwendungen > AI-2 > Wissen durchsuchen und gib eine Frage ein (die
-mitgelieferten Pakete sind auf Englisch, zum Beispiel "how do I find a big
-file?"). Er antwortet in Sekunden aus Dokumenten auf diesem Stick, nennt zu
-jeder Antwort das Dokument und braucht kein Internet. Mit der Nummer eines
-Treffers liest du das ganze Dokument. Das kann AI-2 am besten, und es
-funktioniert auf einem alten Computer genauso wie auf einem neuen.
+Du kannst die Knowledge Packs jetzt ausprobieren, bevor du irgendetwas
+installierst. Öffne Applications > AI-2 > Search Knowledge und gib eine Frage
+ein (die mitgelieferten Pakete sind auf Englisch, zum Beispiel "how do I find
+a big file?"). Er antwortet in Sekunden aus Dokumenten auf diesem Stick, nennt
+zu jeder Antwort das Dokument und braucht kein Internet. Mit der Nummer eines
+Treffers liest du das ganze Dokument. Das funktioniert auf einem alten
+Computer genauso wie auf einem neuen.
 
 Wenn der Desktop nie erschien oder der Bildschirm schwarz blieb, starte neu
 und wähle im Startmenü "Start AI-2 (safe graphics, if the screen stays

@@ -51,12 +51,12 @@ You are running AI-2 from the stick. Nothing on your disks has been changed.
 Try it, look around, then install it if you like it. The live user is
 "ai-2" (password "ai-2"), and it can use sudo.
 
-TRY THE KNOWLEDGE PACKS NOW, before installing anything. Open Applications >
-AI-2 > Search Knowledge and type a question, for example "how do I find a
-big file?". It answers in seconds from documents on this stick, names the
-document each answer came from, and needs no internet. Type a result's
-number to read the whole document. This is what AI-2 does best, and it works
-the same on an old computer as on a new one.
+You can try the Knowledge Packs now, before installing anything. Open
+Applications > AI-2 > Search Knowledge and type a question, for example "how
+do I find a big file?". It answers in seconds from documents on this stick,
+names the document each answer came from, and needs no internet. Type a
+result's number to read the whole document. It works the same on an old
+computer as on a new one.
 
 If the desktop never appeared or the screen stayed black, reboot and pick
 "Start AI-2 (safe graphics, if the screen stays black)" in the boot menu.
