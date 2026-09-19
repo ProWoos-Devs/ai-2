@@ -19,6 +19,12 @@ A complete system: Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool,
 
 1. Download the latest ISO: [ai-2-x86_64.iso](https://github.com/ProWoos-Devs/ai-2/releases/latest/download/ai-2-x86_64.iso) and its [SHA-256](https://github.com/ProWoos-Devs/ai-2/releases/latest/download/ai-2-x86_64.iso.sha256). Every release is also kept under its build date on the [Releases page](https://github.com/ProWoos-Devs/ai-2/releases), and mirrored on [SourceForge](https://sourceforge.net/projects/ai-2/).
 2. Verify it: `sha256sum -c ai-2-x86_64.iso.sha256`
+   The checksum itself is signed with the same key that signs every AI-2 package. To check that too, download [ai-2-x86_64.iso.sha256.sig](https://github.com/ProWoos-Devs/ai-2/releases/latest/download/ai-2-x86_64.iso.sha256.sig), then:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/ProWoos-Devs/ai2-packages/main/ai2-package-signing.asc | gpg --import
+   gpg --verify ai-2-x86_64.iso.sha256.sig ai-2-x86_64.iso.sha256
+   ```
+   It should say a good signature from the AI-2 signing key, `F1889E37B4E5FEC8`.
 3. Write it to a USB stick of 4 GB or more, or burn it to a DVD. Linux or macOS (replace `sdX`, everything on the stick is erased): `sudo dd if=ai-2-x86_64.iso of=/dev/sdX bs=4M conv=fsync status=progress`. Windows: Rufus or balenaEtcher in their default mode.
 4. Boot the computer from the stick. It starts a live desktop (logs in by itself, user `ai-2`, password `ai-2`) that you can try without touching your disks. `START-HERE.txt` on that desktop explains the installation; "Install AI-2" starts the installer.
 

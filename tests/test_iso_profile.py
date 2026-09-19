@@ -160,3 +160,17 @@ def test_the_build_refuses_a_stale_pack_catalog():
     assert 'refusing to build ai-2 with a stale pack catalog' in build
     workflow = pathlib.Path(".github/workflows/tests.yml").read_text()
     assert "packs.yml" in workflow, "the catalog job no longer runs when the packaged copy changes"
+
+
+def test_the_iso_checksum_can_be_signed_and_the_readme_says_how():
+    """The ISO and its checksum sit on the same page, so the checksum alone
+    proves nothing about who built the image. The signature ties it to the
+    key that signs every AI-2 package."""
+    import os
+    import stat
+    script = pathlib.Path("iso/sign-iso.sh")
+    assert script.exists() and stat.S_IMODE(os.stat(script).st_mode) & 0o111
+    body = script.read_text()
+    assert "F1889E37B4E5FEC8" in body and "--detach-sign" in body and "gpg --verify" in body
+    readme = pathlib.Path("README.md").read_text()
+    assert "iso.sha256.sig" in readme and "gpg --verify" in readme
