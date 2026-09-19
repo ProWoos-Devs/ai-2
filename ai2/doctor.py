@@ -113,6 +113,59 @@ def check_models(hw: Hardware) -> list[Check]:
     return out
 
 
+def check_knowledge() -> list[Check]:
+    """The Knowledge Packs on this computer, the embedding model they are
+    searched with, and whether a newer revision is known. Search Knowledge is
+    the first thing a person tries, and nothing in doctor looked at it: a
+    machine whose packs cannot be searched at all still reported OK.
+
+    Reads only what is on disk (the catalog copy inside the package, the
+    manifests, the index headers). Nothing here goes to the network."""
+    from . import doc as docmod
+    from . import pack as packmod
+    from . import packbrowse
+    out: list[Check] = []
+    try:
+        packs = packmod.installed_packs()
+    except Exception as exc:                                        # noqa: BLE001
+        return [Check(WARN, "Knowledge Packs", f"could not be read: {exc}")]
+    if not packs:
+        return [Check(INFO, "Knowledge Packs", "none installed; get them in "
+                                               "Applications > AI-2 > Knowledge Packs")]
+    titles = ", ".join(str(m.get("title") or name) for name, m in packs)
+    out.append(Check(OK, "Knowledge Packs", f"{len(packs)} installed: {titles}"))
+    embedders = {m.get("embedder", {}).get("id") for _name, m in packs if isinstance(m.get("embedder"), dict)}
+    catalog = load_catalog(kind=None)
+    for model_id in sorted(e for e in embedders if e):
+        entry = next((m for m in catalog if m["id"] == model_id), None)
+        if entry is None:
+            out.append(Check(WARN, "Pack embedder", f"{model_id} is not in this AI-2's catalog; "
+                                                    "the packs built with it cannot be searched"))
+        elif find_model_file(entry["file"]):
+            out.append(Check(OK, "Pack embedder", f"{entry['label']} is on this computer"))
+        else:
+            out.append(Check(WARN, "Pack embedder", f"{entry['label']} ({entry['file_mb']} MB) is not "
+                                                    "downloaded, so the packs cannot be searched yet; "
+                                                    "the first search offers it"))
+    own = [n for n in docmod.list_collections() if packmod.manifest_of(n) is None]
+    if own and embedders:
+        own_models = set()
+        for name in own:
+            try:
+                own_models.add(docmod.store_model(docmod.open_store(docmod.index_path(name))))
+            except Exception:                                       # noqa: BLE001
+                continue
+        if own_models - embedders:
+            out.append(Check(INFO, "Your documents", "indexed with another embedding model than the "
+                                                     "packs, so each group is searched in turn and the "
+                                                     "scores are not compared"))
+    newer = packbrowse.outdated()
+    if newer:
+        out.append(Check(WARN, "Pack updates", ", ".join(str(e.get("title") or e["id"]) for e in newer)
+                         + " have a newer version; run: ai-2 knowledge update"))
+    return out
+
+
 def check_disk() -> Check:
     d = model_dir()
     free = free_disk_mb(d)
@@ -238,6 +291,7 @@ def check_updates() -> Check:
 def run_checks(hw: Hardware, backend=None) -> list[Check]:
     checks = [check_tier(), check_runtime(hw), check_other_runtimes(hw), check_score()]
     checks += check_models(hw)
+    checks += check_knowledge()
     checks += [check_disk(), check_sysctl(), check_zram(), check_mglru(), check_broadcom()]
     if backend is not None:
         checks.append(check_service(backend, "earlyoom", True))

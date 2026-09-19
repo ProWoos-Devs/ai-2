@@ -47,3 +47,33 @@ def test_update_check_does_not_call_a_failed_check_current(tmp_path, monkeypatch
     c = doctor.check_updates()
     assert c.detail.startswith("2 package update(s)") and "ai-2 update" in c.detail
     assert "pacman -Syu" not in c.detail
+
+
+def test_doctor_looks_at_the_packs_and_the_model_they_need(monkeypatch):
+    """A machine whose packs cannot be searched at all used to report OK."""
+    from ai2 import doc, pack, packbrowse
+    manifest = {"id": "ai2-help", "title": "AI-2 Help",
+                "embedder": {"id": "nomic-embed-text-v1.5"}}
+    monkeypatch.setattr(pack, "installed_packs", lambda: [("ai2-help", manifest)])
+    monkeypatch.setattr(pack, "manifest_of", lambda name: manifest if name == "ai2-help" else None)
+    monkeypatch.setattr(doc, "list_collections", lambda: ["ai2-help", "documents"])
+    monkeypatch.setattr(doc, "store_model", lambda conn: "nomic-embed-text-v2-moe")
+    monkeypatch.setattr(doc, "open_store", lambda path=None: None)
+    monkeypatch.setattr(packbrowse, "outdated", lambda: [{"id": "ai2-help", "title": "AI-2 Help"}])
+
+    monkeypatch.setattr(doctor, "find_model_file", lambda f: None)
+    checks = {c.name: c for c in doctor.check_knowledge()}
+    assert checks["Knowledge Packs"].detail.startswith("1 installed: AI-2 Help")
+    assert checks["Pack embedder"].status == doctor.WARN and "not downloaded" in checks["Pack embedder"].detail
+    assert "another embedding model" in checks["Your documents"].detail
+    assert checks["Pack updates"].status == doctor.WARN and "ai-2 knowledge update" in checks["Pack updates"].detail
+
+    monkeypatch.setattr(doctor, "find_model_file", lambda f: "/models/" + f)
+    assert {c.name: c for c in doctor.check_knowledge()}["Pack embedder"].status == doctor.OK
+
+
+def test_doctor_says_when_there_are_no_packs(monkeypatch):
+    from ai2 import pack
+    monkeypatch.setattr(pack, "installed_packs", lambda: [])
+    only = doctor.check_knowledge()
+    assert len(only) == 1 and only[0].status == doctor.INFO and "none installed" in only[0].detail
