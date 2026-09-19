@@ -41,3 +41,20 @@ def test_bundled_packs_match_the_catalog():
         entry = entries[f.stem]
         assert hashlib.sha256(data).hexdigest() == entry["sha256"], f"{f.name}: sha256"
         assert len(data) == entry["size_bytes"], f"{f.name}: size"
+
+
+def test_the_image_never_shadows_a_file_the_ai2_package_installs():
+    """The root overlay is copied over the installed packages, so a file that
+    exists in both places silently wins over the package's. Three stale copies
+    of START-HERE sat there from 2026-09-03 to 2026-09-19 and no edit to the
+    real ones reached a stick: the Knowledge Packs text Rafael was told was on
+    his test image was not. Whatever the PKGBUILD installs must not also be in
+    the overlay."""
+    import re
+    root = pathlib.Path(__file__).resolve().parent.parent
+    pkgbuild = (root / "packaging/ai-2/PKGBUILD").read_text(encoding="utf-8")
+    installed = set(re.findall(r'"\$pkgdir(/[^"]+)"', pkgbuild))
+    assert installed, "found no install targets in the PKGBUILD"
+    overlay = root / "iso/profiles/ai2/root-overlay"
+    shadowed = sorted(p for p in installed if (overlay / p.lstrip("/")).is_file())
+    assert not shadowed, f"the root overlay shadows files the ai-2 package installs: {shadowed}"

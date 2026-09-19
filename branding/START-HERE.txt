@@ -4,8 +4,8 @@ START HERE
 
 Give your computer an AI brain.
 
-En español: EMPIEZA-AQUI.txt (on this desktop and in /usr/share/doc/ai2/)
-Auf Deutsch: START-HIER.txt
+En español: /usr/share/doc/ai2/EMPIEZA-AQUI.txt
+Auf Deutsch: /usr/share/doc/ai2/START-HIER.txt
 
 
 WHAT AI-2 IS
