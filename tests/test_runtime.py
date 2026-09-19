@@ -107,8 +107,9 @@ def test_download_model_rejects_truncated(tmp_path, served_dir, monkeypatch):
             data = getattr(self, "_d", b"y" * 100_000)
             self._d = b""
             return data
-    import urllib.request
-    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: Resp())
+    from ai2 import safefetch
+    monkeypatch.setattr(safefetch, "opener",
+                        lambda *a: type("O", (), {"open": lambda self, req, timeout=0: Resp()})())
     model = {"id": "t", "file": "m.gguf", "repo": "x/y", "file_mb": 0}
     dest = tmp_path / "models"
     with pytest.raises(RuntimeError, match="resume"):
@@ -233,3 +234,20 @@ def test_the_user_model_dir_follows_xdg_data_home(monkeypatch, tmp_path):
     monkeypatch.delenv("XDG_DATA_HOME")
     monkeypatch.delenv("AI2_MODEL_DIR")
     assert runtime.model_dir() == os.path.expanduser("~/.local/share/ai2/models")
+
+
+def test_a_model_download_never_leaves_https(monkeypatch, tmp_path):
+    """Models are the biggest download AI-2 makes (44 MB to several GB) and
+    went over a bare urlopen that followed a redirect to plain HTTP without a
+    word. Same rule as a knowledge pack."""
+    import pytest
+    from ai2 import safefetch
+    model = {"repo": "org/repo", "file": "m.gguf", "file_mb": 1}
+    monkeypatch.setattr(runtime, "hf_url", lambda m: "http://huggingface.co/org/repo/resolve/main/m.gguf")
+    with pytest.raises(RuntimeError, match="must be https"):
+        runtime.download_model(model, str(tmp_path))
+    handler = safefetch.HttpsOnlyRedirect()
+    with pytest.raises(safefetch.UnsafeRedirect, match="not https"):
+        handler.redirect_request(None, None, 302, "Found", {}, "http://cdn.example/m.gguf")
+    assert safefetch.is_safe_url("https://huggingface.co/x") and safefetch.is_safe_url("http://127.0.0.1:8000/x")
+    assert not safefetch.is_safe_url("http://cdn.example/x")

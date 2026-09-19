@@ -240,6 +240,12 @@ def download_model(model: dict, dest_dir: str | None = None,
     import urllib.error
     import urllib.request
 
+    from .safefetch import is_safe_url, opener
+
+    url = hf_url(model)
+    if not is_safe_url(url):
+        raise RuntimeError(f"refusing to download {model.get('file', '')} over {url.split(':')[0]}: "
+                           "a model download must be https")
     dest_dir = dest_dir or model_dir()
     os.makedirs(dest_dir, exist_ok=True)
     final = os.path.join(dest_dir, model["file"])
@@ -253,9 +259,11 @@ def download_model(model: dict, dest_dir: str | None = None,
     headers = {"User-Agent": "ai-2"}
     if have:
         headers["Range"] = f"bytes={have}-"
-    req = urllib.request.Request(hf_url(model), headers=headers)
+    req = urllib.request.Request(url, headers=headers)
     try:
-        resp = urllib.request.urlopen(req, timeout=60)
+        # the same rule as a knowledge pack: a redirect (Hugging Face sends
+        # every file to a CDN) may not drop out of HTTPS
+        resp = opener().open(req, timeout=60)
     except urllib.error.HTTPError as exc:
         if exc.code == 416 and have:
             # The server says our .part already covers the whole file.
