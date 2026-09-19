@@ -566,6 +566,7 @@ def test_the_first_screen_names_the_packs_and_says_what_else_is_available(tmp_pa
     assert "Also searching your own documents:  recipes" in out, "a collection of one's own is not a pack"
     assert "ai-2 knowledge available" in out and "ai-2 doc index FILE" in out, \
         "the same two hints the empty state gives"
+    assert "https://github.com/ProWoos-Devs/ai2-knowledge" in out, "and where packs are got and shared"
 
 
 def test_a_number_reads_more_of_that_result(tmp_path, monkeypatch, capsys):

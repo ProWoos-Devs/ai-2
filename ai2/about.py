@@ -19,6 +19,10 @@ from .state import load_score
 
 PROJECT_PAGE = "https://prowoos.com/software-development/linux/ai-2/"
 LICENSE = "MIT"
+# The community catalog of Knowledge Packs. A literal, not an import of
+# ai2.pack, because About must open even when something else is broken; a
+# test holds the two equal.
+CATALOG_URL = "https://github.com/ProWoos-Devs/ai2-knowledge"
 OS_RELEASE = "/etc/os-release"
 
 
@@ -76,7 +80,7 @@ def packs_text(titles: list[str] | None) -> str:
 
 def about_lines(os_release: dict[str, str] | None = None, init_system: str | None = None,
                 score=_LOAD, packs: list[str] | None = None) -> list[tuple[str, str]]:
-    """The six lines. Each argument is read from this computer when not
+    """The seven lines. Each argument is read from this computer when not
     given; score=None means no AI Score has been measured."""
     if os_release is None:
         os_release = read_os_release()
@@ -89,6 +93,7 @@ def about_lines(os_release: dict[str, str] | None = None, init_system: str | Non
         (tr("Based on"), base_system(os_release, init_system)),
         (tr("AI Score"), score_text(score)),
         (tr("Knowledge Packs"), packs_text(packs)),
+        (tr("Pack catalog"), CATALOG_URL),
         (tr("Website"), PROJECT_PAGE),
         (tr("License"), LICENSE),
     ]
@@ -108,16 +113,16 @@ def wait_for_enter() -> None:
 
 def window_command(which=shutil.which) -> list[str] | None:
     """The terminal command for the menu entry: the same terminals, in the
-    same order, as the first-login wizard. 96x14 fits the logo, the six
-    lines and the prompt in English, Spanish and German."""
+    same order, as the first-login wizard. 96x16 fits the logo, the seven
+    lines (the Knowledge Packs one wraps with three titles) and the prompt in English, Spanish and German."""
     title = tr("About AI-2")
     run = ["ai-2", "about", "--wait"]
     if which("xfce4-terminal"):
-        return ["xfce4-terminal", f"--title={title}", "--geometry=96x14", "--hide-menubar", "-x", *run]
+        return ["xfce4-terminal", f"--title={title}", "--geometry=96x16", "--hide-menubar", "-x", *run]
     if which("x-terminal-emulator"):
         return ["x-terminal-emulator", "-e", *run]
     if which("xterm"):
-        return ["xterm", "-T", title, "-geometry", "96x14", "-e", *run]
+        return ["xterm", "-T", title, "-geometry", "96x16", "-e", *run]
     return None
 
 

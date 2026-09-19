@@ -25,8 +25,8 @@ KNOWLEDGE PACKS (PAQUETES DE CONOCIMIENTO)
 Un Knowledge Pack es un conjunto de documentos en los que este ordenador
 puede buscar y de los que responde en segundos, sin internet, y te dice de
 qué documento sale cada respuesta. Nada de esas respuestas lo escribe la IA,
-así que nada es inventado. En un ordenador antiguo es lo más rápido y lo más
-fiable que hace AI-2.
+así que nada es inventado. En un ordenador antiguo es además mucho más
+rápido que el chat.
 
   Aplicaciones > AI-2 > Buscar conocimiento    escribe una pregunta
   ai-2 doc search "¿cómo encuentro un archivo grande?"     (en un terminal)
@@ -51,6 +51,11 @@ rápido y usarlo en uno lento:
   ai-2 doc index --in recetas ~/Documentos/recetas/*.pdf
   ai-2 knowledge export recetas -o recetas.ai2pack
   ai-2 knowledge install recetas.ai2pack       (en el otro ordenador)
+
+El catálogo de la comunidad lista todos los paquetes con su descarga, y es
+donde compartes el que hayas creado. Cualquiera puede añadir uno:
+
+  https://github.com/ProWoos-Devs/ai2-knowledge
 
 Un ordenador también puede responder por todos los de la casa:  ai-2 gopher
 

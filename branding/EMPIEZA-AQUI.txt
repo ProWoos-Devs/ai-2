@@ -126,6 +126,11 @@ número de un resultado para leer el documento completo. Ahí nada lo escribe
 la IA, así que nada es inventado. Puedes añadir más paquetes, o crear uno con
 tus propios PDF:  ai-2 knowledge available
 
+El catálogo de la comunidad lista todos los paquetes con su descarga, y es
+donde compartes el que hayas creado. Cualquiera puede añadir uno:
+
+  https://github.com/ProWoos-Devs/ai2-knowledge
+
 Después, habla con la IA: Aplicaciones > AI-2 Chat (o  ai-2 chat  en una
 terminal). Arranca la IA local y abre la página de chat en el navegador;
 la IA se detiene sola cuando llevas un rato sin usarla. La barra de

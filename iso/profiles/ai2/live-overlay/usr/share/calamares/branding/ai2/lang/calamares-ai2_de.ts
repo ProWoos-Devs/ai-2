@@ -29,9 +29,11 @@ Keine KI schreibt diese Antworten: ein alter PC antwortet so gut wie ein neuer.<
     </message>
     <message>
         <source>Applications &gt; AI-2 &gt; Search Knowledge   works right after install.
-Add more packs, or make one from your own PDFs:  $ ai-2 knowledge available</source>
+Add more packs, or make one from your own PDFs:  $ ai-2 knowledge available
+The community catalog, to get packs and share yours:  github.com/ProWoos-Devs/ai2-knowledge</source>
         <translation>Anwendungen &gt; AI-2 &gt; Wissen durchsuchen   funktioniert gleich nach der Installation.
-Weitere Pakete, oder eines aus eigenen PDFs:  $ ai-2 knowledge available</translation>
+Weitere Pakete, oder eines aus eigenen PDFs:  $ ai-2 knowledge available
+Der Community-Katalog, um Pakete zu holen und eigene zu teilen:  github.com/ProWoos-Devs/ai2-knowledge</translation>
     </message>
     <message>
         <source>First steps</source>

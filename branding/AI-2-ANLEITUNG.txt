@@ -26,7 +26,7 @@ Ein Knowledge Pack ist eine Sammlung von Dokumenten, die dieser Computer in
 Sekunden durchsucht und aus denen er antwortet, ohne Internet, und er nennt
 das Dokument, aus dem jede Antwort stammt. Nichts an diesen Antworten ist
 von der KI geschrieben, also ist nichts erfunden. Auf einem älteren Computer
-ist das das Schnellste und Verlässlichste, was AI-2 kann.
+ist das außerdem viel schneller als der Chat.
 
   Anwendungen > AI-2 > Wissen durchsuchen      Frage eingeben, Antwort lesen
   ai-2 doc search "wie finde ich eine große Datei?"   dasselbe im Terminal
@@ -51,6 +51,11 @@ Knowledge Pack bauen und auf einem langsamen nutzen:
   ai-2 doc index --in rezepte ~/Dokumente/rezepte/*.pdf
   ai-2 knowledge export rezepte -o rezepte.ai2pack
   ai-2 knowledge install rezepte.ai2pack       (auf dem anderen Computer)
+
+Der Community-Katalog listet alle Pakete mit ihrem Download, und dort teilst
+du ein eigenes. Jeder kann ein Paket hinzufügen:
+
+  https://github.com/ProWoos-Devs/ai2-knowledge
 
 Ein Computer kann auch für alle anderen im Haus antworten:  ai-2 gopher
 

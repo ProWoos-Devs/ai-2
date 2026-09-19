@@ -1,18 +1,20 @@
-# Knowledge packs AI-2 can install by name (`ai-2 knowledge install ID`).
+# Knowledge Packs AI-2 can install by name (`ai-2 knowledge install ID`).
 #
-# This list ships inside the ai-2 package, which is signed, so the SHA-256 of
-# every pack here is covered by the repository key: the file that arrives is
-# the file the project published. The recipes that build them, the packs
-# contributed by other people and the rules for adding one are at
+# This is a copy of the AI-2 community catalog, which lists every pack, the
+# project's own included:
+# https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/catalog/community.yml
+# It ships inside the ai-2 package, which is signed, so the SHA-256 of every
+# pack here is covered by the repository key: the file that arrives is the file
+# the catalog described when this release was cut. `contact` is who made the
+# pack. Getting packs, and sharing one you made:
 # https://github.com/ProWoos-Devs/ai2-knowledge
 #
-# Fields: id, title, version, languages, license, attribution, embedder, url,
-# size_bytes, sha256, documents, parts. An entry is added only after the pack
-# has been built from its recipe, checked by a person and published.
+# Do not edit by hand. tools/sync-pack-catalog.py writes it before a release.
 version: 1
 packs:
 - id: ai2-help
   title: AI-2 Help
+  description: AI-2's own documentation, the wiki pages plus topics written for the questions people ask
   version: '2026-09-18'
   revision: 2
   languages:
@@ -26,8 +28,10 @@ packs:
   documents: 16
   parts: 107
   built_with: ai-2 0.16.0
+  contact: ProWoos-Devs
 - id: everyday
   title: Everyday Reference
+  description: 196 countries with their capitals, currencies, official languages, country codes and calling codes, from Wikidata
   version: '2026-09-18'
   revision: 2
   languages:
@@ -42,8 +46,10 @@ packs:
   documents: 196
   parts: 196
   built_with: ai-2 0.16.0
+  contact: ProWoos-Devs
 - id: linux-essentials
   title: Linux Essentials
+  description: Twenty everyday tasks on a Linux machine, written for AI-2 (runit, not systemd)
   version: '2026-09-18'
   revision: 2
   languages:
@@ -57,3 +63,4 @@ packs:
   documents: 20
   parts: 40
   built_with: ai-2 0.16.0
+  contact: ProWoos-Devs

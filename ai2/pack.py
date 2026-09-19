@@ -346,11 +346,29 @@ def installed_packs() -> list[tuple[str, dict]]:
 
 # ----------------------------------------------------------------- catalog
 
+# The community catalog: where every Knowledge Pack is listed, the project's own
+# included, where a person downloads one and where they share one they made.
+# Every surface that mentions packs points here (Rafael, 2026-09-19: "point
+# there from EVERYWHERE").
+CATALOG_URL = "https://github.com/ProWoos-Devs/ai2-knowledge"
+
+# What the origin record calls a pack installed by name. Records written before
+# 0.18.7 say "official catalog"; there is one catalog now, the community's, so
+# they are read as the same thing.
+CATALOG_ORIGIN = "community catalog"
+_OLD_CATALOG_ORIGINS = ("official catalog",)
+
+
+def origin_label(origin: dict | None) -> str:
+    where = str((origin or {}).get("from") or "unknown source")
+    return CATALOG_ORIGIN if where in _OLD_CATALOG_ORIGINS else where
+
+
 def load_catalog() -> list[dict]:
-    """The packs AI-2 knows how to fetch by name. The list ships inside the
-    ai-2 package, so the SHA-256 of every entry is covered by the signature on
-    the package itself; a pack is only as trustworthy as where its hash came
-    from."""
+    """The packs AI-2 knows how to fetch by name: the copy of the community
+    catalog that ships inside the ai-2 package, so the SHA-256 of every entry
+    is covered by the signature on the package itself; a pack is only as
+    trustworthy as where its hash came from."""
     data = yaml.safe_load(importlib.resources.files("ai2").joinpath("data/packs.yml").read_text())
     return list((data or {}).get("packs") or [])
 

@@ -133,6 +133,11 @@ eines Treffers liest du das ganze Dokument. Nichts davon ist von der KI
 geschrieben, also ist nichts erfunden. Weitere Pakete, oder eines aus eigenen
 PDFs:  ai-2 knowledge available
 
+Der Community-Katalog listet alle Pakete mit ihrem Download, und dort teilst
+du ein eigenes. Jeder kann ein Paket hinzufügen:
+
+  https://github.com/ProWoos-Devs/ai2-knowledge
+
 Dann rede mit der KI: Anwendungen > AI-2 Chat (oder  ai-2 chat  in einem
 Terminal). Es startet die lokale KI und öffnet die Chat-Seite im Browser;
 die KI hält von selbst an, wenn du sie eine Weile nicht benutzt hast. Die

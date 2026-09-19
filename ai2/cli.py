@@ -977,7 +977,7 @@ def cmd_knowledge(args) -> int:
             if not entries:
                 print("No knowledge packs to fetch by name yet. A pack file works the same way:  "
                       "ai-2 knowledge install FILE.ai2pack")
-                print("Packs and how to make one:  https://github.com/ProWoos-Devs/ai2-knowledge")
+                print(f"The community catalog, to get packs and to share one you made:  {packmod.CATALOG_URL}")
                 return 0
             installed = {m.get("id"): m for _, m in packmod.installed_packs()}
             print("Knowledge packs (ai-2 knowledge install ID):")
@@ -989,17 +989,18 @@ def cmd_knowledge(args) -> int:
                     state = f"  [installed {here.get('version')}, newer available]"
                 else:
                     state = "  [installed]"
+                by = f", by {e['contact']}" if e.get("contact") else ""
                 print(f"  {e['id']:<22} {e.get('title')}  ({e.get('parts')} parts, "
                       f"{int(e.get('size_bytes', 0)) // 1024} KB, {', '.join(e.get('languages') or [])}, "
-                      f"{e.get('license')}){state}")
-            # Only this list is fetched by name, because it travels inside the
-            # signed package. Packs other people have made are real and worth
-            # finding; they are installed from their file, after reading who
-            # made them and under what licence.
-            print("\nThese are the project's own packs, checked against the list inside the signed "
-                  "ai-2 package.\nPacks made by other people are listed, with their licence and who "
-                  "made them, at\nhttps://github.com/ProWoos-Devs/ai2-knowledge . Download one and "
-                  "install the file:  ai-2 knowledge install FILE.ai2pack")
+                      f"{e.get('license')}{by}){state}")
+            # One catalog, the community's, with the project's own packs in it.
+            # What is fetched by name is the copy of it inside the signed
+            # package; a pack added to the catalog since is installed from its
+            # file until the next ai-2 release lists it.
+            print("\nThis is the AI-2 community catalog as this ai-2 release carries it, inside the "
+                  "signed package.\nThe catalog itself, with any pack added since, every download, and "
+                  f"how to share one you made:\n{packmod.CATALOG_URL}\n"
+                  "A downloaded pack installs with:  ai-2 knowledge install FILE.ai2pack")
             return 0
         if action == "install":
             source = args.file
@@ -1011,7 +1012,7 @@ def cmd_knowledge(args) -> int:
                 return 1
             if entry is not None:
                 source = _fetch_cataloged_pack(entry, packmod, docmod)
-                origin = {"from": "official catalog", "id": entry["id"], "url": entry["url"],
+                origin = {"from": packmod.CATALOG_ORIGIN, "id": entry["id"], "url": entry["url"],
                           "sha256": entry["sha256"], "version": entry.get("version")}
             collection, m, previous = packmod.install_pack(source, name=args.as_name, force=args.force,
                                                           origin=origin)
@@ -1053,7 +1054,7 @@ def cmd_knowledge(args) -> int:
         for name, m in packs:
             idx = m.get("index") or {}
             origin = packmod.origin_of(name) or {}
-            where = str(origin.get("from") or "unknown source")
+            where = packmod.origin_label(origin)
             print(f"  {name:<24} {m.get('title')}, version {m.get('version')}, {idx.get('parts')} parts, "
                   f"license {m.get('license')}")
             print(f"  {'':<24} from the {where}" if where != "file"
@@ -1367,7 +1368,7 @@ def _install_cataloged_pack(entry: dict, packmod, docmod) -> int:
     it is searched with if this machine does not have it yet. 0 when the pack
     is installed and searchable."""
     path = _fetch_cataloged_pack(entry, packmod, docmod)
-    origin = {"from": "official catalog", "id": entry["id"], "url": entry["url"],
+    origin = {"from": packmod.CATALOG_ORIGIN, "id": entry["id"], "url": entry["url"],
               "sha256": entry["sha256"], "version": entry.get("version")}
     collection, m, _ = packmod.install_pack(path, origin=origin)
     print(f"Installed {collection}: {m['title']} version {m['version']}, "
@@ -1388,8 +1389,10 @@ def _doc_more_hints() -> None:
     """Where more knowledge comes from. Printed in both states of the Search
     Knowledge window, with packs and without, because they are the same two
     things a person can do next (Rafael, 2026-09-18)."""
+    from . import pack as packmod
     print("\nKnowledge packs to install:  ai-2 knowledge available")
     print("Your own documents:          ai-2 doc index FILE")
+    print(f"Get packs, share yours:      {packmod.CATALOG_URL}")
 
 
 def _offer_the_packs(docmod, width) -> bool:
@@ -1942,7 +1945,8 @@ def _mention_knowledge_packs() -> None:
         return
     names = ", ".join(e["id"] for e in entries[:3])
     print(f"\nThis computer has no knowledge packs. {len(entries)} can be installed and then searched with "
-          f"no network at all ({names}).\nSee them with:  ai-2 knowledge available")
+          f"no network at all ({names}).\nSee them with:  ai-2 knowledge available\n"
+          f"The community catalog, to get packs and to share one you made:  {pack.CATALOG_URL}")
 
 
 def cmd_install(args) -> int:
@@ -2157,9 +2161,11 @@ def main(argv: list[str] | None = None) -> int:
                             help="remove every document of the collection and the collection itself (default: documents)")
     p_d_forget.add_argument("--in", dest="collection", metavar="NAME", help="the collection the document is in")
     p_d_forget.set_defaults(func=cmd_doc)
-    p_kn = sub.add_parser("knowledge", help="knowledge packs: install one, or make one from your own documents")
+    p_kn = sub.add_parser("knowledge", help="knowledge packs: install one, or make one from your own documents",
+                          epilog="The community catalog, where every pack is listed with its download and where "
+                                 "you share one you made:  https://github.com/ProWoos-Devs/ai2-knowledge")
     kn_sub = p_kn.add_subparsers(dest="knowledge_cmd", metavar="action")
-    p_kn_avail = kn_sub.add_parser("available", help="the knowledge packs this AI-2 can fetch by name")
+    p_kn_avail = kn_sub.add_parser("available", help="the packs of the community catalog this AI-2 can fetch by name")
     p_kn_avail.add_argument("term", nargs="?", help="only those whose name or title contains this")
     p_kn_avail.set_defaults(func=cmd_knowledge)
     p_kn_inst = kn_sub.add_parser("install", help="install a pack: a .ai2pack file, or a name from ai-2 knowledge available")

@@ -351,9 +351,14 @@ def test_where_a_pack_came_from_is_recorded_on_this_machine(home):
     assert origin["sha256"] == pack.sha256_file(out) and origin["installed"]
     assert pack.origin_of("src") is None                 # a collection of one's own has none
     # what the catalog path records
-    pack.install_pack(out, origin={"from": "official catalog", "id": "everyday",
+    pack.install_pack(out, origin={"from": pack.CATALOG_ORIGIN, "id": "everyday",
                                    "url": "https://example.org/everyday.ai2pack", "sha256": "a" * 64})
-    assert pack.origin_of("everyday")["from"] == "official catalog"
+    assert pack.origin_of("everyday")["from"] == "community catalog"
+    # There is one catalog, the community's, with the project's own packs in it
+    # (Rafael, 2026-09-19). A record written before 0.18.7 says "official
+    # catalog" and reads as the same thing.
+    assert pack.origin_label({"from": "official catalog"}) == "community catalog"
+    assert pack.origin_label({"from": "file"}) == "file" and pack.origin_label(None) == "unknown source"
     assert pack.origin_of("everyday")["url"].startswith("https://")
     # the pack file itself is unchanged: an installed pack is still two members plus this local note
     import zipfile
@@ -418,3 +423,18 @@ def test_an_updated_machine_is_told_the_packs_exist(home, monkeypatch, capsys):
     monkeypatch.setattr(software, "update", lambda: 1)
     assert cli.cmd_update(args) == 1
     assert "no knowledge packs" not in capsys.readouterr().out
+
+
+def test_every_pack_in_the_packaged_catalog_names_its_maker_and_the_listing_points_home(home, capsys):
+    """The package carries a copy of the community catalog, where every entry
+    says who made the pack, the project's own included. The listing shows it
+    and ends on the catalog's address, which is where packs are downloaded and
+    shared (Rafael, 2026-09-19: "point there from EVERYWHERE")."""
+    from ai2 import cli
+    entries = pack.load_catalog()
+    assert entries and all(e.get("contact") for e in entries)
+    assert cli.main(["knowledge", "available"]) == 0
+    out = capsys.readouterr().out
+    assert "by ProWoos-Devs" in out and "community catalog" in out
+    assert pack.CATALOG_URL in out and "share" in out
+    assert "official" not in out

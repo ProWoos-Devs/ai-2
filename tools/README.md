@@ -1,6 +1,10 @@
 # tools
 
-Measurement helpers that are not part of the `ai-2` command. They run on an installed AI-2 (or with `PYTHONPATH=.` from this tree) and change nothing on the system.
+Helpers that are not part of the `ai-2` command. The measurement ones run on an installed AI-2 (or with `PYTHONPATH=.` from this tree) and change nothing on the system.
+
+## sync-pack-catalog.py, before every ai-2 release
+
+The package carries a copy of the community catalog (https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/catalog/community.yml) as `ai2/data/packs.yml`, and a pack installs by name only from that copy, because the package signature is what vouches for the hashes in it. `python3 tools/sync-pack-catalog.py` refreshes the copy from GitHub (or from a working copy given as an argument). Read the diff and commit it, so packs merged since the last release reach `ai-2 knowledge available`. When a pack on the ISO changes, `iso/packs/` has to follow, and `tests/test_iso_profile.py` says so.
 
 ## spec-ab.sh
 
