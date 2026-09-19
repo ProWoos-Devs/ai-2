@@ -293,6 +293,20 @@ def install_pack(pack_path: str, name: str | None = None, force: bool = False,
     route cannot quietly put a pack back. It never overwrites a collection of
     one's own or a different pack."""
     manifest = read_manifest(pack_path)
+    if origin is None:
+        # A file that claims a cataloged pack must BE that pack. The catalog
+        # copy inside the signed package is where a pack's hash comes from;
+        # without this a file could take the name of a pack everyone trusts,
+        # and a high revision in it would then make `ai-2 knowledge update`
+        # refuse the real one as older.
+        known = catalog_entry(manifest["id"])
+        if known and known.get("sha256") and sha256_file(pack_path) != known["sha256"]:
+            if not force:
+                raise PackError(f"this file says it is {manifest['id']}, which is in the catalog, but it is "
+                                "not the file the catalog describes (different sha256). Install the catalog "
+                                f"copy with:  ai-2 knowledge install {manifest['id']}   , or install this "
+                                "file anyway with --force (it is then recorded as coming from a file)")
+            manifest = dict(manifest)
     target = name or manifest["id"]
     if not doc.valid_collection(target):
         raise PackError(f"{target!r} is not a collection name (lower-case letters, digits, '.', '-', '_')")

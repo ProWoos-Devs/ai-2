@@ -314,10 +314,10 @@ def test_a_pack_cannot_be_put_back_to_an_older_revision(home):
     make_collection("src", {"c.pdf": ["La capital es Madrid."]})
     old = str(home / "old.ai2pack")
     new = str(home / "new.ai2pack")
-    pack.export_pack("src", old, dict(TEMPLATE, id="everyday", version="2026-08-01", revision=1))
-    pack.export_pack("src", new, dict(TEMPLATE, id="everyday", version="2026-09-16", revision=2))
-    assert pack.install_pack(old)[0] == "everyday"
-    assert pack.revision_of(pack.manifest_of("everyday")) == 1
+    pack.export_pack("src", old, dict(TEMPLATE, id="my-notes", version="2026-08-01", revision=1))
+    pack.export_pack("src", new, dict(TEMPLATE, id="my-notes", version="2026-09-16", revision=2))
+    assert pack.install_pack(old)[0] == "my-notes"
+    assert pack.revision_of(pack.manifest_of("my-notes")) == 1
     # a higher revision updates
     name, m, previous = pack.install_pack(new)
     assert pack.revision_of(m) == 2 and previous["version"] == "2026-08-01"
@@ -326,7 +326,7 @@ def test_a_pack_cannot_be_put_back_to_an_older_revision(home):
     # an older one is refused, and the installed pack is untouched
     with pytest.raises(pack.PackError, match="which is older; install it anyway with --force"):
         pack.install_pack(old)
-    assert pack.manifest_of("everyday")["version"] == "2026-09-16"
+    assert pack.manifest_of("my-notes")["version"] == "2026-09-16"
     assert pack.install_pack(old, force=True)[1]["version"] == "2026-08-01"
     # a manifest with no revision counts as 1, and a bad one is refused
     assert pack.revision_of({"id": "x"}) == 1
@@ -339,17 +339,17 @@ def test_the_cli_refuses_an_older_pack_and_says_how(home, monkeypatch, capsys):
     monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
     make_collection("src", {"c.pdf": ["La capital es Madrid."]})
     old, new = str(home / "old.ai2pack"), str(home / "new.ai2pack")
-    pack.export_pack("src", old, dict(TEMPLATE, id="everyday", version="2026-08-01", revision=1))
-    pack.export_pack("src", new, dict(TEMPLATE, id="everyday", version="2026-09-16", revision=2))
+    pack.export_pack("src", old, dict(TEMPLATE, id="my-notes", version="2026-08-01", revision=1))
+    pack.export_pack("src", new, dict(TEMPLATE, id="my-notes", version="2026-09-16", revision=2))
     assert cli.main(["knowledge", "install", new]) == 0
-    assert "Installed everyday" in capsys.readouterr().out
+    assert "Installed my-notes" in capsys.readouterr().out
     assert cli.main(["knowledge", "install", old]) == 1
     assert "which is older; install it anyway with --force" in capsys.readouterr().err
     assert cli.main(["knowledge", "install", old, "--force"]) == 0
-    assert "Put everyday back from version 2026-09-16 to the older" in capsys.readouterr().out
+    assert "Put my-notes back from version 2026-09-16 to the older" in capsys.readouterr().out
     # and a reinstall of the same file says so rather than claiming an update
     assert cli.main(["knowledge", "install", old]) == 0
-    assert "Reinstalled everyday, replacing version 2026-08-01 with" in capsys.readouterr().out
+    assert "Reinstalled my-notes, replacing version 2026-08-01 with" in capsys.readouterr().out
 
 
 def test_a_manifest_that_unpacks_huge_is_refused_before_it_is_read(home):
@@ -379,22 +379,22 @@ def test_where_a_pack_came_from_is_recorded_on_this_machine(home):
     when the machine is offline or the catalog has changed since."""
     make_collection("src", {"c.pdf": ["La capital es Madrid."]})
     out = str(home / "p.ai2pack")
-    pack.export_pack("src", out, dict(TEMPLATE, id="everyday"))
+    pack.export_pack("src", out, dict(TEMPLATE, id="my-notes"))
     pack.install_pack(out)
-    origin = pack.origin_of("everyday")
+    origin = pack.origin_of("my-notes")
     assert origin["from"] == "file" and origin["file"] == "p.ai2pack"
     assert origin["sha256"] == pack.sha256_file(out) and origin["installed"]
     assert pack.origin_of("src") is None                 # a collection of one's own has none
     # what the catalog path records
-    pack.install_pack(out, origin={"from": pack.CATALOG_ORIGIN, "id": "everyday",
-                                   "url": "https://example.org/everyday.ai2pack", "sha256": "a" * 64})
-    assert pack.origin_of("everyday")["from"] == "community catalog"
+    pack.install_pack(out, origin={"from": pack.CATALOG_ORIGIN, "id": "my-notes",
+                                   "url": "https://example.org/my-notes.ai2pack", "sha256": "a" * 64})
+    assert pack.origin_of("my-notes")["from"] == "community catalog"
     # There is one catalog, the community's, with the project's own packs in it
     # (Rafael, 2026-09-19). A record written before 0.18.7 says "official
     # catalog" and reads as the same thing.
     assert pack.origin_label({"from": "official catalog"}) == "community catalog"
     assert pack.origin_label({"from": "file"}) == "file" and pack.origin_label(None) == "unknown source"
-    assert pack.origin_of("everyday")["url"].startswith("https://")
+    assert pack.origin_of("my-notes")["url"].startswith("https://")
     # the pack file itself is unchanged: an installed pack is still two members plus this local note
     import zipfile
     with zipfile.ZipFile(out) as z:
@@ -450,7 +450,7 @@ def test_an_updated_machine_is_told_the_packs_exist(home, monkeypatch, capsys):
     # a machine that already has one is not nagged, and a failed update says nothing about packs
     make_collection("mine", {"a.txt": ["Hello."]})
     out_path = str(home / "p.ai2pack")
-    pack.export_pack("mine", out_path, dict(TEMPLATE, id="ai2-help"))
+    pack.export_pack("mine", out_path, dict(TEMPLATE, id="my-notes"))
     pack.install_pack(out_path)
     capsys.readouterr()
     assert cli.cmd_update(args) == 0
@@ -474,3 +474,46 @@ def test_every_pack_in_the_packaged_catalog_names_its_maker_and_the_listing_poin
     assert pack.CATALOG_URL in out and "share" in out
     assert "official catalog" not in out and "official pack" not in out   # (everyday lists official languages)
     assert "196 countries" in out, "the sentence about what is in a pack"
+
+
+def test_a_file_may_not_take_the_name_of_a_cataloged_pack(home, monkeypatch, capsys):
+    """The downgrade guard stops a file putting a pack back, and that is what
+    made a hostile high revision stick: `knowledge update` then refused the
+    catalog copy as older. A file claiming a cataloged id must be that file."""
+    from ai2 import cli
+    entry = {"id": "ai2-help", "title": "AI-2 Help", "version": "2026-09-18", "revision": 2,
+             "languages": ["en"], "license": "MIT", "embedder": V2, "url": "https://example.org/a.ai2pack",
+             "size_bytes": 1, "sha256": "0" * 64, "documents": 1, "parts": 1}
+    monkeypatch.setattr(pack, "load_catalog", lambda: [entry])
+    make_collection("src", {"c.pdf": ["La capital es Madrid."]})
+    out = str(home / "theirs.ai2pack")
+    pack.export_pack("src", out, dict(TEMPLATE, id="ai2-help", version="9999", revision=99))
+    with pytest.raises(pack.PackError, match="not the file the catalog describes"):
+        pack.install_pack(out)
+    assert "ai2-help" not in doc.list_collections()
+    # --force says you mean it, and the pack is recorded as coming from a file
+    assert cli.main(["knowledge", "install", out, "--force"]) == 0
+    assert pack.origin_of("ai2-help")["from"] == "file"
+    assert cli.main(["knowledge", "list"]) == 0
+    assert "installed from the file theirs.ai2pack" in capsys.readouterr().out
+    # and update says why it is leaving that pack alone, instead of silence
+    assert cli.main(["knowledge", "update"]) == 0
+    said = capsys.readouterr().out
+    assert "was installed from a file (revision 99)" in said and "the catalog has revision 2" in said
+    assert "ai-2 knowledge install ai2-help --force" in said
+
+
+def test_an_answer_says_when_its_pack_came_from_a_file(home, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: vec(q))
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": V2})
+    make_collection("src", {"c.pdf": ["La capital es Madrid."]})
+    out = str(home / "p.ai2pack")
+    pack.export_pack("src", out, dict(TEMPLATE, id="my-notes"))
+    pack.install_pack(out)
+    doc.remove_collection("src")
+    capsys.readouterr()
+    assert cli.main(["doc", "search", "--top", "1", "¿Cuál es la capital?"]) == 0
+    assert "[installed from a file, not from the catalog]" in capsys.readouterr().out

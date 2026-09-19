@@ -1382,7 +1382,10 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
 
 def _pack_terms(hits: list[dict]) -> list[str]:
     """One line per pack the hits came from: its license and attribution, which
-    CC BY-SA and the BOE reuse terms ask to show wherever the text is reused."""
+    CC BY-SA and the BOE reuse terms ask to show wherever the text is reused,
+    and, for a pack that came from a file rather than the catalog, that it
+    did. An answer is read here, so this is where it has to be said."""
+    from . import pack as packmod
     out = []
     seen = set()
     for h in hits:
@@ -1390,7 +1393,10 @@ def _pack_terms(hits: list[dict]) -> list[str]:
         if m and m.get("id") not in seen:
             seen.add(m.get("id"))
             attribution = str(m.get("attribution") or "").strip()
-            out.append(f"From the pack {m.get('title')} ({m.get('license')})" + (f". {attribution}" if attribution else ""))
+            line = f"From the pack {m.get('title')} ({m.get('license')})" + (f". {attribution}" if attribution else "")
+            if packmod.origin_label(packmod.origin_of(h["collection"])) == "file":
+                line += "  [installed from a file, not from the catalog]"
+            out.append(line)
     return out
 
 
@@ -1570,6 +1576,7 @@ def _knowledge_update(ids: list[str], packmod, docmod) -> int:
             if pid not in known:
                 print(f"{pid}: nothing newer in the catalog this AI-2 carries.")
         newer = [e for e in newer if e["id"] in ids]
+    _say_what_a_file_is_holding_back(packmod, ids)
     if not newer:
         if not ids:
             print("Every installed Knowledge Pack is the newest version this AI-2 knows of.\n"
@@ -1585,6 +1592,26 @@ def _knowledge_update(ids: list[str], packmod, docmod) -> int:
             print(f"error: {entry['id']}: {exc}", file=sys.stderr)
             worst = 1
     return worst
+
+
+def _say_what_a_file_is_holding_back(packmod, ids: list[str]) -> None:
+    """A pack installed from a file with a revision at or above the catalog's
+    is left alone by `update`, and silence there is how a file could keep the
+    catalog copy out for good. Say which one, and how to take it back."""
+    for collection, m in packmod.installed_packs():
+        pid = m.get("id")
+        if ids and pid not in ids:
+            continue
+        if packmod.origin_label(packmod.origin_of(collection)) != "file":
+            continue
+        entry = packmod.catalog_entry(pid)
+        if entry is None:
+            continue
+        here, there = packmod.revision_of(m), packmod.revision_of(entry)
+        if here >= there:
+            print(f"{pid} was installed from a file (revision {here}); the catalog has revision {there}, "
+                  f"so update leaves it alone.\nTake the catalog copy with:  "
+                  f"ai-2 knowledge install {pid} --force")
 
 
 def _doc_more_hints() -> None:
