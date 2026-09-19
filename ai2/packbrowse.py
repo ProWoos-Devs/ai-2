@@ -149,7 +149,7 @@ def browse(install: Callable[[dict], int], model_cost: Callable[[dict], str | No
         say("\n" + render(catalog, installed, width))
         say(tr("\nMore packs, and how to share one you made:  {url}").format(url=pack.CATALOG_URL))
         say(tr("A pack file you downloaded:                 ai-2 knowledge install FILE.ai2pack"))
-        say(tr("Remove a pack:                              ai-2 knowledge remove ID"))
+        say(tr("Remove a pack:                              ai-2 knowledge remove NAME"))
         if not interactive:
             return 0
         newer = [e for e in catalog if state_of(e, installed) == "update"]

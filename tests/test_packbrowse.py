@@ -54,7 +54,7 @@ def test_the_list_says_what_is_in_each_pack_who_made_it_and_where_it_stands(mach
     assert "AI-2's own documentation." in out and "by ProWoos-Devs" in out and "by someone" in out
     assert "2.3 MB" in out and "337 KB" in out
     assert "Also installed here, from a file:  mine (My notes)" in out
-    assert pack.CATALOG_URL in out and "ai-2 knowledge remove ID" in out
+    assert pack.CATALOG_URL in out and "ai-2 knowledge remove NAME" in out
     assert "type their numbers" in out and "type  u" in out and "Enter to close" in asked[0]
     assert all(len(line) <= 100 for line in out.split("\n")), "nothing wraps in the 100-column window"
 

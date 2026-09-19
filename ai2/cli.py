@@ -1075,12 +1075,24 @@ def cmd_knowledge(args) -> int:
             print(f'Search it:  ai-2 doc search --in {collection} "your question"')
             return 0
         if action == "remove":
-            if packmod.manifest_of(args.name) is None:
-                print(f"error: {args.name!r} is not an installed knowledge pack (ai-2 knowledge list); "
-                      "a collection of your own goes with:  ai-2 doc forget --all --in NAME", file=sys.stderr)
-                return 1
-            docmod.remove_collection(args.name)
-            print(f"Removed the pack {args.name}.")
+            name = args.name
+            if packmod.manifest_of(name) is None:
+                # `ai-2 knowledge install PACK --as OTHER` puts a pack in a
+                # collection of another name, and every list and window shows
+                # the catalog id, so the id has to work here too.
+                by_id = [n for n, m in packmod.installed_packs() if m.get("id") == name]
+                if len(by_id) > 1:
+                    print(f"error: {name!r} is installed more than once, as {', '.join(sorted(by_id))}; "
+                          "name the one to remove", file=sys.stderr)
+                    return 1
+                if not by_id:
+                    print(f"error: {name!r} is not an installed knowledge pack (ai-2 knowledge list); "
+                          "a collection of your own goes with:  ai-2 doc forget --all --in NAME", file=sys.stderr)
+                    return 1
+                name = by_id[0]
+            docmod.remove_collection(name)
+            print(f"Removed the pack {name}." if name == args.name
+                  else f"Removed the pack {args.name}, which was installed as {name}.")
             return 0
         packs = packmod.installed_packs()
         if not packs:

@@ -178,6 +178,23 @@ def test_install_refuses_a_hostile_or_inconsistent_index(home):
     assert doc.list_collections() == ["c"]
 
 
+def test_knowledge_remove_takes_the_catalog_id_of_a_renamed_pack(home, monkeypatch, capsys):
+    """`install --as` puts a pack under another collection name, while every
+    list and the Knowledge Packs window keep showing the catalog id."""
+    from ai2 import cli
+    make_collection("constitucion", {"c.pdf": ["Artículo 30."]})
+    tpl = home / "manifest.yml"
+    tpl.write_text(yaml.safe_dump(TEMPLATE, allow_unicode=True), encoding="utf-8")
+    out = str(home / "out.ai2pack")
+    assert cli.main(["knowledge", "export", "constitucion", "-o", out, "--manifest", str(tpl)]) == 0
+    cli.main(["doc", "forget", "--all", "--in", "constitucion"])
+    assert cli.main(["knowledge", "install", out, "--as", "leyes"]) == 0
+    capsys.readouterr()
+    assert cli.main(["knowledge", "remove", "constitucion-es"]) == 0
+    assert "was installed as leyes" in capsys.readouterr().out
+    assert doc.list_collections() == []
+
+
 def test_knowledge_cli_export_install_search_list_remove(home, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")

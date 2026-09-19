@@ -140,7 +140,7 @@
   "Not understood: {what}. Use the numbers on the left.": "No se ha entendido: {what}. Usa los números de la izquierda.",
   "Nothing installed.": "No se ha instalado nada.",
   "Numbers, or just Enter to close: ": "Números, o solo Intro para cerrar: ",
-  "Remove a pack:                              ai-2 knowledge remove ID": "Quitar un pack:                                 ai-2 knowledge remove ID",
+  "Remove a pack:                              ai-2 knowledge remove NAME": "Quitar un pack:                                 ai-2 knowledge remove NAME",
   "The packs on this computer are in English.": "Los packs de este ordenador están en inglés.",
   "This searches the documents and knowledge packs on this computer and shows the passages that match, each with the document it came from. It is not AI-2 Chat: nothing here is written by the AI, so nothing can be made up.": "Esto busca en los documentos y Knowledge Packs de este ordenador y muestra los pasajes que coinciden, cada uno con el documento del que sale. No es AI-2 Chat: aquí no escribe la IA, así que no se inventa nada.",
   "To update the ones that have a newer version, type  u": "Para actualizar los que tienen una versión más nueva, escribe  u",
