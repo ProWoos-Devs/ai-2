@@ -80,6 +80,22 @@ def test_save_normalizes_url_and_keeps_the_key_private(home):
     assert remote.clear() and remote.load() is None and not remote.clear()
 
 
+def test_an_address_with_no_scheme_keeps_http_only_on_your_own_network(home, capsys):
+    """An API key typed after a provider's name must not travel in the clear;
+    a computer on the LAN running `ai-2 serve` speaks plain HTTP."""
+    from ai2 import cli
+    for lan in ("192.168.1.20:8080", "localhost:8080", "[::1]:8080", "old-pc:8080",
+                "printer.local", "box.lan", "host.internal"):
+        assert remote.normalize_url(lan).startswith("http://"), lan
+    for out in ("api.openai.com", "api.openai.com/v1", "llm.example.co.uk:8443"):
+        assert remote.normalize_url(out).startswith("https://"), out
+    assert remote.normalize_url("http://api.example.com") == "http://api.example.com"
+    assert cli.main(["remote", "set", "api.example.com", "--api-key", KEY]) == 0
+    said = capsys.readouterr().out
+    assert "saved as https://" in said and "in the clear" in said
+    assert remote.load()["url"] == "https://api.example.com"
+
+
 def test_probe_lists_models_detects_llama_server_and_bad_key(server, home):
     info = remote.probe({"url": server, "api_key": KEY})
     assert info["ok"] and info["models"] == ["qwen2.5-7b", "other"] and info["web_ui"]

@@ -30,10 +30,36 @@ def path() -> str:
     return os.path.join(user_dir(), "remote.json")
 
 
+_LOCAL_NAMES = {"localhost", "localhost.localdomain", "ip6-localhost"}
+_LOCAL_SUFFIXES = (".local", ".lan", ".home.arpa", ".internal")
+_IPV4 = __import__("re").compile(r"^\d{1,3}(\.\d{1,3}){3}$")
+
+
+def _host_of(url: str) -> str:
+    """The host in an address with no scheme, without userinfo, port or path."""
+    host = url.split("/", 1)[0].rsplit("@", 1)[-1]
+    if host.startswith("["):                       # [::1]:8080
+        return host[: host.find("]") + 1].lower()
+    return host.rsplit(":", 1)[0].lower() if host.count(":") == 1 else host.lower()
+
+
+def default_scheme(url: str) -> str:
+    """What an address with no scheme means. A computer on your own network
+    runs `ai-2 serve` over plain HTTP, and that is what people type here (an
+    IP, or a name with no dots). Anything else is a name on the internet,
+    where an API key typed after it must not go out in the clear."""
+    host = _host_of(url)
+    if host in _LOCAL_NAMES or _IPV4.match(host) or host.startswith("["):
+        return "http"
+    if host.endswith(_LOCAL_SUFFIXES) or "." not in host:
+        return "http"
+    return "https"
+
+
 def normalize_url(url: str) -> str:
     url = url.strip().rstrip("/")
     if not url.startswith(("http://", "https://")):
-        url = "http://" + url
+        url = default_scheme(url) + "://" + url
     if url.endswith("/v1"):
         url = url[:-3]
     return url

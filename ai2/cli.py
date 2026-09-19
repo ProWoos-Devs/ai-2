@@ -1852,6 +1852,11 @@ def cmd_remote(args) -> int:
                 return 1
         p = remote.save(args.url, key, args.model, args.default)
         cfg = remote.load()
+        if not args.url.strip().startswith(("http://", "https://")):
+            scheme = cfg["url"].split(":", 1)[0]
+            print(f"No http:// or https:// given, so it was saved as {scheme}://"
+                  + ("  (an address on the internet, where an API key must not travel in the clear)"
+                     if scheme == "https" else "  (a computer on your own network)"))
         print(f"Remote AI: {remote.describe(cfg)}, API key {remote.masked_key(cfg)}, saved in {p} (mode 600).")
         print("ai-2 chat uses it " + ("by default now (ai-2 chat --local for this computer's own AI)."
                                       if cfg["default"] else "with --remote (ai-2 remote default on to always use it)."))
@@ -2270,7 +2275,8 @@ def main(argv: list[str] | None = None) -> int:
     p_remote = sub.add_parser("remote", help="a bigger AI on another computer or an API provider, for chat --remote")
     r_sub = p_remote.add_subparsers(dest="remote_cmd", metavar="action")
     p_r_set = r_sub.add_parser("set", help="save the address (and key) of the remote AI")
-    p_r_set.add_argument("url", help="http://host:8080 (another computer running ai-2 serve) or a provider's base URL")
+    p_r_set.add_argument("url", help="host:8080 (another computer running ai-2 serve, plain HTTP) or a "
+                                     "provider's base URL (HTTPS unless you write http:// yourself)")
     p_r_set.add_argument("--api-key", help="bearer token; prefer --api-key-stdin to keep it out of the shell history")
     p_r_set.add_argument("--api-key-stdin", action="store_true", help="read the API key from the first line of stdin")
     p_r_set.add_argument("--model", help="model name the remote expects (needed by API providers)")
