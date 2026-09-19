@@ -22,12 +22,11 @@ dasselbe. Nimm den, der dir lieber ist.
 
 KNOWLEDGE PACKS (WISSENSPAKETE)
 
-Dieser Computer weiß schon etwas. Ein Knowledge Pack ist eine Sammlung von
-Dokumenten, die er in Sekunden durchsucht und aus denen er antwortet, ohne
-Internet, und er nennt das Dokument, aus dem jede Antwort stammt. Nichts an
-diesen Antworten ist von der KI geschrieben, also ist nichts erfunden. Auf
-einem älteren Computer ist das das Schnellste und Verlässlichste, was AI-2
-kann.
+Ein Knowledge Pack ist eine Sammlung von Dokumenten, die dieser Computer in
+Sekunden durchsucht und aus denen er antwortet, ohne Internet, und er nennt
+das Dokument, aus dem jede Antwort stammt. Nichts an diesen Antworten ist
+von der KI geschrieben, also ist nichts erfunden. Auf einem älteren Computer
+ist das das Schnellste und Verlässlichste, was AI-2 kann.
 
   Anwendungen > AI-2 > Wissen durchsuchen      Frage eingeben, Antwort lesen
   ai-2 doc search "wie finde ich eine große Datei?"   dasselbe im Terminal

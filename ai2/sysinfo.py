@@ -31,3 +31,18 @@ def mem_available_mib(meminfo_path: str = "/proc/meminfo") -> int | None:
     except (OSError, ValueError, IndexError):
         pass
     return None
+
+
+def is_live_session(cmdline_path: str = "/proc/cmdline", marker: str = "/run/artix") -> bool:
+    """True when this is the session booted from the USB stick, not an
+    installed system. Artix's live kernel command line carries
+    `overlay=livefs` and the live init leaves /run/artix behind; an installed
+    AI-2 has neither (read off a live session on the 2011 laptop, 2026-09-19).
+    Things that only make sense on an installed system ask this first."""
+    try:
+        with open(cmdline_path) as fh:
+            if "overlay=livefs" in fh.read():
+                return True
+    except OSError:
+        pass
+    return os.path.isdir(marker)

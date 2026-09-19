@@ -4,6 +4,8 @@ import os
 import stat
 import time
 
+import pytest
+
 from ai2 import updates
 
 
@@ -530,3 +532,22 @@ def test_a_dismissed_bubble_is_not_reported_as_still_alive():
         raise ChildProcessError("no such child")
 
     assert updates.bubble_alive(4242, waitpid=gone) is False
+
+
+def test_the_live_session_never_checks_for_updates(tmp_path, monkeypatch, capsys):
+    """From the stick, an update lives in RAM, takes memory the installer
+    wants, and is gone at the next boot. Rafael was asked to update gpm from
+    the live desktop minutes before installing (2026-09-19)."""
+    from ai2 import cli, sysinfo
+    import argparse
+    cmdline = tmp_path / "cmdline"
+    cmdline.write_text("BOOT_IMAGE=/boot/vmlinuz-x86_64 lang=en_US label=ARTIX_202609 overlay=livefs\n")
+    assert sysinfo.is_live_session(str(cmdline), str(tmp_path / "absent")) is True
+    cmdline.write_text("BOOT_IMAGE=/boot/vmlinuz-linux root=UUID=abc rw quiet\n")
+    assert sysinfo.is_live_session(str(cmdline), str(tmp_path / "absent")) is False
+
+    monkeypatch.setattr(sysinfo, "is_live_session", lambda *a, **k: True)
+    monkeypatch.setattr(updates, "check_now", lambda: pytest.fail("the live session must not check"))
+    monkeypatch.setattr(updates, "notify", lambda n: pytest.fail("and must not raise a bubble"))
+    assert cli.cmd_update_check(argparse.Namespace(notify=True, max_age=20.0, every=6.0)) == 0
+    assert "live session" in capsys.readouterr().out

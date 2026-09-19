@@ -22,11 +22,11 @@ terminal. They do the same thing. Use whichever you prefer.
 
 KNOWLEDGE PACKS
 
-This computer already knows things. A Knowledge Pack is a set of documents
-it can search and answer from in seconds, with no internet, and it tells you
-which document every answer came from. Nothing in those answers is written
-by the AI, so nothing is made up. On an older computer this is the fastest
-and most reliable thing AI-2 does.
+A Knowledge Pack is a set of documents this computer can search and answer
+from in seconds, with no internet, and it tells you which document every
+answer came from. Nothing in those answers is written by the AI, so nothing
+is made up. On an older computer this is the fastest and most reliable thing
+AI-2 does.
 
   Applications > AI-2 > Search Knowledge       type a question, read the answer
   ai-2 doc search "how do I find a big file?"  the same, in a terminal

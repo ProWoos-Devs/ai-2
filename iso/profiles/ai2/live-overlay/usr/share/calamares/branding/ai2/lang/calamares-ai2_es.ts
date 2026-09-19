@@ -4,8 +4,8 @@
 <context>
     <name>show</name>
     <message>
-        <source>honest about your hardware</source>
-        <translation>honesto con tu hardware</translation>
+        <source>Honest about your hardware</source>
+        <translation>Honesto con tu hardware</translation>
     </message>
     <message>
         <source>ai-2 benchmark measures what this machine can really do
@@ -16,8 +16,8 @@ y recomienda modelos que encajan de verdad,
 local cuando se puede, remoto cuando no.</translation>
     </message>
     <message>
-        <source>it already knows things</source>
-        <translation>ya sabe cosas</translation>
+        <source>Knowledge Packs</source>
+        <translation>Knowledge Packs</translation>
     </message>
     <message>
         <source>AI-2 arrives with Knowledge Packs: documents this computer searches
@@ -34,8 +34,8 @@ Add more packs, or make one from your own PDFs:  $ ai-2 knowledge available</sou
 Añade más paquetes, o crea uno con tus propios PDF:  $ ai-2 knowledge available</translation>
     </message>
     <message>
-        <source>first steps</source>
-        <translation>primeros pasos</translation>
+        <source>First steps</source>
+        <translation>Primeros pasos</translation>
     </message>
     <message>
         <source>At your first login the setup wizard opens by itself:
@@ -50,8 +50,8 @@ descarga un primer modelo y mide tu AI Score.</translation>
         <translation>después: $ ai-2 chat   abre la página de chat en el navegador</translation>
     </message>
     <message>
-        <source>chat right away, offline</source>
-        <translation>chatea desde el primer momento, sin conexión</translation>
+        <source>Chat right away, offline</source>
+        <translation>Chatea desde el primer momento, sin conexión</translation>
     </message>
     <message>
         <source>AI-2 ships with a small starter model on board, so the chat
@@ -68,8 +68,8 @@ and offers bigger models that fit your hardware.</source>
 y ofrece modelos mayores que encajan con tu hardware.</translation>
     </message>
     <message>
-        <source>your data stays here</source>
-        <translation>tus datos se quedan aquí</translation>
+        <source>Your data stays here</source>
+        <translation>Tus datos se quedan aquí</translation>
     </message>
     <message>
         <source>The model runs on this computer, on the CPU.
@@ -80,8 +80,8 @@ Sin cuenta, sin suscripción, nada sale de la máquina.
 Un modelo en línea solo se usa si tú lo eliges expresamente.</translation>
     </message>
     <message>
-        <source>lean by design</source>
-        <translation>ligero por diseño</translation>
+        <source>Lean by design</source>
+        <translation>Ligero por diseño</translation>
     </message>
     <message>
         <source>AI-2 installs only what it needs: the desktop, a browser,
@@ -100,8 +100,8 @@ $ sudo pacman -S cups         impresión
 $ sudo pacman -S libreoffice-still</translation>
     </message>
     <message>
-        <source>based on Artix Linux</source>
-        <translation>basado en Artix Linux</translation>
+        <source>Based on Artix Linux</source>
+        <translation>Basado en Artix Linux</translation>
     </message>
     <message>
         <source>Artix is Arch Linux without systemd; AI-2 uses its runit init.
@@ -116,8 +116,8 @@ Documentación: https://wiki.artixlinux.org</translation>
         <translation>$ sudo pacman -Syu   lo actualiza todo, AI-2 incluido</translation>
     </message>
     <message>
-        <source>your feedback</source>
-        <translation>tu opinión</translation>
+        <source>Your feedback</source>
+        <translation>Tu opinión</translation>
     </message>
     <message>
         <source>AI-2 is young. If something does not work on your machine,

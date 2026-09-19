@@ -1863,7 +1863,16 @@ def cmd_update_check(args, sleep=None) -> int:
     that failed on that same machine left it a whole day behind, not because
     six hours is too long but because nothing looked again sooner."""
     import time
-    from . import software, updates
+    from . import software, sysinfo, updates
+    if sysinfo.is_live_session():
+        # From the stick there is nothing to keep up to date: whatever is
+        # installed lives in RAM, takes memory the installer wants, and is gone
+        # at the next boot. Rafael was asked to update `gpm` from the live
+        # desktop minutes before installing (2026-09-19); the installed system
+        # offers the same update, which is where it belongs.
+        print("This is the live session from the USB stick; updates are checked once AI-2 is installed.",
+              flush=True)
+        return 0
     sleep = sleep or time.sleep
     owed = True                       # the login round always reminds
     max_age = args.max_age

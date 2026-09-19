@@ -22,11 +22,11 @@ terminal. Hacen lo mismo. Usa la que prefieras.
 
 KNOWLEDGE PACKS (PAQUETES DE CONOCIMIENTO)
 
-Este ordenador ya sabe cosas. Un Knowledge Pack es un conjunto de documentos
-en los que puede buscar y de los que responde en segundos, sin internet, y
-te dice de qué documento sale cada respuesta. Nada de esas respuestas lo
-escribe la IA, así que nada es inventado. En un ordenador antiguo es lo más
-rápido y lo más fiable que hace AI-2.
+Un Knowledge Pack es un conjunto de documentos en los que este ordenador
+puede buscar y de los que responde en segundos, sin internet, y te dice de
+qué documento sale cada respuesta. Nada de esas respuestas lo escribe la IA,
+así que nada es inventado. En un ordenador antiguo es lo más rápido y lo más
+fiable que hace AI-2.
 
   Aplicaciones > AI-2 > Buscar conocimiento    escribe una pregunta
   ai-2 doc search "¿cómo encuentro un archivo grande?"     (en un terminal)

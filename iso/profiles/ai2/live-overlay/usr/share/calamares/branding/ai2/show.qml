@@ -63,7 +63,7 @@ Presentation
                 spacing: 18
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: qsTr('it already knows things')
+                    text: qsTr('Knowledge Packs')
                     font.family: "monospace"
                     font.pixelSize: 32
                     font.bold: true
@@ -110,7 +110,7 @@ Presentation
                 spacing: 18
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: qsTr('honest about your hardware')
+                    text: qsTr('Honest about your hardware')
                     font.family: "monospace"
                     font.pixelSize: 32
                     font.bold: true
@@ -149,7 +149,7 @@ Presentation
                 spacing: 18
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: qsTr('first steps')
+                    text: qsTr('First steps')
                     font.family: "monospace"
                     font.pixelSize: 32
                     font.bold: true
@@ -196,7 +196,7 @@ Presentation
                 spacing: 18
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: qsTr('chat right away, offline')
+                    text: qsTr('Chat right away, offline')
                     font.family: "monospace"
                     font.pixelSize: 32
                     font.bold: true
@@ -243,7 +243,7 @@ Presentation
                 spacing: 18
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: qsTr('your data stays here')
+                    text: qsTr('Your data stays here')
                     font.family: "monospace"
                     font.pixelSize: 32
                     font.bold: true
@@ -282,7 +282,7 @@ Presentation
                 spacing: 18
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: qsTr('lean by design')
+                    text: qsTr('Lean by design')
                     font.family: "monospace"
                     font.pixelSize: 32
                     font.bold: true
@@ -329,7 +329,7 @@ Presentation
                 spacing: 18
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: qsTr('based on Artix Linux')
+                    text: qsTr('Based on Artix Linux')
                     font.family: "monospace"
                     font.pixelSize: 32
                     font.bold: true
@@ -376,7 +376,7 @@ Presentation
                 spacing: 18
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: qsTr('your feedback')
+                    text: qsTr('Your feedback')
                     font.family: "monospace"
                     font.pixelSize: 32
                     font.bold: true
