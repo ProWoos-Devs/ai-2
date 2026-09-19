@@ -149,3 +149,14 @@ def test_the_layer_check_is_committed_and_the_vm_dir_is_not_a_scratch_path():
     assert "iso-layer-check.sh" in pathlib.Path("iso/stage-profile.sh").read_text()
     vm = pathlib.Path("iso/qemu-vm.py").read_text()
     assert "/tmp/claude" not in vm and "AI2_VM_DIR" in vm
+
+
+def test_the_build_refuses_a_stale_pack_catalog():
+    """A release whose packaged catalog is behind, or whose bundled pack files
+    do not match it, ships packs nobody can install by name, and nothing said
+    so until somebody tried."""
+    build = pathlib.Path("packaging/build-packages.sh").read_text()
+    assert "check-bundled-packs.py" in build and "sync-pack-catalog.py\" --check" in build
+    assert 'refusing to build ai-2 with a stale pack catalog' in build
+    workflow = pathlib.Path(".github/workflows/tests.yml").read_text()
+    assert "packs.yml" in workflow, "the catalog job no longer runs when the packaged copy changes"

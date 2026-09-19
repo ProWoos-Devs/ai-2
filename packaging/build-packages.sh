@@ -49,6 +49,17 @@ make_ai2_tarball() {
   sed -i "s/^pkgver=.*/pkgver=$ver/" "$WORK/ai-2/PKGBUILD"
 }
 
+# The ai-2 package carries the pack catalog and the image carries the pack
+# files; a release where the two disagree, or where the copy is behind the
+# catalog, ships packs that cannot be installed by name. Checked before the
+# build, not after somebody notices.
+if printf '%s\n' "${pkgs[@]}" | grep -qx ai-2; then
+  python3 "$REPO/www/ai-2/tools/check-bundled-packs.py" || exit 1
+  python3 "$REPO/www/ai-2/tools/sync-pack-catalog.py" --check
+  rc=$?
+  [ "$rc" = 1 ] && { echo "refusing to build ai-2 with a stale pack catalog"; exit 1; }
+fi
+
 for p in "${pkgs[@]}"; do
   echo "=================== $p ==================="
   rm -rf "$WORK/$p"
