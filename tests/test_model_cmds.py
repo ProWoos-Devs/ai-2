@@ -119,3 +119,22 @@ def test_picker_enter_takes_the_default_and_needs_a_tty(tmp_path, monkeypatch, c
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
     assert cli._pick_model(hw) is None
     assert "--model gemma3-270m | qwen2.5-0.5b" in capsys.readouterr().err
+
+
+def test_speech_models_are_listed_removed_and_verified(tmp_path, monkeypatch, capsys):
+    """`ai-2 transcribe` downloads 44 to 265 MB into the same directory, and
+    nothing in `ai-2 model` could see those files, so on a small disk there
+    was no supported way to get the space back."""
+    from ai2 import speech
+    d, _ = _setup(tmp_path, monkeypatch)
+    base = next(m for m in speech.load_catalog() if m["id"] == "base")
+    (d / base["file"]).write_bytes(b"w" * 4096)
+    assert cli.main(["model", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "whisper-base" in out and "for ai-2 transcribe" in out
+    assert "whisper-small" in out, "the ones not downloaded are offered too"
+    assert cli.main(["model", "verify", "whisper-base"]) == 2, "4 KB is not the real file"
+    assert "whisper-base" in capsys.readouterr().out
+    assert cli.main(["model", "rm", "base"]) == 0, "the bare id ai-2 transcribe uses works too"
+    assert not (d / base["file"]).exists()
+    assert cli.main(["model", "rm", "whisper-base"]) == 0

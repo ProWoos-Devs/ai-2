@@ -280,10 +280,29 @@ def _usable_model(hw) -> dict | None:
     return best_present_model(load_catalog(), hw.ram_mib)
 
 
+SPEECH_PREFIX = "whisper-"
+
+
+def _speech_entries() -> list[dict]:
+    """The speech models as `ai-2 model` sees them: the same files, ids
+    prefixed so nothing confuses one with a chat model. The two catalogs stay
+    separate on purpose (everything that reads models.yml treats an entry as
+    a chat model), but the files are 44 to 265 MB in the same directory and
+    `ai-2 model list|rm|verify` could not see them at all."""
+    from . import speech
+    return [dict(m, id=SPEECH_PREFIX + m["id"], kind="speech") for m in speech.load_catalog()]
+
+
 def _catalog_entry(model_id: str) -> dict | None:
-    """Any catalog entry by id, embedders included (pull, rm and verify take
-    them; serve and chat check the kind themselves)."""
-    return next((m for m in load_catalog(kind=None) if m["id"] == model_id), None)
+    """Any catalog entry by id, embedders and speech models included (pull, rm
+    and verify take them; serve and chat check the kind themselves). A speech
+    model answers to `whisper-base` and to the bare `base` that
+    `ai-2 transcribe --model` uses."""
+    found = next((m for m in load_catalog(kind=None) if m["id"] == model_id), None)
+    if found is not None:
+        return found
+    wanted = model_id if model_id.startswith(SPEECH_PREFIX) else SPEECH_PREFIX + model_id
+    return next((m for m in _speech_entries() if m["id"] == wanted), None)
 
 
 PICK_MODEL = "?"   # `--model` given with no value: ask interactively
@@ -422,11 +441,17 @@ def cmd_model_list(args) -> int:
             marks.append("loaded")
         print(f"  {m['id'] or '(not in catalog)':<16} {m['size_mb']:>6} MB  {m['path']}"
               + (f"  [{', '.join(marks)}]" if marks else ""))
+    speech = [dict(m, path=p) for m in _speech_entries() if (p := find_model_file(m["file"]))]
+    for m in speech:
+        print(f"  {m['id']:<16} {os.path.getsize(m['path']) // (1024 * 1024):>6} MB  {m['path']}"
+              "  [speech, for ai-2 transcribe]")
     others = [m for m in catalog if not any(h["id"] == m["id"] for h in have)]
+    others += [m for m in _speech_entries() if not any(s["id"] == m["id"] for s in speech)]
     if others:
         print("Available to download (ai-2 model pull <id>):")
         for m in others:
-            kind = "  [for documents, not chat]" if m.get("kind") == "embedding" else ""
+            kind = {"embedding": "  [for documents, not chat]",
+                    "speech": "  [for ai-2 transcribe, not chat]"}.get(m.get("kind"), "")
             print(f"  {m['id']:<24} {m['file_mb']:>6} MB  {m['label']}"
                   + ("  [recommended]" if rec and m["id"] == rec["id"] else "") + kind)
     return 0
@@ -455,8 +480,11 @@ def cmd_model_rm(args) -> int:
 
 
 def cmd_model_verify(args) -> int:
-    catalog = load_catalog(kind=None)
+    catalog = load_catalog(kind=None) + _speech_entries()
     targets = [m for m in catalog if not args.model or m["id"] == args.model]
+    if args.model and not targets:
+        one = _catalog_entry(args.model)
+        targets = [one] if one else []
     if args.model and not targets:
         print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
         return 1

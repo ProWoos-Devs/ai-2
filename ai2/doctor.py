@@ -90,6 +90,15 @@ def check_models(hw: Hardware) -> list[Check]:
                                                      f"delete it and run: ai-2 model pull {m['id']}"))
         else:
             out.append(Check(OK, "Model " + m["id"], f"{p} ({size} MB)"))
+    from .speech import load_catalog as load_speech_catalog
+    for m in load_speech_catalog():
+        p = find_model_file(m["file"])
+        if p:
+            size = os.path.getsize(p) // (1024 * 1024)
+            # its own line: a speech model is never the chat model, and 265 MB
+            # on a 4 GB disk should be visible somewhere
+            out.append(Check(OK, "Speech model " + m["id"], f"{p} ({size} MB); remove with: "
+                                                            f"ai-2 model rm whisper-{m['id']}"))
     score = load_score()
     if score:
         rec = recommend(hw.ram_mib, score.get("tg_tps", 0.0), score.get("bench_params_b", 0.5), catalog)
