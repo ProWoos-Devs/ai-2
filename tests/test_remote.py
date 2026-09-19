@@ -8,7 +8,7 @@ import threading
 
 import pytest
 
-from ai2 import chatterm, cli, remote
+from ai2 import chatterm, cli, remote, runner
 
 KEY = "secret-key-1234"
 
@@ -147,7 +147,7 @@ def test_chat_remote_default_and_local_override(server, home, capsys, monkeypatc
     assert cli.main(["chat"]) == 0
     assert calls == [server]
     # --local skips the remote and goes on to the local path (which is not set up here)
-    monkeypatch.setattr(cli, "_server_ready", lambda url, timeout=2.0: False)
+    monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: False)
     monkeypatch.setattr(cli, "find_runtime", lambda variant: None)
     assert cli.main(["chat", "--local", "--no-browser"]) == 1
     assert "not set up" in capsys.readouterr().err
@@ -158,7 +158,7 @@ def test_chat_remote_needs_a_config_and_notes_one_when_not_used(home, capsys, mo
     assert cli.main(["chat", "--remote"]) == 1
     assert "ai-2 remote set" in capsys.readouterr().err
     remote.save("http://10.0.0.5:8080", default=False)
-    monkeypatch.setattr(cli, "_server_ready", lambda url, timeout=2.0: True)
+    monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: True)
     from ai2 import serverstate
     serverstate.write_server(os.getpid(), "gemma3-270m", "/x/m.gguf", 8080, "127.0.0.1")
     assert cli.main(["chat", "--no-browser"]) == 0

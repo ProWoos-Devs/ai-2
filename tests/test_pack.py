@@ -7,7 +7,7 @@ import zipfile
 import pytest
 import yaml
 
-from ai2 import doc, pack
+from ai2 import doc, pack, runner
 from ai2.models import embedding_models
 
 V2 = "nomic-embed-text-v2-moe"
@@ -197,7 +197,7 @@ def test_knowledge_remove_takes_the_catalog_id_of_a_renamed_pack(home, monkeypat
 
 def test_knowledge_cli_export_install_search_list_remove(home, monkeypatch, capsys):
     from ai2 import cli
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: vec(q))
     monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": V2})
@@ -505,7 +505,7 @@ def test_a_file_may_not_take_the_name_of_a_cataloged_pack(home, monkeypatch, cap
 
 def test_an_answer_says_when_its_pack_came_from_a_file(home, monkeypatch, capsys):
     from ai2 import cli
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: vec(q))
     monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": V2})

@@ -3,7 +3,7 @@ install, and bring installed ones up to date. Driven with canned answers; the
 download itself is a callable the window is given."""
 import pytest
 
-from ai2 import cli, pack, packbrowse
+from ai2 import cli, pack, packbrowse, knowledgecli
 
 CATALOG = [
     {"id": "ai2-help", "title": "AI-2 Help", "description": "AI-2's own documentation.", "parts": 107,
@@ -102,7 +102,7 @@ def test_outdated_and_the_notice(machine):
 
 def test_knowledge_update_brings_installed_packs_up_to_date(machine, monkeypatch, capsys):
     done = []
-    monkeypatch.setattr(cli, "_install_cataloged_pack", lambda entry, p, d: done.append(entry["id"]) or 0)
+    monkeypatch.setattr(knowledgecli, "_install_cataloged_pack", lambda entry, p, d: done.append(entry["id"]) or 0)
     assert cli.main(["knowledge", "update"]) == 0
     assert done == ["everyday"], "only what has a newer revision; never something not installed"
     machine["everyday"]["revision"] = 3
@@ -115,14 +115,14 @@ def test_knowledge_update_brings_installed_packs_up_to_date(machine, monkeypatch
 
 
 def test_the_end_of_ai2_update_says_when_a_pack_has_a_newer_version(machine, capsys):
-    cli._mention_knowledge_packs()
+    knowledgecli._mention_knowledge_packs()
     out = capsys.readouterr().out
     assert "Everyday Reference" in out and "Applications > AI-2 > Knowledge Packs" in out
 
 
 def test_several_packs_install_in_one_command(machine, monkeypatch, capsys):
     got = []
-    monkeypatch.setattr(cli, "_fetch_cataloged_pack", lambda entry, p, d: got.append(entry["id"]) or "/nonexistent")
+    monkeypatch.setattr(knowledgecli, "_fetch_cataloged_pack", lambda entry, p, d: got.append(entry["id"]) or "/nonexistent")
     monkeypatch.setattr(pack, "install_pack", lambda *a, **k: (_ for _ in ()).throw(pack.PackError("stop here")))
     assert cli.main(["knowledge", "install", "ai2-help", "recipes"]) == 1
     assert got == ["ai2-help", "recipes"], "one that fails does not stop the next"

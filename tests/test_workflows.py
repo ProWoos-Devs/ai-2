@@ -2,7 +2,7 @@
 out, and the read-only install (models pulled, packages only printed)."""
 import os
 
-from ai2 import cli, workflows
+from ai2 import cli, workflows, runner
 from ai2.detect import Hardware
 from ai2.models import load_catalog
 
@@ -97,7 +97,7 @@ def test_cli_list_info_status_install(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli, "_recommended_model", lambda hw: REC)
     monkeypatch.setattr("shutil.which", lambda n: None)
     pulled = []
-    monkeypatch.setattr(cli, "_pull_model", lambda m, force=False: pulled.append(m["id"]) or 0)
+    monkeypatch.setattr(runner, "_pull_model", lambda m, force=False: pulled.append(m["id"]) or 0)
     assert cli.main(["workflow"]) == 0
     out = capsys.readouterr().out
     assert "chat" in out and "needs setup" in out

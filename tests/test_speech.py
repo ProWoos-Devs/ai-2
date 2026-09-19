@@ -7,7 +7,7 @@ import wave
 
 import pytest
 
-from ai2 import speech
+from ai2 import speech, runner
 
 
 def _wav16k(path, seconds=0.1):
@@ -100,7 +100,7 @@ def test_cmd_transcribe_end_to_end(tmp_path, monkeypatch, capsys):
     pulled = []
     def fake_pull(model, force=False):
         pulled.append(model["id"]); (models / model["file"]).write_bytes(b"m"); return 0
-    monkeypatch.setattr(cli, "_pull_model", fake_pull)
+    monkeypatch.setattr(runner, "_pull_model", fake_pull)
     assert cli.main(["transcribe", str(wav)]) == 0
     out = capsys.readouterr().out
     assert pulled == ["base"] and "texto transcrito" in out and f"Written to {tmp_path / 'note.txt'}" in out

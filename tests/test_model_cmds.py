@@ -2,7 +2,7 @@
 import hashlib
 import os
 
-from ai2 import cli, runtime
+from ai2 import cli, runtime, runner
 from ai2.detect import Hardware
 from ai2.models import load_catalog
 
@@ -62,7 +62,7 @@ def test_bare_command_prints_help(capsys):
 def test_chat_notes_starter_model(tmp_path, monkeypatch, capsys):
     from ai2 import cli, serverstate
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
-    monkeypatch.setattr(cli, "_server_ready", lambda url, timeout=2.0: True)
+    monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: True)
     serverstate.write_server(os.getpid(), "gemma3-270m", "/x/m.gguf", 8080, "127.0.0.1")
     assert cli.main(["chat", "--no-browser"]) == 0
     out = capsys.readouterr().out
@@ -76,7 +76,7 @@ def _pick_setup(tmp_path, monkeypatch):
     g = next(x for x in load_catalog() if x["id"] == "gemma3-270m")
     (d / g["file"]).write_bytes(b"g" * 4096)
     monkeypatch.setattr(cli, "_recommended_model", lambda hw: g)
-    monkeypatch.setattr(cli, "_server_ready", lambda url, timeout=2.0: True)
+    monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: True)
     return d
 
 

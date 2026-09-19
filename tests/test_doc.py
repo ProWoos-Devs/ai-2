@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from ai2 import doc, serverstate
+from ai2 import doc, serverstate, knowledgecli, runner
 from ai2.models import embedding_models
 
 
@@ -173,18 +173,18 @@ def test_a_pack_builder_can_choose_the_small_english_embedder(capsys):
     shared: everyone who installs it would have to fetch 345 MB."""
     from ai2 import cli
     hw = type("HW", (), {"ram_mib": 8000})()
-    assert cli._doc_embedder(doc, hw, None, None, "mypack")["id"] == "nomic-embed-text-v2-moe"
-    assert cli._doc_embedder(doc, hw, "nomic-embed-text-v1.5", None, "mypack")["id"] == "nomic-embed-text-v1.5"
+    assert knowledgecli._doc_embedder(doc, hw, None, None, "mypack")["id"] == "nomic-embed-text-v2-moe"
+    assert knowledgecli._doc_embedder(doc, hw, "nomic-embed-text-v1.5", None, "mypack")["id"] == "nomic-embed-text-v1.5"
 
     # a collection keeps the model it was built with, and says where to go instead
-    assert cli._doc_embedder(doc, hw, "nomic-embed-text-v1.5", "nomic-embed-text-v2-moe", "mypack") is None
+    assert knowledgecli._doc_embedder(doc, hw, "nomic-embed-text-v1.5", "nomic-embed-text-v2-moe", "mypack") is None
     err = capsys.readouterr().err
     assert "cannot change" in err and "--in NEWNAME --embedder nomic-embed-text-v1.5" in err
 
     # an unknown name lists the real ones, and a model too big for the machine is refused
-    assert cli._doc_embedder(doc, hw, "no-such-model", None, "mypack") is None
+    assert knowledgecli._doc_embedder(doc, hw, "no-such-model", None, "mypack") is None
     assert "nomic-embed-text-v1.5" in capsys.readouterr().err
-    assert cli._doc_embedder(doc, type("HW", (), {"ram_mib": 2000})(), "nomic-embed-text-v2-moe",
+    assert knowledgecli._doc_embedder(doc, type("HW", (), {"ram_mib": 2000})(), "nomic-embed-text-v2-moe",
                              None, "mypack") is None
     assert "can spare" in capsys.readouterr().err
 
@@ -307,7 +307,7 @@ def test_doc_search_prints_passages_without_a_chat_model(tmp_path, monkeypatch, 
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     started = []
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: started.append((model["id"], record)) or "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: started.append((model["id"], record)) or "http://127.0.0.1:8081/")
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
     assert cli.main(["doc", "search", "capital"]) == 1
     assert "No documents indexed yet" in capsys.readouterr().err and started == []
@@ -372,7 +372,7 @@ def test_search_across_collections_merges_and_names_them(tmp_path):
 def test_doc_cli_with_collections(tmp_path, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
     monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": "nomic-embed-text-v2-moe"})
     _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["Madrid es la capital."]})
@@ -411,7 +411,7 @@ def test_doc_cli_with_collections(tmp_path, monkeypatch, capsys):
 def test_doc_index_into_a_named_collection(tmp_path, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
     monkeypatch.setattr(doc.EmbedClient, "ntokens", lambda self, text: len(text.split()))
     monkeypatch.setattr(doc.EmbedClient, "embed_documents", lambda self, chunks, progress=None: [fake_vec(c) for c in chunks])
@@ -431,7 +431,7 @@ def test_doc_search_with_no_question_asks_and_keeps_asking(tmp_path, monkeypatch
     that this is not AI-2 Chat, because that difference is the point."""
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
     monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": "nomic-embed-text-v2-moe"})
     _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["La capital del Estado es Madrid."]})
@@ -461,7 +461,7 @@ def test_the_search_loop_says_when_there_is_nothing_to_search(tmp_path, monkeypa
 def test_the_search_loop_lists_every_collection_when_embedders_differ(tmp_path, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
     monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": "nomic-embed-text-v2-moe"})
     _store("packs", "nomic-embed-text-v1.5", {"english.txt": ["Madrid is the capital."]})
@@ -480,7 +480,7 @@ def test_search_keeps_knowledge_packs_when_own_documents_use_another_embedder(tm
     import yaml
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
     monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": "nomic-embed-text-v2-moe"})
     _store("ai2-help", "nomic-embed-text-v1.5",
@@ -502,7 +502,7 @@ def test_own_documents_are_not_crowded_out_by_the_packs(tmp_path, monkeypatch, c
     import yaml
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
     _store("ai2-help", "nomic-embed-text-v1.5",
            {"a.txt": ["Wifi setup."], "b.txt": ["Printer setup."], "c.txt": ["Sound setup."]})
@@ -519,14 +519,14 @@ def test_a_busy_embedding_server_is_not_stopped_for_a_search(monkeypatch):
     kill the indexing."""
     from ai2 import cli, serverstate
     monkeypatch.setattr(serverstate, "read_server", lambda name: {"pid": 1, "model": "nomic-embed-text-v2-moe"})
-    monkeypatch.setattr(cli, "_server_busy", lambda url: True)
+    monkeypatch.setattr(knowledgecli, "_server_busy", lambda url: True)
     stopped = []
     monkeypatch.setattr(serverstate, "stop_server", lambda **kw: stopped.append(kw))
-    monkeypatch.setattr(cli, "_ensure_server", lambda *a, **kw: "http://127.0.0.1:8081/")
-    assert cli._ensure_embed(None, {"id": "nomic-embed-text-v1.5"}, wait=1) is None
+    monkeypatch.setattr(runner, "_ensure_server", lambda *a, **kw: "http://127.0.0.1:8081/")
+    assert knowledgecli._ensure_embed(None, {"id": "nomic-embed-text-v1.5"}, wait=1) is None
     assert stopped == []
-    monkeypatch.setattr(cli, "_server_busy", lambda url: False)
-    assert cli._ensure_embed(None, {"id": "nomic-embed-text-v1.5"}, wait=1) == "http://127.0.0.1:8081/"
+    monkeypatch.setattr(knowledgecli, "_server_busy", lambda url: False)
+    assert knowledgecli._ensure_embed(None, {"id": "nomic-embed-text-v1.5"}, wait=1) == "http://127.0.0.1:8081/"
     assert stopped == [{"name": serverstate.EMBED}]
 
 
@@ -534,13 +534,13 @@ def test_a_running_server_with_another_model_is_not_reused(monkeypatch, capsys):
     """An index embedded with the wrong model is wrong without any error, so a
     server that answers on the port must also run the model asked for."""
     from ai2 import cli, serverstate
-    monkeypatch.setattr(cli, "_server_ready", lambda url, timeout=2.0: True)
+    monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: True)
     monkeypatch.setattr(serverstate, "read_server", lambda name: {"pid": 1, "model": "nomic-embed-text-v1.5"})
     model = {"id": "nomic-embed-text-v2-moe", "file": "x.gguf", "label": "x"}
-    assert cli._ensure_server(None, model, 8081, serverstate.EMBED, wait=1) is None
+    assert runner._ensure_server(None, model, 8081, serverstate.EMBED, wait=1) is None
     assert "already running with nomic-embed-text-v1.5" in capsys.readouterr().err
     monkeypatch.setattr(serverstate, "read_server", lambda name: {"pid": 1, "model": "nomic-embed-text-v2-moe"})
-    assert cli._ensure_server(None, model, 8081, serverstate.EMBED, wait=1) == "http://127.0.0.1:8081/"
+    assert runner._ensure_server(None, model, 8081, serverstate.EMBED, wait=1) == "http://127.0.0.1:8081/"
 
 
 def test_doc_search_with_a_question_on_a_terminal_keeps_asking(tmp_path, monkeypatch, capsys):
@@ -549,7 +549,7 @@ def test_doc_search_with_a_question_on_a_terminal_keeps_asking(tmp_path, monkeyp
     import sys
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setattr(cli, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
+    monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
     _store("documents", "nomic-embed-text-v2-moe", {"notas.txt": ["La capital del Estado es Madrid."]})
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
@@ -584,15 +584,15 @@ def test_search_knowledge_holds_the_window_when_there_is_nothing_to_search(tmp_p
     waited = []
     monkeypatch.setattr(about, "wait_for_enter", lambda: waited.append(True))
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True, raising=False)
-    monkeypatch.setattr(cli, "_offer_the_packs", lambda docmod, width: False)   # declined, or nothing to offer
-    assert cli._doc_search(args, doc) == 1
+    monkeypatch.setattr(knowledgecli, "_offer_the_packs", lambda docmod, width: False)   # declined, or nothing to offer
+    assert knowledgecli._doc_search(args, doc) == 1
     out = capsys.readouterr().out
     assert "nothing to search" in out and "ai-2 knowledge browse" in out
     assert waited == [True]
 
     # not in a terminal (a script, a pipe), nothing to hold open
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
-    assert cli._doc_search(args, doc) == 1
+    assert knowledgecli._doc_search(args, doc) == 1
     assert waited == [True]
 
 
@@ -609,11 +609,11 @@ def test_the_empty_window_offers_the_packs_instead_of_naming_a_command(tmp_path,
     monkeypatch.setattr(pack, "load_catalog", lambda: entries)
     monkeypatch.setattr(cli, "find_model_file", lambda f: None)               # the model is not here yet
     installed = []
-    monkeypatch.setattr(cli, "_install_cataloged_pack",
+    monkeypatch.setattr(knowledgecli, "_install_cataloged_pack",
                         lambda entry, p, d: installed.append(entry["id"]) or 0)
 
     monkeypatch.setattr("builtins.input", lambda prompt="": "")               # Enter means yes
-    assert cli._offer_the_packs(doc, 76) is True
+    assert knowledgecli._offer_the_packs(doc, 76) is True
     out = capsys.readouterr().out
     assert "ai2-help" in out and "337 KB" in out
     assert "85 MB" in out, "the model is the real cost of the first pack and must be said before the prompt"
@@ -621,13 +621,13 @@ def test_the_empty_window_offers_the_packs_instead_of_naming_a_command(tmp_path,
 
     installed.clear()
     monkeypatch.setattr("builtins.input", lambda prompt="": "n")
-    assert cli._offer_the_packs(doc, 76) is False
+    assert knowledgecli._offer_the_packs(doc, 76) is False
     assert installed == [] and "Nothing installed" in capsys.readouterr().out
 
     # not a terminal: no prompt, and the caller falls back to naming the command
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
     monkeypatch.setattr("builtins.input", lambda prompt="": pytest.fail("must not ask a script"))
-    assert cli._offer_the_packs(doc, 76) is False
+    assert knowledgecli._offer_the_packs(doc, 76) is False
 
 
 def test_the_first_screen_names_the_packs_and_says_what_else_is_available(tmp_path, monkeypatch, capsys):
@@ -648,7 +648,7 @@ def test_the_first_screen_names_the_packs_and_says_what_else_is_available(tmp_pa
     monkeypatch.setattr("builtins.input", lambda prompt="": "")               # finish at once
 
     args = type("A", (), {"question": [], "collection": None, "top": 3, "doc": None, "wait": 1})()
-    cli._doc_search(args, doc)
+    knowledgecli._doc_search(args, doc)
     out = capsys.readouterr().out
     assert "Searching the following Knowledge Packs:" in out
     assert "ai2-help           AI-2 Help" in out
@@ -675,7 +675,7 @@ def test_a_number_reads_more_of_that_result(tmp_path, monkeypatch, capsys):
              "cite": "long.txt, part 16 of 30", "url": None, "manifest": None},
             {"collection": "manual", "doc": "short.txt", "ord": 0, "of": 2, "text": "Only one thing here.",
              "cite": "short.txt, part 1 of 2", "url": None, "manifest": None}]
-    monkeypatch.setattr(cli, "_doc_hits", lambda args, docmod, hw, q, distinct=False: hits)
+    monkeypatch.setattr(knowledgecli, "_doc_hits", lambda args, docmod, hw, q, distinct=False: hits)
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
     answers = iter(["anything", "2", "1", "1", "7", ""])
     asked = []
@@ -687,7 +687,7 @@ def test_a_number_reads_more_of_that_result(tmp_path, monkeypatch, capsys):
 
     monkeypatch.setattr("builtins.input", fake_input)
     args = type("A", (), {"question": [], "collection": None, "top": 3, "doc": None, "wait": 1})()
-    assert cli._doc_search(args, doc) == 0
+    assert knowledgecli._doc_search(args, doc) == 0
     out = capsys.readouterr().out
     assert "Type a number to read more of that one" in out
     # 2: a short document comes back whole, and nothing more is offered for it
@@ -751,7 +751,7 @@ def _reader_fixture(tmp_path, monkeypatch):
 def test_the_reader_page_has_paragraphs_an_anchor_and_a_source_link(tmp_path, monkeypatch):
     from ai2 import cli
     hit = _reader_fixture(tmp_path, monkeypatch)
-    page = cli._doc_reader_page(hit, doc)
+    page = knowledgecli._doc_reader_page(hit, doc)
     assert page.count("<p>") >= 3, "paragraphs, not one block"
     assert "&lt;a&gt; file" in page and "&amp; nowhere else" in page, "document text is escaped, not interpreted"
     assert '<a name="hit"></a><p>The big files answer' in page, "the anchor sits where the result begins"
@@ -773,12 +773,12 @@ def test_the_reader_is_w3m_when_there_is_one_and_the_terminal_otherwise(tmp_path
 
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True, raising=False)
     monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True, raising=False)
-    assert cli._doc_open_reader(hit, doc, which=lambda name: None, run=run) is False and ran == []
-    assert cli._doc_open_reader(hit, doc, which=lambda name: "/usr/bin/w3m", run=run) is True
+    assert knowledgecli._doc_open_reader(hit, doc, which=lambda name: None, run=run) is False and ran == []
+    assert knowledgecli._doc_open_reader(hit, doc, which=lambda name: "/usr/bin/w3m", run=run) is True
     assert ran[0][0] == "w3m" and ran[0][-1].endswith("/document.html#hit")
     assert not os.path.exists(ran[0][-1].removeprefix("file://").removesuffix("#hit")), "and is gone afterwards"
     monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: False, raising=False)
-    assert cli._doc_open_reader(hit, doc, which=lambda name: "/usr/bin/w3m", run=run) is False, "never for a pipe"
+    assert knowledgecli._doc_open_reader(hit, doc, which=lambda name: "/usr/bin/w3m", run=run) is False, "never for a pipe"
 
 
 def test_search_shows_one_result_per_document_and_ask_keeps_every_part(tmp_path, monkeypatch):
@@ -794,12 +794,12 @@ def test_search_shows_one_result_per_document_and_ask_keeps_every_part(tmp_path,
                      [fake_vec("madrid")] * 3, words=6)
     doc.add_document(conn, "other.txt", "/x/other.txt", ["castellano here"], [fake_vec("castellano madrid")], words=2)
     conn.close()
-    monkeypatch.setattr(cli, "_ensure_server", lambda *a, **k: "http://x")
-    monkeypatch.setattr(cli, "_catalog_entry", lambda model_id: {"id": model_id})
+    monkeypatch.setattr(runner, "_ensure_server", lambda *a, **k: "http://x")
+    monkeypatch.setattr(runner, "_catalog_entry", lambda model_id: {"id": model_id})
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec("madrid"))
     hw = type("HW", (), {"ram_mib": 8000})()
     args = type("A", (), {"collection": None, "top": 3, "doc": None, "wait": 1})()
-    every = cli._doc_hits(args, doc, hw, "madrid?")
+    every = knowledgecli._doc_hits(args, doc, hw, "madrid?")
     assert [h["doc"] for h in every] == ["faq.txt"] * 3
-    distinct = cli._doc_hits(args, doc, hw, "madrid?", distinct=True)
+    distinct = knowledgecli._doc_hits(args, doc, hw, "madrid?", distinct=True)
     assert [h["doc"] for h in distinct] == ["faq.txt", "other.txt"]
