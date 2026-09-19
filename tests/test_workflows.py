@@ -2,7 +2,7 @@
 out, and the read-only install (models pulled, packages only printed)."""
 import os
 
-from ai2 import cli, workflows, runner
+from ai2 import cli, runner, runtime, workflows
 from ai2.detect import Hardware
 from ai2.models import load_catalog
 

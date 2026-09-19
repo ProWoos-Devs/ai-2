@@ -7,7 +7,7 @@ import zipfile
 import pytest
 import yaml
 
-from ai2 import doc, pack, runner
+from ai2 import doc, pack, runner, runtime
 from ai2.models import embedding_models
 
 V2 = "nomic-embed-text-v2-moe"
@@ -182,6 +182,7 @@ def test_knowledge_remove_takes_the_catalog_id_of_a_renamed_pack(home, monkeypat
     """`install --as` puts a pack under another collection name, while every
     list and the Knowledge Packs window keep showing the catalog id."""
     from ai2 import cli
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: "/m/" + f)
     make_collection("constitucion", {"c.pdf": ["Artículo 30."]})
     tpl = home / "manifest.yml"
     tpl.write_text(yaml.safe_dump(TEMPLATE, allow_unicode=True), encoding="utf-8")
@@ -198,7 +199,7 @@ def test_knowledge_remove_takes_the_catalog_id_of_a_renamed_pack(home, monkeypat
 def test_knowledge_cli_export_install_search_list_remove(home, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
-    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: "/m/" + f)
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: vec(q))
     monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": V2})
     make_collection("constitucion", {"c.pdf": ["Artículo 30. servicio militar, la mili.", "La bandera."]})
@@ -245,7 +246,7 @@ def _serve(directory):
 
 def test_install_by_name_from_the_catalog(home, monkeypatch, capsys):
     from ai2 import cli
-    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: "/m/" + f)
     make_collection("src", {"c.pdf": ["La capital es Madrid.", "El castellano."]})
     packs = home / "served"
     packs.mkdir()
@@ -336,7 +337,7 @@ def test_a_pack_cannot_be_put_back_to_an_older_revision(home):
 
 def test_the_cli_refuses_an_older_pack_and_says_how(home, monkeypatch, capsys):
     from ai2 import cli
-    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: "/m/" + f)
     make_collection("src", {"c.pdf": ["La capital es Madrid."]})
     old, new = str(home / "old.ai2pack"), str(home / "new.ai2pack")
     pack.export_pack("src", old, dict(TEMPLATE, id="my-notes", version="2026-08-01", revision=1))
@@ -485,6 +486,7 @@ def test_a_file_may_not_take_the_name_of_a_cataloged_pack(home, monkeypatch, cap
              "languages": ["en"], "license": "MIT", "embedder": V2, "url": "https://example.org/a.ai2pack",
              "size_bytes": 1, "sha256": "0" * 64, "documents": 1, "parts": 1}
     monkeypatch.setattr(pack, "load_catalog", lambda: [entry])
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: "/m/" + f)
     make_collection("src", {"c.pdf": ["La capital es Madrid."]})
     out = str(home / "theirs.ai2pack")
     pack.export_pack("src", out, dict(TEMPLATE, id="ai2-help", version="9999", revision=99))
@@ -506,7 +508,7 @@ def test_a_file_may_not_take_the_name_of_a_cataloged_pack(home, monkeypatch, cap
 def test_an_answer_says_when_its_pack_came_from_a_file(home, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
-    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: "/m/" + f)
     monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: vec(q))
     monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: {"id": V2})
     make_collection("src", {"c.pdf": ["La capital es Madrid."]})

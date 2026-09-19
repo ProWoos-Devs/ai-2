@@ -81,6 +81,7 @@ def served_dir(tmp_path):
     httpd.shutdown()
 
 
+@pytest.mark.real_download
 def test_download_model_verifies_size_and_uses_part_file(tmp_path, served_dir, monkeypatch):
     url, _ = served_dir
     monkeypatch.setattr(runtime, "hf_url", lambda m: f"{url}/m.gguf")
@@ -96,6 +97,7 @@ def test_download_model_verifies_size_and_uses_part_file(tmp_path, served_dir, m
     assert runtime.download_model(model, str(dest)) == path
 
 
+@pytest.mark.real_download
 def test_download_model_rejects_truncated(tmp_path, served_dir, monkeypatch):
     url, _ = served_dir
 
@@ -161,6 +163,7 @@ def range_server():
     httpd.shutdown()
 
 
+@pytest.mark.real_download
 def test_download_resumes_partial_file(tmp_path, range_server, monkeypatch):
     url, payload, sha, _ = range_server
     monkeypatch.setattr(runtime, "hf_url", lambda m: url)
@@ -174,6 +177,7 @@ def test_download_resumes_partial_file(tmp_path, range_server, monkeypatch):
     assert not os.path.exists(path + ".part")
 
 
+@pytest.mark.real_download
 def test_download_restarts_when_server_ignores_range(tmp_path, range_server, monkeypatch):
     url, payload, sha, handler = range_server
     handler.ignore_range = True
@@ -185,6 +189,7 @@ def test_download_restarts_when_server_ignores_range(tmp_path, range_server, mon
     assert (dest / "m.gguf").read_bytes() == payload
 
 
+@pytest.mark.real_download
 def test_download_rejects_bad_checksum(tmp_path, range_server, monkeypatch):
     url, payload, sha, _ = range_server
     monkeypatch.setattr(runtime, "hf_url", lambda m: url)
@@ -236,6 +241,7 @@ def test_the_user_model_dir_follows_xdg_data_home(monkeypatch, tmp_path):
     assert runtime.model_dir() == os.path.expanduser("~/.local/share/ai2/models")
 
 
+@pytest.mark.real_download
 def test_a_model_download_never_leaves_https(monkeypatch, tmp_path):
     """Models are the biggest download AI-2 makes (44 MB to several GB) and
     went over a bare urlopen that followed a redirect to plain HTTP without a

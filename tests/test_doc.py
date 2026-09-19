@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from ai2 import doc, serverstate, knowledgecli, runner
+from ai2 import doc, serverstate, knowledgecli, runner, runtime
 from ai2.models import embedding_models
 
 
@@ -412,7 +412,7 @@ def test_doc_index_into_a_named_collection(tmp_path, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     monkeypatch.setattr(runner, "_ensure_server", lambda hw, model, port, record, **kw: "http://127.0.0.1:8081/")
-    monkeypatch.setattr(cli, "find_model_file", lambda f: "/m/" + f)
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: "/m/" + f)
     monkeypatch.setattr(doc.EmbedClient, "ntokens", lambda self, text: len(text.split()))
     monkeypatch.setattr(doc.EmbedClient, "embed_documents", lambda self, chunks, progress=None: [fake_vec(c) for c in chunks])
     monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: next(
@@ -607,7 +607,7 @@ def test_the_empty_window_offers_the_packs_instead_of_naming_a_command(tmp_path,
                 "license": "MIT", "embedder": "nomic-embed-text-v1.5", "url": "https://x/a.ai2pack",
                 "sha256": "0" * 64, "version": "2026-09-16"}]
     monkeypatch.setattr(pack, "load_catalog", lambda: entries)
-    monkeypatch.setattr(cli, "find_model_file", lambda f: None)               # the model is not here yet
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: None)               # the model is not here yet
     installed = []
     monkeypatch.setattr(knowledgecli, "_install_cataloged_pack",
                         lambda entry, p, d: installed.append(entry["id"]) or 0)

@@ -1,3 +1,4 @@
+from ai2 import runtime
 from ai2.benchmark import ai_score, capability_stars, parse_llama_bench, summarize
 
 # Real llama-bench output captured on RMM-PC (A4-3305M, baseline/SSE2).
@@ -97,7 +98,7 @@ def test_benchmark_refuses_substitute_models(tmp_path, monkeypatch, capsys):
     # not fall back to it (a smaller model inflates the score; a real offline
     # install scored 46 on Gemma 270M where the fixed model scores 30).
     from ai2 import cli
-    monkeypatch.setattr(cli, "find_runtime", lambda variant: "/fake/runtime")
+    monkeypatch.setattr(runtime, "find_runtime", lambda variant: "/fake/runtime")
     monkeypatch.setattr(cli, "find_benchmark_model", lambda: None)
     monkeypatch.delenv("AI2_TEST_MODEL", raising=False)
     assert cli.main(["benchmark"]) == 1

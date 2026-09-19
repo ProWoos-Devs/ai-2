@@ -14,9 +14,10 @@ from .detect import detect
 from .models import benchmark_model, is_starter, load_catalog, recommend
 from . import runner, serverstate
 from .knowledgecli import cmd_doc, cmd_knowledge, _mention_knowledge_packs
-from .runtime import (download_model, download_preflight, find_benchmark_model, find_model_file, find_runtime,
-                      installed_models, model_dir, run_llama_bench,
-                      runtime_package, sampling_args, serve, serve_preflight, verify_model)
+from . import runtime
+from .runtime import (download_model, download_preflight, find_benchmark_model, installed_models,
+                      model_dir, run_llama_bench, runtime_package, sampling_args, serve,
+                      serve_preflight, verify_model)
 from .state import load_score, write_score
 from .tiers import assign, installed_tier_id, load_tiers, resolve_config, runtime_defaults
 from .tuning import apply_plan, build_plan, render_plan, revert
@@ -196,7 +197,7 @@ def cmd_recommend(args) -> int:
 
 def cmd_benchmark(args) -> int:
     hw = detect()
-    runtime_dir = find_runtime(hw.cpu_variant)
+    runtime_dir = runtime.find_runtime(hw.cpu_variant)
     if runtime_dir is None:
         print(f"error: no llama.cpp runtime found for '{hw.cpu_variant}' variant "
               f"(looked in the standard paths). Install the runtime first.", file=sys.stderr)
@@ -276,7 +277,7 @@ def _usable_model(hw) -> dict | None:
     only Qwen2.5 0.5B was on disk, chat refused with "not set up")."""
     from .models import best_present_model
     rec = _recommended_model(hw)
-    if rec is not None and find_model_file(rec["file"]) is not None:
+    if rec is not None and runtime.find_model_file(rec["file"]) is not None:
         return rec
     return best_present_model(load_catalog(), hw.ram_mib)
 
@@ -338,7 +339,7 @@ def cmd_runtime_install(args) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     if pkg_backend.is_installed(pkg):
-        print(f"{pkg} already installed (runtime at {find_runtime(hw.cpu_variant)})")
+        print(f"{pkg} already installed (runtime at {runtime.find_runtime(hw.cpu_variant)})")
         return 0
     cmd = pkg_backend.install_cmd([pkg])
     print(f"CPU variant {hw.cpu_variant}, installing {pkg}: {' '.join(cmd)}")
@@ -351,7 +352,7 @@ def cmd_runtime_install(args) -> int:
     except (subprocess.CalledProcessError, PermissionError, FileNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    print(f"Installed. Runtime at {find_runtime(hw.cpu_variant)}")
+    print(f"Installed. Runtime at {runtime.find_runtime(hw.cpu_variant)}")
     return 0
 
 
@@ -392,7 +393,7 @@ def cmd_model_list(args) -> int:
             marks.append("loaded")
         print(f"  {m['id'] or '(not in catalog)':<16} {m['size_mb']:>6} MB  {m['path']}"
               + (f"  [{', '.join(marks)}]" if marks else ""))
-    speech = [dict(m, path=p) for m in runner._speech_entries() if (p := find_model_file(m["file"]))]
+    speech = [dict(m, path=p) for m in runner._speech_entries() if (p := runtime.find_model_file(m["file"]))]
     for m in speech:
         print(f"  {m['id']:<16} {os.path.getsize(m['path']) // (1024 * 1024):>6} MB  {m['path']}"
               "  [speech, for ai-2 transcribe]")
@@ -413,7 +414,7 @@ def cmd_model_rm(args) -> int:
     if model is None:
         print(f"error: '{args.model}' is not in the catalog", file=sys.stderr)
         return 1
-    path = find_model_file(model["file"])
+    path = runtime.find_model_file(model["file"])
     if path is None:
         print(f"{model['label']} is not on this computer.")
         return 0
@@ -442,7 +443,7 @@ def cmd_model_verify(args) -> int:
     rc = 0
     checked = 0
     for m in targets:
-        path = find_model_file(m["file"])
+        path = runtime.find_model_file(m["file"])
         if not path:
             continue
         checked += 1
@@ -461,7 +462,7 @@ def cmd_model_verify(args) -> int:
 
 def cmd_serve(args) -> int:
     hw = detect()
-    runtime_dir = find_runtime(hw.cpu_variant)
+    runtime_dir = runtime.find_runtime(hw.cpu_variant)
     if runtime_dir is None:
         print(f"error: no llama.cpp runtime for '{hw.cpu_variant}'. Run 'ai-2 runtime install'.",
               file=sys.stderr)
@@ -482,7 +483,7 @@ def cmd_serve(args) -> int:
             print("error: no model on this computer yet. Run 'ai-2 wizard', or name one: "
                   "ai-2 serve --model <id>", file=sys.stderr)
             return 1
-    path = find_model_file(model["file"])
+    path = runtime.find_model_file(model["file"])
     if path is None:
         print(f"error: {model['file']} not downloaded. Run 'ai-2 model pull {model['id']}'.",
               file=sys.stderr)
@@ -595,9 +596,9 @@ def cmd_chat(args) -> int:
         return 1
     started_here = False
     if not runner._server_ready(url):
-        runtime_dir = find_runtime(hw.cpu_variant)
+        runtime_dir = runtime.find_runtime(hw.cpu_variant)
         model = runner._catalog_entry(args.model) if args.model else _usable_model(hw)
-        if runtime_dir is None or model is None or find_model_file(model["file"]) is None:
+        if runtime_dir is None or model is None or runtime.find_model_file(model["file"]) is None:
             print("AI-2 is not set up on this computer yet. Run:  ai-2 wizard", file=sys.stderr)
             return 1
         state_dir = serverstate.state_dir()
@@ -745,7 +746,7 @@ def cmd_gopher(args) -> int:
             model = runner._catalog_entry(model_id)
             if model is None:
                 raise RuntimeError(f"{model_id} is not in this AI-2's catalog")
-            if find_model_file(model["file"]) is None:
+            if runtime.find_model_file(model["file"]) is None:
                 raise RuntimeError(f"{model['label']} is not downloaded here")
             url = runner._ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait,
                                  idle_timeout=0)
@@ -801,12 +802,12 @@ def cmd_transcribe(args) -> int:
     if model is None:
         print(f"error: unknown speech model '{args.model}' (tiny, base or small)", file=sys.stderr)
         return 1
-    path = find_model_file(model["file"])
+    path = runtime.find_model_file(model["file"])
     if path is None:
         print(f"{model['label']} ({model['file_mb']} MB) is not on this computer yet; downloading it.")
         if runner._pull_model(model) != 0:
             return 1
-        path = find_model_file(model["file"])
+        path = runtime.find_model_file(model["file"])
     out = args.output or os.path.splitext(args.file)[0] + ".txt"
     if not out.endswith(".txt"):
         out += ".txt"
@@ -902,7 +903,7 @@ def cmd_workflow(args) -> int:
     cfg = remote.load()
 
     def ev(p):
-        return workflows.evaluate(p, hw, score, rec, cfg, find_model_file, catalog)
+        return workflows.evaluate(p, hw, score, rec, cfg, runtime.find_model_file, catalog)
 
     action = args.workflow_cmd or "list"
     if action == "list":

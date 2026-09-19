@@ -22,7 +22,8 @@ from . import branding, runner, serverstate
 from .detect import detect
 from .i18n import tr
 from .models import is_starter, load_catalog
-from .runtime import find_model_file, installed_models
+from . import runtime
+from .runtime import installed_models
 from .state import load_score
 
 
@@ -220,7 +221,7 @@ def cmd_knowledge(args) -> int:
                   f"{m['index']['parts']} parts. License {m['license']}.")
             if m.get("attribution"):
                 print(m["attribution"])
-            if model and find_model_file(model["file"]) is None:
+            if model and runtime.find_model_file(model["file"]) is None:
                 print(f"The pack is searched with {model['label']} ({model['file_mb']} MB); downloading it now.")
                 if runner._pull_model(model) != 0:
                     print("The pack is installed; the download can be repeated with:  "
@@ -315,7 +316,7 @@ def _doc_index(args, docmod) -> int:
     model = _doc_embedder(docmod, hw, getattr(args, "embedder", None), model_id, collection)
     if model is None:
         return 1
-    if find_model_file(model["file"]) is None:
+    if runtime.find_model_file(model["file"]) is None:
         print(f"The documents index uses {model['label']} ({model['file_mb']} MB); downloading it first.")
         if runner._pull_model(model) != 0:
             return 1
@@ -660,7 +661,7 @@ def _install_cataloged_pack(entry: dict, packmod, docmod) -> int:
     if m.get("attribution"):
         print(m["attribution"])
     model = runner._catalog_entry(m["embedder"]["id"])
-    if model and find_model_file(model["file"]) is None:
+    if model and runtime.find_model_file(model["file"]) is None:
         print(f"The pack is searched with {model['label']} ({model['file_mb']} MB); downloading it now.")
         if runner._pull_model(model) != 0:
             print("The pack is installed; the download can be repeated with:  "
@@ -674,7 +675,7 @@ def _knowledge_model_cost(entry: dict) -> str | None:
     this computer still has to download it. It is the real cost of a first
     pack (85 MB against a few hundred KB), so it is said before the download."""
     model = runner._catalog_entry(str(entry.get("embedder") or ""))
-    if model is None or find_model_file(model["file"]) is not None:
+    if model is None or runtime.find_model_file(model["file"]) is not None:
         return None
     return (f"Packs built with {model['label']} are searched with it, and this computer does not have it yet: "
             f"a {model['file_mb']} MB download, once.")
@@ -769,7 +770,7 @@ def _offer_the_packs(docmod, width) -> bool:
         return False
     model = runner._catalog_entry((entries[0].get("embedder") or ""))
     packs_kb = sum(int(e.get("size_bytes") or 0) for e in entries) // 1024
-    need_model = model is not None and find_model_file(model["file"]) is None
+    need_model = model is not None and runtime.find_model_file(model["file"]) is None
     print(tr("\nThese are ready to install, and then searchable with no network at all:\n"))
     for e in entries:
         print(f"  {e['id']:<18} {e.get('title')}  ({e.get('parts')} parts, "
@@ -936,7 +937,7 @@ def _doc_ask(args, docmod) -> int:
         if chat_model is None or chat_model.get("kind", "chat") != "chat":
             print(f"error: '{args.model}' is not a chat model in the catalog", file=sys.stderr)
             return 1
-        if find_model_file(chat_model["file"]) is None:
+        if runtime.find_model_file(chat_model["file"]) is None:
             print(f"error: {chat_model['file']} is not downloaded. Run 'ai-2 model pull {chat_model['id']}'.",
                   file=sys.stderr)
             return 1

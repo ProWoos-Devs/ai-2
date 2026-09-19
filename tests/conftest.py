@@ -2,6 +2,10 @@
 import pytest
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "real_download: exercises the model downloader itself")
+
+
 @pytest.fixture(autouse=True)
 def _no_real_update_checker(monkeypatch, tmp_path):
     """No test may run the real update checker. It syncs package databases
@@ -21,3 +25,32 @@ def _no_real_update_checker(monkeypatch, tmp_path):
     monkeypatch.setattr(updates, "CHECK_CMD", "ai2-test-checkupdates")
     monkeypatch.setattr(updates, "PAMAC_REFRESH_STAMP", str(stamp))
     monkeypatch.setattr(updates, "PAMAC_CONF", str(tmp_path / "pamac.conf"))
+
+
+@pytest.fixture(autouse=True)
+def _no_real_model_download(monkeypatch, request):
+    """No test may download a model. Until 0.18.7 the model directory ignored
+    XDG_DATA_HOME, so a test that reached a download quietly found the
+    developer's own copy in their real home and did nothing; with the
+    directory honoring XDG (as it should), the same tests began fetching the
+    344 MB embedder into a temp dir, five times per run, over the network.
+
+    A test that needs a model on disk says so, by replacing find_model_file
+    or download_model itself; anything else stops here with the name of the
+    test, rather than silently costing a download. The tests of the
+    downloader itself carry @pytest.mark.real_download."""
+    if request.node.get_closest_marker("real_download"):
+        return
+    from ai2 import cli, runner, runtime
+
+    def refuse(model, dest_dir=None, progress=None):
+        raise AssertionError(f"{request.node.name} tried to download {model.get('file')}: "
+                             "a test must not fetch a model (replace find_model_file, "
+                             "or download_model itself, if it needs one)")
+
+    # every name it is imported under: the modules import the function, so
+    # patching runtime alone leaves the path that actually downloads
+    # (runner._pull_model) untouched
+    for mod in (runtime, runner, cli):
+        if hasattr(mod, "download_model"):
+            monkeypatch.setattr(mod, "download_model", refuse)

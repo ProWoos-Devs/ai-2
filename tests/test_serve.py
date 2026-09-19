@@ -169,7 +169,7 @@ def test_usable_model_falls_back_when_recommended_absent(monkeypatch):
     rec = {"id": "qwen3-1.7b", "file": "missing.gguf"}
     present = {"id": "qwen2.5-0.5b", "file": "present.gguf"}
     monkeypatch.setattr(cli, "_recommended_model", lambda hw: rec)
-    monkeypatch.setattr(cli, "find_model_file",
+    monkeypatch.setattr(runtime, "find_model_file",
                         lambda name: "/x/present.gguf" if name == "present.gguf" else None)
     monkeypatch.setattr(models, "best_present_model", lambda cat, ram: present)
     assert cli._usable_model(_hw()) is present
@@ -179,7 +179,7 @@ def test_usable_model_prefers_recommended_when_present(monkeypatch):
     from ai2 import cli, models
     rec = {"id": "qwen3-1.7b", "file": "rec.gguf"}
     monkeypatch.setattr(cli, "_recommended_model", lambda hw: rec)
-    monkeypatch.setattr(cli, "find_model_file", lambda name: "/x/" + name)
+    monkeypatch.setattr(runtime, "find_model_file", lambda name: "/x/" + name)
     monkeypatch.setattr(models, "best_present_model",
                         lambda cat, ram: (_ for _ in ()).throw(AssertionError("must not be called")))
     assert cli._usable_model(_hw()) is rec
