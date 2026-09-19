@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AI-2 installed-system defaults. The desktop calls a machine idle when
+     nobody touches the keyboard, not when the CPU is free, so a computer
+     generating an answer for ten minutes was suspended in the middle of it
+     (reproduced on RMM-PC 2026-08-13). the wizard's tuning step writes an elogind
+     drop-in that says the same thing, but the wizard runs after the first
+     login, and a first login that sits reading the guide could already
+     suspend. These are the defaults for every new user; each one can change
+     them in Settings > Power Manager.
+
+     Unlike the live session, the screen may still blank and switch off: that
+     saves power and never interrupts anything. Only suspend is off (0 is
+     never; 14 would be 14 MINUTES, learned the hard way 2026-08-19). -->
+<channel name="xfce4-power-manager" version="1.0">
+  <property name="xfce4-power-manager" type="empty">
+    <property name="inactivity-on-ac" type="uint" value="0"/>
+    <property name="inactivity-on-battery" type="uint" value="0"/>
+    <property name="lock-screen-suspend-hibernate" type="bool" value="false"/>
+  </property>
+</channel>

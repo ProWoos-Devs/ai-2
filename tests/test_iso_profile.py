@@ -121,3 +121,15 @@ def test_every_installer_job_has_its_config_and_script():
                     path = script.group(1).lstrip("/")
                     assert (ISO / f"root-overlay/{path}").exists() or (ISO / f"live-overlay/{path}").exists(), \
                         f"{cfg}: {name} runs {script.group(1)}, which no overlay ships"
+
+
+def test_the_installed_desktop_never_idle_suspends():
+    """The desktop calls a machine idle when nobody types, even while it is
+    generating an answer (reproduced on RMM-PC 2026-08-13). The elogind
+    drop-in from `ai-2 init --apply` only lands after the first login, so the
+    image carries the desktop defaults too."""
+    import xml.etree.ElementTree as ET
+    conf = ISO / "root-overlay/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml"
+    props = {p.get("name"): p.get("value") for p in ET.parse(conf).getroot().iter("property")}
+    assert props["inactivity-on-ac"] == "0" and props["inactivity-on-battery"] == "0"
+    assert props["lock-screen-suspend-hibernate"] == "false"
