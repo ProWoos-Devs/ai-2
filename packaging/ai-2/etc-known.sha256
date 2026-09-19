@@ -1,0 +1,7 @@
+# Every version of these files AI-2 has shipped, newest run of tools/update-etc-known.py.
+# The pacman hook replaces /etc only when what is there is one of these.
+3d1a28cad06f2e649a313d45c0c4b63d61fe6c7dfe38ab95c79ce488802d73a4  motd
+3f0d1db5095f9c9de788e2795562d6093943f331a26590f2b800e6880b9af600  motd
+53e3d085973f7a82918705a4be9ac17429f73056e705ead30e95c0b041373724  lightdm-gtk-greeter.conf
+882ddb9425e8fa5e27ac1452d1f19c19c41a3b9ad10f2cff9bdb6726f01b4258  motd
+ac91146af194b5d0e410de622619e45ce0c1438cd3f0b601e5d97df55fd1d491  motd

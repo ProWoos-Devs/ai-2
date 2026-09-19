@@ -99,6 +99,11 @@ package() {
 
   install -Dm644 branding/motd "$pkgdir/usr/share/ai2/motd"
   install -Dm644 branding/lightdm-gtk-greeter.conf "$pkgdir/usr/share/ai2/lightdm-gtk-greeter.conf"
+  # ... and a hook that copies them into /etc after an upgrade, but only when
+  # what is there is a copy we shipped ourselves (etc-known.sha256)
+  install -Dm644 packaging/ai-2/etc-known.sha256 "$pkgdir/usr/share/ai2/etc-known.sha256"
+  install -Dm755 packaging/ai-2/etc-refresh.sh "$pkgdir/usr/lib/ai2/etc-refresh.sh"
+  install -Dm644 packaging/ai-2/ai2-etc.hook "$pkgdir/usr/share/libalpm/hooks/zz-ai2-etc.hook"
 
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"

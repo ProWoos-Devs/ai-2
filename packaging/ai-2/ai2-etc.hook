@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = ai-2
+
+[Action]
+Description = Bringing the AI-2 login message and greeter up to date...
+When = PostTransaction
+Exec = /usr/lib/ai2/etc-refresh.sh
