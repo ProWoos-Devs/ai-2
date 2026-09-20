@@ -150,5 +150,6 @@
   "by {contact}": "von {contact}",
   "{id} is already installed and up to date.": "{id} ist bereits installiert und aktuell.",
   "\nAnother question, or press Enter on an empty line to go back to the setup.": "\nNoch eine Frage, oder Enter auf einer leeren Zeile, um zur Einrichtung zurückzukehren.",
-  "\nType a number to read more of that one, ask something else, or press Enter to go back to the setup.": "\nEine Nummer eingeben für mehr davon, etwas anderes fragen, oder Enter, um zur Einrichtung zurückzukehren."
+  "\nType a number to read more of that one, ask something else, or press Enter to go back to the setup.": "\nEine Nummer eingeben für mehr davon, etwas anderes fragen, oder Enter, um zur Einrichtung zurückzukehren.",
+  "\nIt opened in its own window, Search Knowledge. Ask it what you like and close that window when you are done; the setup goes on here.": "\nEs hat sich in einem eigenen Fenster geöffnet, Wissen durchsuchen. Frag, was du willst, und schließ das Fenster, wenn du fertig bist; die Einrichtung geht hier weiter."
 }

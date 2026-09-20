@@ -4,6 +4,7 @@ download itself is a callable the window is given."""
 import pytest
 
 from ai2 import cli, pack, packbrowse, knowledgecli
+from ai2.about import open_window as _real_open_window
 
 CATALOG = [
     {"id": "ai2-help", "title": "AI-2 Help", "description": "AI-2's own documentation.", "parts": 107,
@@ -142,6 +143,7 @@ def test_the_menu_entry_opens_a_window_big_enough_for_the_list(monkeypatch):
     assert entry["Exec"] == "ai-2 knowledge browse --window" and entry["Terminal"] == "false"
     assert entry["Name"] == "Knowledge Packs"
     opened = []
+    monkeypatch.setattr(about, "open_window", _real_open_window)
     monkeypatch.setattr(about.subprocess, "Popen", lambda cmd, **k: opened.append(cmd))
     monkeypatch.setattr(about.shutil, "which", lambda name: "/usr/bin/" + name if name == "xfce4-terminal" else None)
     assert cli.main(["knowledge", "browse", "--window"]) == 0

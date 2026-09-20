@@ -3,6 +3,7 @@ where it is not."""
 import pathlib
 
 from ai2 import __version__, about, cli
+from ai2.about import open_window as _real_open_window
 
 AI2_OS_RELEASE = pathlib.Path("iso/profiles/ai2/root-overlay/etc/os-release")
 
@@ -95,6 +96,7 @@ def test_window_uses_the_wizards_terminals_in_order():
 
 
 def test_cli_window_without_a_terminal_prints_instead(monkeypatch, capsys):
+    monkeypatch.setattr(about, "open_window", _real_open_window)   # no terminal, so it opens nothing
     monkeypatch.setattr(about, "window_command", lambda which=None: None)
     monkeypatch.setattr(about, "read_os_release", lambda path=about.OS_RELEASE: {})
     monkeypatch.setattr(about, "detect_init_system", lambda: "unknown")

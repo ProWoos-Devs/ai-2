@@ -5,6 +5,7 @@ import os
 import pytest
 
 from ai2 import wizard as wz
+from ai2.about import open_window as _real_open_window
 from ai2.detect import Hardware
 
 
@@ -241,15 +242,43 @@ def test_the_first_question_opens_the_search_loop_once(env, monkeypatch):
     that cannot open a document, and must not wrap a second question loop
     around it."""
     import sys
+    from ai2 import about
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(about.shutil, "which", lambda name: None)   # no terminal to open
     ran = []
     questions = iter(["how do I find a big file?", "must not be asked"])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(questions))
     w = wz.Wizard(ask=lambda q, d: d, say=lambda t: None, run=lambda cmd: ran.append(cmd) or 0)
     w._first_question()
-    # --from-setup makes the loop say how to get back here (Rafael, 2026-09-20)
+    # no terminal to open here, so it runs in place and --from-setup makes the
+    # loop say how to come back (Rafael, 2026-09-20)
     assert len(ran) == 1 and ran[0][-3:] == ["search", "--from-setup", "how do I find a big file?"]
     assert w._asked_the_packs is True
+
+
+def test_the_first_question_opens_its_own_window_when_it_can(env, monkeypatch):
+    """Rafael, mid-install 2026-09-20: answering inside the setup window was
+    confusing and the answer wrapped into what space was left. It opens the
+    same window the Search Knowledge menu entry opens."""
+    import sys
+    from ai2 import about
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "how do I find a big file?")
+    monkeypatch.setattr(about.shutil, "which",
+                        lambda name: "/usr/bin/" + name if name == "xfce4-terminal" else None)
+    opened, ran, said = [], [], []
+    monkeypatch.setattr(about, "open_window", about.open_window.__wrapped__
+                        if hasattr(about.open_window, "__wrapped__") else _real_open_window)
+    monkeypatch.setattr(about.subprocess, "Popen", lambda cmd, **kw: opened.append(cmd))
+    w = wz.Wizard(ask=lambda q, d: d, say=said.append, run=lambda cmd: ran.append(cmd) or 0)
+    w._first_question()
+    assert ran == [], "it must not run inside the setup window when it can open one"
+    assert len(opened) == 1
+    cmd = opened[0]
+    assert cmd[0] == "xfce4-terminal" and "--geometry=100x38" in cmd
+    assert cmd[-3:] == ["doc", "search", "how do I find a big file?"]
+    assert "--from-setup" not in cmd, "in its own window, the way out is closing it"
+    assert "own window" in "\n".join(said) and "setup goes on here" in "\n".join(said)
 
 
 def test_an_empty_first_question_leaves_the_search_for_later(env, monkeypatch):

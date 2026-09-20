@@ -54,3 +54,18 @@ def _no_real_model_download(monkeypatch, request):
     for mod in (runtime, runner, cli):
         if hasattr(mod, "download_model"):
             monkeypatch.setattr(mod, "download_model", refuse)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_window(monkeypatch, request):
+    """No test may really open a terminal window on the developer's screen,
+    which is how a missing bit of isolation was found on 2026-09-20. A test
+    that exercises the code which opens one puts the real function back
+    (`monkeypatch.setattr(about, "open_window", about_open_window)`) and
+    replaces Popen with its own recorder."""
+    from ai2 import about
+
+    def refuse(cmd=None):
+        raise AssertionError(f"{request.node.name} tried to open a terminal window: {cmd}")
+
+    monkeypatch.setattr(about, "open_window", refuse)
