@@ -79,3 +79,31 @@ def test_the_known_list_has_the_files_as_they_are_now():
                        ("branding/lightdm-gtk-greeter.conf", "lightdm-gtk-greeter.conf")):
         digest = hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
         assert f"{digest}  {name}" in known, f"run tools/update-etc-known.py after changing {path}"
+
+
+def test_the_pack_packages_match_the_catalog():
+    """A pack that comes with AI-2 must be the file the catalog publishes,
+    or a machine installed from the ISO would carry something no other
+    install path can verify. The PKGBUILDs are generated from the catalog;
+    this fails when they have drifted."""
+    import subprocess
+    import sys
+    rc = subprocess.run([sys.executable, "tools/render-pack-packages.py", "--check"],
+                        capture_output=True, text=True)
+    assert rc.returncode == 0, rc.stdout + rc.stderr
+
+
+def test_each_pack_package_installs_only_its_own_read_only_files():
+    """Nothing in these packages may land outside /usr/share/ai2/doc/<id>/,
+    and nothing may be executable."""
+    import re
+    import yaml
+    catalog = {p["id"]: p for p in yaml.safe_load(
+        pathlib.Path("ai2/data/packs.yml").read_text())["packs"]}
+    for pack_id in ("ai2-help", "everyday", "linux-essentials"):
+        name = pack_id if pack_id.startswith("ai2-") else "ai2-" + pack_id
+        body = (PKG / name / "PKGBUILD").read_text()
+        assert f'/usr/share/ai2/doc/{pack_id}"' in body
+        assert catalog[pack_id]["sha256"] in body and catalog[pack_id]["url"] in body
+        assert "install -Dm755" not in body and "chmod 755" not in body
+        assert re.search(r"^depends=\('ai-2'\)$", body, re.M)
