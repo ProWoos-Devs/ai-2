@@ -152,7 +152,7 @@ def check_knowledge() -> list[Check]:
         own_models = set()
         for name in own:
             try:
-                own_models.add(docmod.store_model(docmod.open_store(docmod.index_path(name))))
+                own_models.add(docmod.store_model(docmod.open_store(docmod.read_index_path(name))))
             except Exception:                                       # noqa: BLE001
                 continue
         if own_models - embedders:

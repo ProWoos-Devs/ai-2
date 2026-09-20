@@ -45,7 +45,7 @@ def cmd_doc(args) -> int:
     if action == "forget":
         return _doc_forget(args, docmod)
     names = docmod.list_collections()
-    shown = [(n, docmod.open_store(docmod.index_path(n))) for n in names]
+    shown = [(n, docmod.open_store(docmod.read_index_path(n))) for n in names]
     shown = [(n, c) for n, c in shown if docmod.list_documents(c)]
     if not shown:
         print("No documents indexed yet. Add one with:  ai-2 doc index FILE   (text, PDF, DOCX or a scan)")
@@ -55,7 +55,7 @@ def cmd_doc(args) -> int:
     for name, conn in shown:
         manifest = packmod.manifest_of(name)
         what = (f"pack {manifest.get('title')}, version {manifest.get('version')}, license {manifest.get('license')}"
-                if manifest else docmod.index_path(name))
+                if manifest else docmod.read_index_path(name))
         print(f"\n  {name}  (embedder {docmod.store_model(conn)}, {what})")
         for d in docmod.list_documents(conn):
             print(f"    {d['name']:<40} {d['words']:>7} words  {d['chunks']:>5} parts  added {d['added']}")
@@ -75,7 +75,7 @@ def _doc_forget(args, docmod) -> int:
                 return 1
             print("The index was already empty.")
             return 0
-        n = len(docmod.list_documents(docmod.open_store(docmod.index_path(target))))
+        n = len(docmod.list_documents(docmod.open_store(docmod.read_index_path(target))))
         docmod.remove_collection(target)
         if n:
             print(f"Forgot {n} document{'s' if n != 1 else ''} and the collection {target}.")
@@ -87,7 +87,7 @@ def _doc_forget(args, docmod) -> int:
         print("error: name a document (ai-2 doc list) or pass --all", file=sys.stderr)
         return 1
     where = [n for n in ([args.collection] if args.collection else names)
-             if n in names and args.name in {d["name"] for d in docmod.list_documents(docmod.open_store(docmod.index_path(n)))}]
+             if n in names and args.name in {d["name"] for d in docmod.list_documents(docmod.open_store(docmod.read_index_path(n)))}]
     if not where:
         print(f"No document named {args.name!r} (ai-2 doc list shows the names).")
         return 1
@@ -311,7 +311,8 @@ def _doc_index(args, docmod) -> int:
     import zipfile
     hw = detect()
     collection = args.collection or docmod.DEFAULT_COLLECTION
-    conn = docmod.open_store(None if collection == docmod.DEFAULT_COLLECTION else docmod.index_path(collection))
+    conn = docmod.open_store(None if collection == docmod.DEFAULT_COLLECTION
+                             else docmod.index_path(collection))
     model_id = docmod.store_model(conn)
     model = _doc_embedder(docmod, hw, getattr(args, "embedder", None), model_id, collection)
     if model is None:
@@ -436,7 +437,7 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
             print(f"No collection named {args.collection!r} (ai-2 doc list shows them).", file=sys.stderr)
             return None
         names = [args.collection]
-    stores = {n: docmod.open_store(docmod.index_path(n)) for n in names}
+    stores = {n: docmod.open_store(docmod.read_index_path(n)) for n in names}
     info = {n: (docmod.store_model(c), docmod.list_documents(c)) for n, c in stores.items()}
     usable = [n for n, (model_id, docs) in info.items() if model_id and docs]
     if not usable:
@@ -545,7 +546,7 @@ def _doc_reader_page(hit: dict, docmod) -> str | None:
     browser: its paragraphs, an anchor where the result begins, the source as a
     link that can be followed, and the pack's licence and attribution."""
     import html
-    conn = docmod.open_store(docmod.index_path(hit["collection"]))
+    conn = docmod.open_store(docmod.read_index_path(hit["collection"]))
     rows = conn.execute("SELECT chunks.text FROM chunks JOIN docs ON docs.id = chunks.doc_id "
                         "WHERE docs.name = ? ORDER BY chunks.ord", (hit["doc"],)).fetchall()
     conn.close()
@@ -610,7 +611,7 @@ def _doc_read_more(hit: dict, radius: int, docmod, width: int) -> bool:
     window a person actually sits at did not (Rafael, 2026-09-18, reading three
     results of which only the second was the one he wanted)."""
     import textwrap
-    conn = docmod.open_store(docmod.index_path(hit["collection"]))
+    conn = docmod.open_store(docmod.read_index_path(hit["collection"]))
     texts, first, last, total = docmod.parts_around(conn, hit["doc"], hit["ord"], radius)
     conn.close()
     if not texts:

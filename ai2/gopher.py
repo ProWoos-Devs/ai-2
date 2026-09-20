@@ -89,7 +89,7 @@ class Library:
     def store(self, name: str):
         if not doc.valid_collection(name) or name not in {n for n, _ in self.collections()}:
             return None
-        return doc.open_store(doc.index_path(name))
+        return doc.open_store(doc.read_index_path(name))
 
 
 class Menus:

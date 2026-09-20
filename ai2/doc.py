@@ -29,6 +29,7 @@ import array
 import json
 import math
 import os
+import pathlib
 import re
 import shutil
 import sqlite3
@@ -77,14 +78,64 @@ def doc_root() -> str:
     return os.path.join(data_dir(), "doc")
 
 
+# Packs that come with AI-2 itself, installed by a package. AI-2's own
+# documentation has to be there the moment it is needed, which is when the
+# machine has no network (Rafael, 2026-09-18). They are read-only: a package
+# owns those files, so nothing here may write into them, and a person's own
+# copy of the same pack (a newer revision from the catalog) lives in their
+# home and takes precedence.
+SYSTEM_DOC_ROOT = "/usr/share/ai2/doc"
+
+
+def system_doc_root() -> str:
+    return os.environ.get("AI2_SYSTEM_DOC_DIR") or SYSTEM_DOC_ROOT
+
+
 def valid_collection(name: str) -> bool:
     """A collection name is a directory name: lower-case letters, digits, dot,
     dash and underscore, starting with a letter or digit."""
     return bool(name) and bool(_COLLECTION_NAME.match(name))
 
 
+def collection_dir(collection: str = DEFAULT_COLLECTION) -> str:
+    """Where this collection is read from: the person's own copy when there
+    is one, else the one that came with AI-2."""
+    home = os.path.join(doc_root(), collection)
+    if os.path.isfile(os.path.join(home, "index.sqlite")):
+        return home
+    system = os.path.join(system_doc_root(), collection)
+    return system if os.path.isfile(os.path.join(system, "index.sqlite")) else home
+
+
 def index_path(collection: str = DEFAULT_COLLECTION) -> str:
+    """This collection's index in the person's home, which is the only place
+    anything may write. Unchanged meaning since 0.14: a caller that has not
+    been taught about the packs that come with AI-2 keeps working on the
+    home copy, rather than silently writing into a package's files."""
     return os.path.join(doc_root(), collection, "index.sqlite")
+
+
+def read_index_path(collection: str = DEFAULT_COLLECTION) -> str:
+    """The index to READ: the person's own copy when there is one, else the
+    one that came with AI-2."""
+    return os.path.join(collection_dir(collection), "index.sqlite")
+
+
+def is_system(collection: str) -> bool:
+    """True when this collection is read from the system location, which is
+    to say the person has no copy of their own."""
+    return collection_dir(collection).startswith(system_doc_root() + os.sep)
+
+
+def system_collections() -> list[str]:
+    """The collections that came with AI-2, by name, whether or not a copy in
+    the home shadows them."""
+    try:
+        names = os.listdir(system_doc_root())
+    except OSError:
+        return []
+    return sorted(n for n in names if valid_collection(n)
+                  and os.path.isfile(os.path.join(system_doc_root(), n, "index.sqlite")))
 
 
 def migrate_legacy_index() -> None:
@@ -101,16 +152,22 @@ def migrate_legacy_index() -> None:
 
 
 def list_collections() -> list[str]:
-    """The collections that have an index, by name."""
+    """The collections that have an index, by name: the person's own and the
+    ones that came with AI-2, each named once (a home copy shadows the
+    system one of the same name)."""
     migrate_legacy_index()
     try:
-        names = os.listdir(doc_root())
+        names = [n for n in os.listdir(doc_root())
+                 if valid_collection(n) and os.path.isfile(index_path(n))]
     except FileNotFoundError:
-        return []
-    return sorted(n for n in names if valid_collection(n) and os.path.isfile(index_path(n)))
+        names = []
+    return sorted(set(names) | set(system_collections()))
 
 
 def remove_collection(name: str) -> None:
+    """Remove the person's own copy. The system one is a package's file and
+    is never touched here; when a home copy shadowed it, removing the copy
+    puts the version that came with AI-2 back in use."""
     shutil.rmtree(os.path.join(doc_root(), name), ignore_errors=True)
 
 
@@ -118,6 +175,9 @@ def open_store(path: str | None = None) -> sqlite3.Connection:
     if path is None:
         migrate_legacy_index()
         path = index_path()
+    if os.path.abspath(path).startswith(system_doc_root() + os.sep):
+        # a package owns this file: open it read-only and touch no schema
+        return sqlite3.connect(pathlib.Path(path).as_uri() + "?mode=ro", uri=True)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     conn = sqlite3.connect(path)
     conn.execute("PRAGMA foreign_keys = ON")

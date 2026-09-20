@@ -80,7 +80,7 @@ def origin_of(collection: str) -> dict | None:
     SHA-256 that was fetched. Kept beside the pack rather than inside it, so
     the artifact stays exactly manifest.yml + index.sqlite, and so the answer
     survives the catalog changing or the machine being offline."""
-    path = os.path.join(doc.doc_root(), collection, ORIGIN)
+    path = os.path.join(doc.collection_dir(collection), ORIGIN)
     try:
         with open(path, encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
@@ -91,7 +91,7 @@ def origin_of(collection: str) -> dict | None:
 
 def manifest_of(collection: str) -> dict | None:
     """The manifest of an installed pack, None for a collection of one's own."""
-    path = os.path.join(doc.doc_root(), collection, MANIFEST)
+    path = os.path.join(doc.collection_dir(collection), MANIFEST)
     try:
         with open(path, encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
@@ -113,7 +113,7 @@ def export_pack(collection: str, out_path: str, template: dict | None = None) ->
     """Write the collection as a pack file; returns its manifest. The template
     supplies what a person has to say (title, license, attribution, sources);
     what the store knows (model, counts, hashes) is filled in here and wins."""
-    src = doc.index_path(collection)
+    src = doc.read_index_path(collection)
     if not os.path.isfile(src):
         raise PackError(f"no collection named {collection!r}")
     doc.open_store(src).close()             # a store made by 0.14/0.15 gains the page columns first

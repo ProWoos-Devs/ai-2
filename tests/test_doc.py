@@ -1,6 +1,7 @@
 """`ai-2 doc`: chunking, the SQLite store, retrieval and the routing gate, with
 no server (vectors come from a fake embedder)."""
 import os
+import sqlite3
 
 import pytest
 
@@ -329,7 +330,7 @@ def test_doc_search_prints_passages_without_a_chat_model(tmp_path, monkeypatch, 
 
 
 def _store(name, model, docs):
-    conn = doc.open_store(doc.index_path(name))
+    conn = doc.open_store(doc.index_path(name))   # the home copy: only writable place
     doc.set_store_model(conn, model, 8)
     for doc_name, texts in docs.items():
         doc.add_document(conn, doc_name, "/" + doc_name, texts, [fake_vec(t) for t in texts], words=len(texts))
@@ -803,3 +804,93 @@ def test_search_shows_one_result_per_document_and_ask_keeps_every_part(tmp_path,
     assert [h["doc"] for h in every] == ["faq.txt"] * 3
     distinct = knowledgecli._doc_hits(args, doc, hw, "madrid?", distinct=True)
     assert [h["doc"] for h in distinct] == ["faq.txt", "other.txt"]
+
+
+def _system_pack(tmp_path, monkeypatch, name="ai2-help", text="A system pack answer.", revision=1):
+    """A pack in the read-only system location, as the ai2-help package
+    installs it: index, manifest, and the record of where it came from."""
+    import yaml
+    import shutil
+    root = tmp_path / "system-doc"
+    (root / name).mkdir(parents=True, exist_ok=True)
+    # built elsewhere and moved in, the way the package does it: the system
+    # location is read-only even to us
+    staging = tmp_path / "staging.sqlite"
+    conn = doc.open_store(str(staging))
+    doc.set_store_model(conn, "nomic-embed-text-v1.5", 8)
+    doc.add_document(conn, "help.txt", "/help.txt", [text], [fake_vec(text)], len(text.split()))
+    conn.close()
+    shutil.move(str(staging), str(root / name / "index.sqlite"))
+    monkeypatch.setenv("AI2_SYSTEM_DOC_DIR", str(root))
+    # and made read-only, as pacman leaves a package's files for a user
+    (root / name / "index.sqlite").chmod(0o444)
+    (root / name / "manifest.yml").write_text(yaml.safe_dump(
+        {"id": name, "title": "AI-2 Help", "version": "2026-09-18", "revision": revision,
+         "license": "MIT", "languages": ["en"],
+         "embedder": {"id": "nomic-embed-text-v1.5"}}), encoding="utf-8")
+    (root / name / "origin.yml").write_text(yaml.safe_dump(
+        {"from": "AI-2 itself", "id": name}), encoding="utf-8")
+    return root
+
+
+def test_a_pack_that_came_with_ai2_is_listed_and_searched(tmp_path, monkeypatch):
+    """AI-2's own documentation has to be there when the machine has no
+    network, so it comes with AI-2 instead of being installed into a home."""
+    from ai2 import pack
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    _system_pack(tmp_path, monkeypatch)
+    assert doc.list_collections() == ["ai2-help"]
+    assert doc.system_collections() == ["ai2-help"]
+    assert doc.is_system("ai2-help")
+    assert pack.manifest_of("ai2-help")["title"] == "AI-2 Help"
+    hits = doc.search(doc.open_store(doc.read_index_path("ai2-help")), fake_vec("A system pack answer."), top=1)
+    assert hits and hits[0]["doc"] == "help.txt"
+
+
+def test_your_own_copy_shadows_the_one_that_came_with_ai2(tmp_path, monkeypatch):
+    """A newer revision installed from the catalog lands in the home and is
+    what gets searched; removing it puts the system one back in use."""
+    from ai2 import pack
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    _system_pack(tmp_path, monkeypatch)
+    _store("ai2-help", "nomic-embed-text-v1.5", {"mine.txt": ["My own newer copy."]})
+    assert doc.list_collections() == ["ai2-help"], "named once, not twice"
+    assert not doc.is_system("ai2-help")
+    assert [d["name"] for d in doc.list_documents(doc.open_store(doc.read_index_path("ai2-help")))] == ["mine.txt"]
+    doc.remove_collection("ai2-help")
+    assert doc.is_system("ai2-help") and doc.list_collections() == ["ai2-help"]
+    assert [d["name"] for d in doc.list_documents(doc.open_store(doc.read_index_path("ai2-help")))] == ["help.txt"]
+    assert pack.origin_of("ai2-help")["from"] == "AI-2 itself"
+
+
+def test_a_read_only_system_pack_is_still_searchable(tmp_path, monkeypatch):
+    """The real one is root-owned and 444. SQLite would try to write a
+    journal on any open that is not explicitly read-only, so this is what
+    breaks first if open_store ever stops noticing where the file is."""
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    root = _system_pack(tmp_path, monkeypatch)
+    (root / "ai2-help").chmod(0o555)
+    try:
+        conn = doc.open_store(doc.read_index_path("ai2-help"))
+        assert [d["name"] for d in doc.list_documents(conn)] == ["help.txt"]
+        with pytest.raises(sqlite3.OperationalError):
+            conn.execute("CREATE TABLE nope (x)")      # read-only, and it stays that way
+        conn.close()
+    finally:
+        (root / "ai2-help").chmod(0o755)
+
+
+def test_nothing_writes_into_the_system_location(tmp_path, monkeypatch):
+    """A package owns those files. Indexing and forgetting take the home
+    path, so a write against a system pack makes a copy of the person's own
+    rather than touching what the package installed."""
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    root = _system_pack(tmp_path, monkeypatch)
+    before = (root / "ai2-help" / "index.sqlite").read_bytes()
+    assert doc.index_path("ai2-help").startswith(doc.doc_root())
+    assert doc.index_path("ai2-help") != doc.read_index_path("ai2-help")
+    conn = doc.open_store(doc.index_path("ai2-help"))
+    doc.set_store_model(conn, "nomic-embed-text-v1.5", 8)
+    doc.add_document(conn, "mine.txt", "/mine.txt", ["mine"], [fake_vec("mine")], 1)
+    conn.close()
+    assert (root / "ai2-help" / "index.sqlite").read_bytes() == before, "the package's file was written to"
