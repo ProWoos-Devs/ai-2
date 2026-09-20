@@ -17,14 +17,14 @@ local cuando se puede, remoto cuando no.</translation>
     </message>
     <message>
         <source>Knowledge Packs</source>
-        <translation>Knowledge Packs</translation>
+        <translation>Paquetes de Conocimiento</translation>
     </message>
     <message>
         <source>AI-2 arrives with three Knowledge Packs: AI-2 Help, Everyday Reference
 and Linux Essentials. This computer searches them in seconds, with no
 internet, and names the document every answer came from. No AI writes
 those answers, so an old PC answers as well as a new one.</source>
-        <translation>AI-2 llega con tres Knowledge Packs: AI-2 Help, Everyday Reference
+        <translation>AI-2 llega con tres Paquetes de Conocimiento: AI-2 Help, Everyday Reference
 y Linux Essentials. Este ordenador los busca en segundos, sin internet,
 y dice el documento del que sale cada respuesta. Esas respuestas no las
 escribe ninguna IA, así que un PC antiguo responde tan bien como uno nuevo.</translation>
@@ -34,7 +34,7 @@ escribe ninguna IA, así que un PC antiguo responde tan bien como uno nuevo.</tr
 Add more in  Applications > AI-2 > Knowledge Packs , or make one from your own PDFs.
 The community catalog, to get packs and share yours:  github.com/ProWoos-Devs/ai2-knowledge</source>
         <translation>Aplicaciones &gt; AI-2 &gt; Buscar conocimiento   funciona nada más instalar.
-Añade más en  Aplicaciones > AI-2 > Knowledge Packs , o crea uno con tus propios PDF.
+Añade más en  Aplicaciones > AI-2 > Paquetes de Conocimiento , o crea uno con tus propios PDF.
 El catálogo de la comunidad, para obtener paquetes y compartir los tuyos:  github.com/ProWoos-Devs/ai2-knowledge</translation>
     </message>
     <message>
@@ -63,7 +63,7 @@ works right after install, even with no internet. Being small, it
 can get facts wrong: for facts, ask the Knowledge Packs instead.</source>
         <translation>AI-2 trae un pequeño modelo inicial, así que el chat funciona
 nada más instalar, incluso sin internet. Al ser pequeño, puede
-equivocarse en los datos: para datos, pregunta a los Knowledge Packs.</translation>
+equivocarse en los datos: para datos, pregunta a los Paquetes de Conocimiento.</translation>
     </message>
     <message>
         <source>Once online, the setup wizard measures this machine

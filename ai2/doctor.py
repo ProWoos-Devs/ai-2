@@ -140,12 +140,12 @@ def check_knowledge() -> list[Check]:
         entry = next((m for m in catalog if m["id"] == model_id), None)
         if entry is None:
             out.append(Check(WARN, "Pack embedder", f"{model_id} is not in this AI-2's catalog; "
-                                                    "the packs built with it cannot be searched"))
+                                                    "the Knowledge Packs built with it cannot be searched"))
         elif find_model_file(entry["file"]):
             out.append(Check(OK, "Pack embedder", f"{entry['label']} is on this computer"))
         else:
             out.append(Check(WARN, "Pack embedder", f"{entry['label']} ({entry['file_mb']} MB) is not "
-                                                    "downloaded, so the packs cannot be searched yet; "
+                                                    "downloaded, so the Knowledge Packs cannot be searched yet; "
                                                     "the first search offers it"))
     own = [n for n in docmod.list_collections() if packmod.manifest_of(n) is None]
     if own and embedders:

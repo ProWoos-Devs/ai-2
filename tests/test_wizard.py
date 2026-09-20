@@ -219,9 +219,13 @@ def test_the_knowledge_packs_screen_explains_and_breathes(env, monkeypatch, loca
     w._knowledge_packs_intro()
     screen = "\n".join(said)
     lines = screen.split("\n")
-    assert "Knowledge Packs" in screen and "AI-2 Help, Linux Essentials, Everyday" in screen
+    # the name is translated (Rafael, 2026-09-20), and the menu path has to
+    # give the entry the name the menu itself shows in that language
+    term = {"es_ES.UTF-8": "Paquetes de Conocimiento",
+            "de_DE.UTF-8": "Wissenspakete"}.get(locale, "Knowledge Packs")
+    assert term in screen and "AI-2 Help, Linux Essentials, Everyday" in screen
     assert "ai-2 doc search" in screen and "ai-2 knowledge browse" in screen
-    assert "AI-2 > Knowledge Packs" in screen, "the menu entry where packs are chosen, installed and updated"
+    assert f"AI-2 > {term}" in screen, "the menu entry where Knowledge Packs are chosen and updated"
     assert "https://github.com/ProWoos-Devs/ai2-knowledge" in screen
     for wrong in ("already good at", "ya hace bien", "schon gut kann"):
         assert wrong not in screen
@@ -243,7 +247,8 @@ def test_the_first_question_opens_the_search_loop_once(env, monkeypatch):
     monkeypatch.setattr("builtins.input", lambda prompt="": next(questions))
     w = wz.Wizard(ask=lambda q, d: d, say=lambda t: None, run=lambda cmd: ran.append(cmd) or 0)
     w._first_question()
-    assert len(ran) == 1 and ran[0][-2:] == ["search", "how do I find a big file?"]
+    # --from-setup makes the loop say how to get back here (Rafael, 2026-09-20)
+    assert len(ran) == 1 and ran[0][-3:] == ["search", "--from-setup", "how do I find a big file?"]
     assert w._asked_the_packs is True
 
 

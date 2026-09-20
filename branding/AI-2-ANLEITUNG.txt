@@ -34,13 +34,13 @@ ist das außerdem viel schneller als der Chat.
 Gib nach den Ergebnissen die Nummer eines Treffers ein, um das ganze
 Dokument zu lesen, aus dem er stammt. Mit q kommst du zu deinen Fragen zurück.
 
-Drei Knowledge Packs bringt AI-2 mit (auf Englisch):
+Drei Wissenspakete bringt AI-2 mit (auf Englisch):
 
   AI-2 Help           wie man dieses System benutzt, auch ohne Netz
   Linux Essentials    zwanzig Alltagsaufgaben: volle Platte, hängendes Programm
   Everyday Reference  196 Länder: Hauptstädte, Währungen, Sprachen, Codes
 
-Um Pakete hinzuzufügen, öffne Anwendungen > AI-2 > Knowledge Packs. Dort
+Um Pakete hinzuzufügen, öffne Anwendungen > AI-2 > Wissenspakete. Dort
 stehen die vorhandenen Pakete, mit dem, was in jedem steckt und wer es
 gemacht hat, und du tippst die Nummern derer ein, die du willst. Nichts
 aktualisiert ein Paket hinter deinem Rücken: Gibt es von einem deiner Pakete
@@ -84,7 +84,7 @@ Das ist normal und nicht kaputt. Ein kleines Modell kann sich auch bei
 Fakten und einfachem Rechnen irren, behandle es also als schnellen Helfer,
 nicht als Lexikon.
 
-Wenn du verlässliche Fakten willst, nimm stattdessen die Knowledge Packs von
+Wenn du verlässliche Fakten willst, nimm stattdessen die Wissenspakete von
 oben. Diese Antworten stammen wortwörtlich aus Dokumenten und nicht vom
 Modell, sind also auf diesem Computer so gut wie auf jedem anderen.
 

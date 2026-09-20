@@ -726,7 +726,7 @@ def _chat_remote(args, cfg: dict) -> int:
 
 
 def cmd_gopher(args) -> int:
-    """`ai-2 gopher`: serve the knowledge packs over Gopher, so any machine on
+    """`ai-2 gopher`: serve the Knowledge Packs over Gopher, so any machine on
     the network can ask them without AI-2 on it."""
     import socket
     from . import doc as docmod
@@ -1295,6 +1295,7 @@ def main(argv: list[str] | None = None) -> int:
     p_d_ask.set_defaults(func=cmd_doc)
     p_d_search = d_sub.add_parser("search", help="show the parts of your documents closest to a question, with their pages; no chat model")
     p_d_search.add_argument("question", nargs="*", help="the question; with none, it asks for one and keeps asking")
+    p_d_search.add_argument("--from-setup", action="store_true", help=argparse.SUPPRESS)
     p_d_search.add_argument("--top", type=int, default=3, help="how many parts to show (default 3)")
     p_d_search.add_argument("--doc", help="search only this document (name as in ai-2 doc list)")
     p_d_search.add_argument("--in", dest="collection", metavar="NAME", help="only this collection (ai-2 doc list shows them)")
@@ -1307,18 +1308,18 @@ def main(argv: list[str] | None = None) -> int:
                             help="remove every document of the collection and the collection itself (default: documents)")
     p_d_forget.add_argument("--in", dest="collection", metavar="NAME", help="the collection the document is in")
     p_d_forget.set_defaults(func=cmd_doc)
-    p_kn = sub.add_parser("knowledge", help="knowledge packs: install one, or make one from your own documents",
+    p_kn = sub.add_parser("knowledge", help="Knowledge Packs: install one, or make one from your own documents",
                           epilog="The community catalog, where every pack is listed with its download and where "
                                  "you share one you made:  https://github.com/ProWoos-Devs/ai2-knowledge")
     kn_sub = p_kn.add_subparsers(dest="knowledge_cmd", metavar="action")
-    p_kn_avail = kn_sub.add_parser("available", help="the packs of the community catalog this AI-2 can fetch by name")
+    p_kn_avail = kn_sub.add_parser("available", help="the Knowledge Packs of the community catalog this AI-2 can fetch by name")
     p_kn_avail.add_argument("term", nargs="?", help="only those whose name or title contains this")
     p_kn_avail.set_defaults(func=cmd_knowledge)
-    p_kn_browse = kn_sub.add_parser("browse", help="see the packs with what is in each, pick by number, install or "
+    p_kn_browse = kn_sub.add_parser("browse", help="see the Knowledge Packs with what is in each, pick by number, install or "
                                                    "update (the Knowledge Packs menu entry)")
     p_kn_browse.add_argument("--window", action="store_true", help="open it in its own terminal window (what the menu entry uses)")
     p_kn_browse.set_defaults(func=cmd_knowledge)
-    p_kn_upd = kn_sub.add_parser("update", help="bring installed packs up to the newest version the catalog knows")
+    p_kn_upd = kn_sub.add_parser("update", help="bring installed Knowledge Packs up to the newest version the catalog knows")
     p_kn_upd.add_argument("ids", nargs="*", metavar="ID", help="only these (default: every pack with a newer version)")
     p_kn_upd.set_defaults(func=cmd_knowledge)
     p_kn_inst = kn_sub.add_parser("install", help="install a pack: a .ai2pack file, or a name from ai-2 knowledge available")
@@ -1327,7 +1328,7 @@ def main(argv: list[str] | None = None) -> int:
     p_kn_inst.add_argument("--force", action="store_true",
                            help="install even when the file is an older revision than the installed pack")
     p_kn_inst.set_defaults(func=cmd_knowledge)
-    kn_sub.add_parser("list", help="the knowledge packs installed here").set_defaults(func=cmd_knowledge)
+    kn_sub.add_parser("list", help="the Knowledge Packs installed here").set_defaults(func=cmd_knowledge)
     p_kn_rm = kn_sub.add_parser("remove", help="remove an installed knowledge pack")
     p_kn_rm.add_argument("name")
     p_kn_rm.set_defaults(func=cmd_knowledge)
@@ -1338,10 +1339,10 @@ def main(argv: list[str] | None = None) -> int:
     p_kn_exp.set_defaults(func=cmd_knowledge)
     p_kn.set_defaults(func=cmd_knowledge)
 
-    p_go = sub.add_parser("gopher", help="serve the knowledge packs over Gopher for other machines on the network")
+    p_go = sub.add_parser("gopher", help="serve the Knowledge Packs over Gopher for other machines on the network")
     p_go.add_argument("--host", default="127.0.0.1", help="address to listen on (0.0.0.0 shares it with the network)")
     p_go.add_argument("--port", type=int, default=gopher.PORT, help=f"port (default {gopher.PORT})")
-    p_go.add_argument("--all", action="store_true", help="serve your own indexed documents too, not only knowledge packs")
+    p_go.add_argument("--all", action="store_true", help="serve your own indexed documents too, not only Knowledge Packs")
     p_go.add_argument("--advertise", help="host name to put in the menu links (default: this host)")
     p_go.add_argument("--workers", type=int, default=gopher.WORKERS, metavar="N",
                       help=f"how many questions to answer at once (default {gopher.WORKERS}; a search "

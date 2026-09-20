@@ -17,14 +17,14 @@ lokal wenn möglich, entfernt wenn nicht.</translation>
     </message>
     <message>
         <source>Knowledge Packs</source>
-        <translation>Knowledge Packs</translation>
+        <translation>Wissenspakete</translation>
     </message>
     <message>
         <source>AI-2 arrives with three Knowledge Packs: AI-2 Help, Everyday Reference
 and Linux Essentials. This computer searches them in seconds, with no
 internet, and names the document every answer came from. No AI writes
 those answers, so an old PC answers as well as a new one.</source>
-        <translation>AI-2 kommt mit drei Knowledge Packs: AI-2 Help, Everyday Reference
+        <translation>AI-2 kommt mit drei Wissenspakete: AI-2 Help, Everyday Reference
 und Linux Essentials. Dieser Computer durchsucht sie in Sekunden, ohne
 Internet, und nennt das Dokument zu jeder Antwort. Keine KI schreibt diese
 Antworten, deshalb antwortet ein alter PC so gut wie ein neuer.</translation>
@@ -34,7 +34,7 @@ Antworten, deshalb antwortet ein alter PC so gut wie ein neuer.</translation>
 Add more in  Applications > AI-2 > Knowledge Packs , or make one from your own PDFs.
 The community catalog, to get packs and share yours:  github.com/ProWoos-Devs/ai2-knowledge</source>
         <translation>Anwendungen &gt; AI-2 &gt; Wissen durchsuchen   funktioniert gleich nach der Installation.
-Weitere gibt es in  Anwendungen > AI-2 > Knowledge Packs , oder bau eines aus eigenen PDFs.
+Weitere gibt es in  Anwendungen > AI-2 > Wissenspakete , oder bau eines aus eigenen PDFs.
 Der Community-Katalog, um Pakete zu holen und eigene zu teilen:  github.com/ProWoos-Devs/ai2-knowledge</translation>
     </message>
     <message>
@@ -63,7 +63,7 @@ works right after install, even with no internet. Being small, it
 can get facts wrong: for facts, ask the Knowledge Packs instead.</source>
         <translation>AI-2 bringt ein kleines Startmodell mit, der Chat funktioniert
 also gleich nach der Installation, auch ohne Internet. Weil es klein ist,
-kann es bei Fakten irren: für Fakten frag die Knowledge Packs.</translation>
+kann es bei Fakten irren: für Fakten frag die Wissenspakete.</translation>
     </message>
     <message>
         <source>Once online, the setup wizard measures this machine

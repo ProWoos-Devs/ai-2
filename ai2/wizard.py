@@ -466,7 +466,7 @@ class Wizard:
         # document, empty line comes back to the setup. Passing the question
         # makes it the first round, so they are not asked twice.
         self.run([sys.executable, "-c", "import sys; from ai2.cli import main; sys.exit(main())",
-                  "doc", "search", question])
+                  "doc", "search", "--from-setup", question])
 
     def _try_the_packs(self) -> None:
         """Offer a first question while the person is still looking at the
@@ -477,7 +477,7 @@ class Wizard:
         if getattr(self, "_asked_the_packs", False):
             return                      # they already did, at the start; asking again is noise
         if self.ask(tr("\nAsk the Knowledge Packs a first question now?"), True):
-            self.run([sys.executable, "-c", "import sys; from ai2.cli import main; sys.exit(main())", "doc", "search"])
+            self.run([sys.executable, "-c", "import sys; from ai2.cli import main; sys.exit(main())", "doc", "search", "--from-setup"])
 
     def _check_updates(self) -> None:
         """Tell the user, in one line, whether system updates are waiting. The

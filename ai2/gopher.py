@@ -1,20 +1,20 @@
-"""`ai-2 gopher`: serve this computer's knowledge packs over Gopher (RFC 1436).
+"""`ai-2 gopher`: serve this computer's Knowledge Packs over Gopher (RFC 1436).
 
 Why Gopher. The protocol's search item (type 7) is exactly the shape of
 `ai-2 doc search`: the client sends a selector and a query, the server sends
-back a menu. So an old machine holding the packs can answer questions for
+back a menu. So an old machine holding the Knowledge Packs can answer questions for
 every other machine in the house, over a protocol that costs nothing in
 bandwidth and that clients exist for on anything with a network stack. No AI-2
 code is needed on the asking side.
 
-What is served. By default only knowledge packs, because a pack is published
+What is served. By default only Knowledge Packs, because a pack is published
 material; a person's own indexed documents are exposed only with --all. The
 menu offers, per collection, a search item and a list of its documents; a
 document comes back as plain text with its parts joined.
 
 What is not served. The chat model. An answer takes minutes on the machines
 AI-2 is built for, far longer than any Gopher client waits, and the passages
-are the part that is reliable there anyway (knowledge packs review, 2026-09-16).
+are the part that is reliable there anyway (Knowledge Packs review, 2026-09-16).
 """
 
 from __future__ import annotations

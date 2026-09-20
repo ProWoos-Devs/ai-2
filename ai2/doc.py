@@ -110,7 +110,7 @@ def collection_dir(collection: str = DEFAULT_COLLECTION) -> str:
 def index_path(collection: str = DEFAULT_COLLECTION) -> str:
     """This collection's index in the person's home, which is the only place
     anything may write. Unchanged meaning since 0.14: a caller that has not
-    been taught about the packs that come with AI-2 keeps working on the
+    been taught about the Knowledge Packs that come with AI-2 keeps working on the
     home copy, rather than silently writing into a package's files."""
     return os.path.join(doc_root(), collection, "index.sqlite")
 

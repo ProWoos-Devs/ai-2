@@ -230,7 +230,7 @@ def test_knowledge_cli_export_install_search_list_remove(home, monkeypatch, caps
     assert cli.main(["knowledge", "install", str(home / "missing.ai2pack")]) == 1
     assert "no pack file at" in capsys.readouterr().err
     assert cli.main(["knowledge", "list"]) == 0
-    assert "No knowledge packs installed" in capsys.readouterr().out
+    assert "No Knowledge Packs installed" in capsys.readouterr().out
 
 
 def _serve(directory):
@@ -267,7 +267,7 @@ def test_install_by_name_from_the_catalog(home, monkeypatch, capsys):
         # the packs other people have made are to be found instead
         assert "ai2-knowledge" in text and "install FILE.ai2pack" in text
         assert cli.main(["knowledge", "available", "nothing-like-this"]) == 0
-        assert "No knowledge packs to fetch by name yet" in capsys.readouterr().out
+        assert "No Knowledge Packs to fetch by name yet" in capsys.readouterr().out
         assert cli.main(["knowledge", "install", "everyday"]) == 0
         text = capsys.readouterr().out
         assert "Downloading" in text and "Installed everyday" in text
@@ -446,7 +446,7 @@ def test_an_updated_machine_is_told_the_packs_exist(home, monkeypatch, capsys):
     args = type("A", (), {"gui": False})()
     assert cli.cmd_update(args) == 0
     out = capsys.readouterr().out
-    assert "no knowledge packs" in out and "ai-2 knowledge browse" in out and "Applications > AI-2 > Knowledge Packs" in out and "ai2-help" in out
+    assert "no Knowledge Packs" in out and "ai-2 knowledge browse" in out and "Applications > AI-2 > Knowledge Packs" in out and "ai2-help" in out
 
     # a machine that already has one is not nagged, and a failed update says nothing about packs
     make_collection("mine", {"a.txt": ["Hello."]})
@@ -455,10 +455,10 @@ def test_an_updated_machine_is_told_the_packs_exist(home, monkeypatch, capsys):
     pack.install_pack(out_path)
     capsys.readouterr()
     assert cli.cmd_update(args) == 0
-    assert "no knowledge packs" not in capsys.readouterr().out
+    assert "no Knowledge Packs" not in capsys.readouterr().out
     monkeypatch.setattr(software, "update", lambda: 1)
     assert cli.cmd_update(args) == 1
-    assert "no knowledge packs" not in capsys.readouterr().out
+    assert "no Knowledge Packs" not in capsys.readouterr().out
 
 
 def test_every_pack_in_the_packaged_catalog_names_its_maker_and_the_listing_points_home(home, capsys):

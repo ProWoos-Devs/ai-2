@@ -1,5 +1,5 @@
 """The Knowledge Packs window: see what there is, pick by number, install, and
-bring installed packs up to date.
+bring installed Knowledge Packs up to date.
 
 Until 0.18.7 all of this was three terminal commands a person had to know
 (`ai-2 knowledge available`, `install ID` one pack at a time, and nothing at all
@@ -32,7 +32,7 @@ WINDOW = "Applications > AI-2 > Knowledge Packs"
 
 
 def installed_by_id() -> dict[str, dict]:
-    """Installed packs keyed by the id in their manifest (the collection name
+    """Installed Knowledge Packs keyed by the id in their manifest (the collection name
     can differ when a pack was installed `--as` something else)."""
     found: dict[str, dict] = {}
     for name, manifest in pack.installed_packs():
@@ -138,16 +138,16 @@ def browse(install: Callable[[dict], int], model_cost: Callable[[dict], str | No
     if banner:
         say(banner)
     say(textwrap.fill(tr("Knowledge Packs are sets of documents this computer searches and answers from, "
-                         "with no internet, naming the document every answer came from. These are the packs "
+                         "with no internet, naming the document every answer came from. These are the Knowledge Packs "
                          "of the community catalog that this AI-2 knows."), width=width))
     if not catalog:
-        say(tr("\nThe list is empty. Packs, and how to share one you made:  {url}").format(url=pack.CATALOG_URL))
+        say(tr("\nThe list is empty. Knowledge Packs, and how to share one you made:  {url}").format(url=pack.CATALOG_URL))
         return 0
     failed = 0
     while True:
         installed = installed_by_id()
         say("\n" + render(catalog, installed, width))
-        say(tr("\nMore packs, and how to share one you made:  {url}").format(url=pack.CATALOG_URL))
+        say(tr("\nMore Knowledge Packs, and how to share one you made:  {url}").format(url=pack.CATALOG_URL))
         say(tr("A pack file you downloaded:                 ai-2 knowledge install FILE.ai2pack"))
         say(tr("Remove a pack:                              ai-2 knowledge remove NAME"))
         if not interactive:
@@ -159,7 +159,7 @@ def browse(install: Callable[[dict], int], model_cost: Callable[[dict], str | No
         else:
             # said, not packed into the prompt: a prompt longer than the window
             # wraps, and line editing then misplaces the cursor
-            say(tr("\nTo install packs, type their numbers, for example  1 3"))
+            say(tr("\nTo install Knowledge Packs, type their numbers, for example  1 3"))
             if newer:
                 say(tr("To update the ones that have a newer version, type  u"))
             prompt = tr("Numbers, or just Enter to close: ")

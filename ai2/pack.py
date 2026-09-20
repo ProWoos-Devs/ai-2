@@ -21,7 +21,7 @@ checks on, schema functions untrusted, no memory-mapped I/O, no triggers or
 views, `PRAGMA quick_check` before anything else reads it, and then the
 schema must be exactly the `ai-2 doc` tables. Retrieval quality and query
 speed were measured before this format was fixed: vectors only, no keyword
-table (knowledge packs review 2026-09-15, section 2.3).
+table (Knowledge Packs review 2026-09-15, section 2.3).
 """
 
 from __future__ import annotations
@@ -411,7 +411,7 @@ def origin_label(origin: dict | None) -> str:
 
 
 def load_catalog() -> list[dict]:
-    """The packs AI-2 knows how to fetch by name: the copy of the community
+    """The Knowledge Packs AI-2 knows how to fetch by name: the copy of the community
     catalog that ships inside the ai-2 package, so the SHA-256 of every entry
     is covered by the signature on the package itself; a pack is only as
     trustworthy as where its hash came from."""

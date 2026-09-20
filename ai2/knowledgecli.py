@@ -107,7 +107,7 @@ def _doc_forget(args, docmod) -> int:
 
 
 def cmd_knowledge(args) -> int:
-    """`ai-2 knowledge export|install|list|remove`: knowledge packs, a
+    """`ai-2 knowledge export|install|list|remove`: Knowledge Packs, a
     collection of documents in one file that other computers can install."""
     import yaml
     from . import doc as docmod
@@ -139,7 +139,7 @@ def cmd_knowledge(args) -> int:
                 term = args.term.lower()
                 entries = [e for e in entries if term in f"{e.get('id')} {e.get('title')}".lower()]
             if not entries:
-                print("No knowledge packs to fetch by name yet. A pack file works the same way:  "
+                print("No Knowledge Packs to fetch by name yet. A pack file works the same way:  "
                       "ai-2 knowledge install FILE.ai2pack")
                 print(f"The community catalog, to get packs and to share one you made:  {packmod.CATALOG_URL}")
                 return 0
@@ -272,7 +272,7 @@ def cmd_knowledge(args) -> int:
             return 0
         packs = packmod.installed_packs()
         if not packs:
-            print("No knowledge packs installed. Install one with:  ai-2 knowledge install FILE.ai2pack")
+            print("No Knowledge Packs installed. Install one with:  ai-2 knowledge install FILE.ai2pack")
             return 0
         print("Knowledge packs:")
         for name, m in packs:
@@ -729,7 +729,7 @@ def _knowledge_browse(packmod, docmod) -> int:
 
 
 def _knowledge_update(ids: list[str], packmod, docmod) -> int:
-    """`ai-2 knowledge update [ID ...]`: bring installed packs up to the newest
+    """`ai-2 knowledge update [ID ...]`: bring installed Knowledge Packs up to the newest
     revision the catalog knows. With no ids, every pack that has one."""
     from . import packbrowse
     newer = packbrowse.outdated()
@@ -784,7 +784,7 @@ def _doc_more_hints() -> None:
     from . import pack as packmod
     print(tr("\nAdd or update Knowledge Packs:  Applications > AI-2 > Knowledge Packs   (ai-2 knowledge browse)"))
     print(tr("Your own documents:            ai-2 doc index FILE"))
-    print(tr("Get packs, share yours:        {url}").format(url=packmod.CATALOG_URL))
+    print(tr("Get Knowledge Packs, share yours:  {url}").format(url=packmod.CATALOG_URL))
 
 
 def _offer_the_packs(docmod, width) -> bool:
@@ -876,7 +876,7 @@ def _doc_search_loop(args, docmod, width, first: str | None = None) -> int:
     import textwrap
     hw = detect()
     print(branding.compact())
-    print(textwrap.fill(tr("This searches the documents and knowledge packs on this computer and shows "
+    print(textwrap.fill(tr("This searches the documents and Knowledge Packs on this computer and shows "
                            "the passages that match, each with the document it came from. It is not AI-2 "
                            "Chat: nothing here is written by the AI, so nothing can be made up."), width=width + 4))
     names = docmod.list_collections()
@@ -899,7 +899,7 @@ def _doc_search_loop(args, docmod, width, first: str | None = None) -> int:
         for _name, m in packs:
             langs.update(str(x).lower() for x in (m.get("languages") or []))
         if langs and langs <= {"en", "eng", "english"}:
-            print(tr("The packs on this computer are in English."))
+            print(tr("The Knowledge Packs on this computer are in English."))
     if own:
         # not everything indexed is a pack: these are the person's own files
         print(tr("\nAlso searching your own documents:  {names}").format(names=", ".join(own)))
@@ -911,8 +911,9 @@ def _doc_search_loop(args, docmod, width, first: str | None = None) -> int:
         if notice:
             print("\n" + notice)
     _doc_more_hints()
-    if not first:
-        print(tr("\nType a question, or press Enter on an empty line to finish."))
+    back = getattr(args, "from_setup", False)
+    print(tr("\nAnother question, or press Enter on an empty line to go back to the setup.") if back
+          else tr("\nType a question, or press Enter on an empty line to finish."))
     asked = 0
     last_hits: list[dict] = []
     radius: dict[int, int] = {}       # how far each result has been opened so far
@@ -948,7 +949,9 @@ def _doc_search_loop(args, docmod, width, first: str | None = None) -> int:
             asked += 1
             last_hits, radius = hits, {}
             _doc_show_hits(hits, width)
-            print(tr("\nType a number to read more of that one, or ask something else."))
+            print(tr("\nType a number to read more of that one, ask something else, or press Enter "
+                     "to go back to the setup.") if back
+                  else tr("\nType a number to read more of that one, or ask something else."))
     print(tr("\nDone.") if asked else tr("\nNothing asked."))
     return 0
 
@@ -1034,7 +1037,7 @@ def _doc_ask(args, docmod) -> int:
 def _mention_knowledge_packs() -> None:
     """After a successful update, one line for a machine that has no knowledge
     packs. An update changes packages, never a person's documents, so a machine
-    brought up to date never gains the packs a fresh ISO install starts with,
+    brought up to date never gains the Knowledge Packs a fresh ISO install starts with,
     and nothing else tells it they exist. Nothing is downloaded here."""
     try:
         from . import pack, packbrowse
@@ -1051,7 +1054,7 @@ def _mention_knowledge_packs() -> None:
     if not entries:
         return
     names = ", ".join(e["id"] for e in entries[:3])
-    print(f"\nThis computer has no knowledge packs. {len(entries)} can be installed and then searched with "
+    print(f"\nThis computer has no Knowledge Packs. {len(entries)} can be installed and then searched with "
           f"no network at all ({names}).\nChoose among them in  Applications > AI-2 > Knowledge Packs , or with:  "
           "ai-2 knowledge browse\n"
           f"The community catalog, to get packs and to share one you made:  {pack.CATALOG_URL}")
