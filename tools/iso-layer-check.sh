@@ -44,7 +44,7 @@ INIT=$(unsquashfs -l "$ROOTFS" 2>/dev/null |
        sed -n 's|^squashfs-root/\(.*/ai2/__init__.py\)$|\1|p' | head -1)
 unsquashfs -q -f -d "$EXTRACT" "$ROOTFS" \
     etc/pacman.conf etc/motd etc/os-release usr/lib/os-release \
-    etc/skel/.local/share/ai2/doc ${INIT:+"$INIT"} >/dev/null 2>&1
+    usr/share/ai2/doc ${INIT:+"$INIT"} >/dev/null 2>&1
 
 # 1. No candidate repository on an installed system. A test image builds one
 #    to install an unsigned package; it must never reach the root overlay.
@@ -72,20 +72,22 @@ else
     ok "os-release states no OS version"
 fi
 
-# 4. The packs the image ships are there, each with the record that says where
-#    it came from (without it a fresh install says "unknown source").
-SKEL="$EXTRACT/etc/skel/.local/share/ai2/doc"
+# 4. The packs the image ships are there, each with its manifest and the
+#    record that says where it came from (without it a fresh install says
+#    "unknown source"). They are packages now, under /usr/share/ai2/doc.
+SKEL="$EXTRACT/usr/share/ai2/doc"
 packs=0
 missing=0
 for d in "$SKEL"/*/; do
     [ -d "$d" ] || continue
     packs=$((packs + 1))
-    [ -f "$d/origin.yml" ] || missing=$((missing + 1))
+    { [ -f "$d/origin.yml" ] && [ -f "$d/manifest.yml" ] && [ -f "$d/index.sqlite" ]; } \
+        || missing=$((missing + 1))
 done
 if [ "$packs" -gt 0 ] && [ "$missing" = 0 ]; then
-    ok "$packs knowledge pack(s) in /etc/skel, each with its origin record"
+    ok "$packs knowledge pack(s) in /usr/share/ai2/doc, each complete"
 else
-    bad "knowledge packs in /etc/skel: $packs found, $missing without origin.yml"
+    bad "knowledge packs in /usr/share/ai2/doc: $packs found, $missing incomplete"
 fi
 
 # 5. The ai-2 version on the image, when the caller says which one to expect.

@@ -73,8 +73,11 @@ if [ "${AI2_CANDIDATE:-0}" = 1 ]; then
   shopt -s nullglob
   cands=("$SRC"/packaging/candidate/ai-2-*.pkg.tar.zst)
   [ ${#cands[@]} -eq 1 ] || { echo "AI2_CANDIDATE=1 needs exactly one ai-2 package in packaging/candidate/ (found ${#cands[@]})"; exit 1; }
+  # anything else in candidate/ rides along (the pack packages, an engine
+  # build), so a test image can carry what is not published yet
+  others=("$SRC"/packaging/candidate/*.pkg.tar.zst)
   mkdir -p "$CANDIDATE_REPO" && chmod 755 "$CANDIDATE_REPO"
-  cp "${cands[0]}" "$CANDIDATE_REPO/"
+  cp "${others[@]}" "$CANDIDATE_REPO/"
   repo-add -q "$CANDIDATE_REPO/ai2-candidate.db.tar.gz" "$CANDIDATE_REPO"/*.pkg.tar.zst
   conf="$HOME/.config/artools/pacman.conf.d/iso-x86_64.conf"
   python3 - "$conf" "$CANDIDATE_REPO" <<'PYCONF'
@@ -87,7 +90,7 @@ assert s.count(marker) == 1
 open(conf, "w").write(s.replace(marker, stanza + marker, 1))
 PYCONF
   install -Dm644 "$SRC/iso/pacman.conf.d/iso-x86_64.conf" "$DST/root-overlay/etc/pacman.conf"
-  echo "TEST IMAGE: carrying the candidate $(basename "${cands[0]}")"
+  echo "TEST IMAGE: carrying $(printf '%s ' "${others[@]##*/}")"
 fi
 
 # basestrap copies the build host's pacman keyring into the rootfs, so the
@@ -127,41 +130,10 @@ if [ ! -f "$CACHE/$EMBED_FILE" ] || [ "$(sha256sum "$CACHE/$EMBED_FILE" | cut -d
 fi
 install -Dm644 "$CACHE/$EMBED_FILE" "$DST/root-overlay/var/lib/ai2/models/$EMBED_FILE"
 
-# AI-2: the knowledge packs go into /etc/skel, so every account the installer
-# creates starts with them already installed (Calamares copies skel into the
-# new user's home). They are small, about 1 MB in total, and each is checked
-# against the sha256 in the catalog the ai-2 package ships.
-PACKS_DIR="$SRC/iso/packs"
-SKEL_DOC="$DST/root-overlay/etc/skel/.local/share/ai2/doc"
-python3 - "$SRC" "$PACKS_DIR" <<'PYCHECK' || { echo "bundled pack checksum FAILED"; exit 1; }
-import hashlib, sys, os, yaml
-src, packs = sys.argv[1], sys.argv[2]
-catalog = yaml.safe_load(open(os.path.join(src, "ai2/data/packs.yml")))
-for entry in catalog["packs"]:
-    path = os.path.join(packs, entry["id"] + ".ai2pack")
-    got = hashlib.sha256(open(path, "rb").read()).hexdigest()
-    assert got == entry["sha256"], f"{entry['id']}: {got} != {entry['sha256']}"
-    print(f"  {entry['id']} matches the catalog")
-PYCHECK
-for pack in "$PACKS_DIR"/*.ai2pack; do
-  id=$(basename "$pack" .ai2pack)
-  mkdir -p "$SKEL_DOC/$id"
-  bsdtar -xf "$pack" -C "$SKEL_DOC/$id" index.sqlite manifest.yml
-  # Where the pack came from, the same record `ai-2 knowledge install` writes,
-  # so `ai-2 knowledge list` can say "the AI-2 installation image" instead of
-  # "an unknown source" for the packs the image itself put there. The checksum
-  # is the one just verified against the catalog inside the signed package.
-  python3 - "$SRC" "$pack" "$id" "$SKEL_DOC/$id/origin.yml" <<'PYORIGIN'
-import hashlib, os, sys, time, yaml
-src, pack, pack_id, out = sys.argv[1:5]
-catalog = yaml.safe_load(open(os.path.join(src, "ai2/data/packs.yml")))
-entry = next(e for e in catalog["packs"] if e["id"] == pack_id)
-record = {"from": "AI-2 installation image", "id": pack_id, "url": entry["url"],
-          "sha256": hashlib.sha256(open(pack, "rb").read()).hexdigest(),
-          "version": entry.get("version"), "installed": time.strftime("%Y-%m-%d %H:%M")}
-yaml.safe_dump(record, open(out, "w", encoding="utf-8"), allow_unicode=True, sort_keys=False)
-PYORIGIN
-done
-chmod -R go-w "$DST/root-overlay/etc/skel/.local"
+# The knowledge packs are PACKAGES now (ai2-help, ai2-everyday,
+# ai2-linux-essentials in profile.yaml), installed into /usr/share/ai2/doc/
+# where AI-2 reads them. They used to be unpacked into /etc/skel, which gave
+# every account its own copy that no update could ever refresh and that a
+# second user silently duplicated.
 
 echo "Staged $(find "$DST" -type f | wc -l) files into $DST"

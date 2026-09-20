@@ -65,7 +65,6 @@ make_ai2_tarball() {
 # catalog, ships packs that cannot be installed by name. Checked before the
 # build, not after somebody notices.
 if printf '%s\n' "${pkgs[@]}" | grep -qx ai-2; then
-  python3 "$REPO/www/ai-2/tools/check-bundled-packs.py" || exit 1
   python3 "$REPO/www/ai-2/tools/sync-pack-catalog.py" --check
   rc=$?
   [ "$rc" = 1 ] && { echo "refusing to build ai-2 with a stale pack catalog"; exit 1; }

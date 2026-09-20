@@ -24,23 +24,16 @@ def test_no_broadcom_installer_job():
     assert "broadcom" not in pathlib.Path("iso/stage-profile.sh").read_text()
 
 
-def test_bundled_packs_match_the_catalog():
-    """The knowledge packs staged into /etc/skel are the files the catalog
-    describes. A stale pack file in git would otherwise ship silently and
-    disagree with the checksum every other install path verifies."""
-    import hashlib
-    import pathlib
-    import yaml
-    root = pathlib.Path(__file__).resolve().parent.parent
-    catalog = yaml.safe_load((root / "ai2/data/packs.yml").read_text())
-    entries = {p["id"]: p for p in catalog["packs"]}
-    files = sorted((root / "iso/packs").glob("*.ai2pack"))
-    assert {f.stem for f in files} == set(entries), "iso/packs and the catalog list different packs"
-    for f in files:
-        data = f.read_bytes()
-        entry = entries[f.stem]
-        assert hashlib.sha256(data).hexdigest() == entry["sha256"], f"{f.name}: sha256"
-        assert len(data) == entry["size_bytes"], f"{f.name}: size"
+def test_the_image_installs_the_packs_as_packages():
+    """Until 0.19.0 the packs were unpacked into /etc/skel, which gave every
+    account its own copy that no update could refresh. They are packages
+    now, so an update refreshes them and pacman can remove one."""
+    prof = yaml.safe_load((ISO / "profile.yaml").read_text())
+    for pkg in ("ai2-help", "ai2-everyday", "ai2-linux-essentials"):
+        assert pkg in prof["rootfs"]["packages"], pkg
+    stage = pathlib.Path("iso/stage-profile.sh").read_text()
+    assert "etc/skel/.local/share/ai2/doc" not in stage, "the image still copies packs into /etc/skel"
+    assert "usr/share/ai2/doc" in pathlib.Path("tools/iso-layer-check.sh").read_text()
 
 
 def test_the_image_never_shadows_a_file_the_ai2_package_installs():
@@ -156,7 +149,7 @@ def test_the_build_refuses_a_stale_pack_catalog():
     do not match it, ships packs nobody can install by name, and nothing said
     so until somebody tried."""
     build = pathlib.Path("packaging/build-packages.sh").read_text()
-    assert "check-bundled-packs.py" in build and "sync-pack-catalog.py\" --check" in build
+    assert "sync-pack-catalog.py\" --check" in build
     assert 'refusing to build ai-2 with a stale pack catalog' in build
     workflow = pathlib.Path(".github/workflows/tests.yml").read_text()
     assert "packs.yml" in workflow, "the catalog job no longer runs when the packaged copy changes"

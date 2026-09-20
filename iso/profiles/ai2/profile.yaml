@@ -52,6 +52,11 @@ rootfs:
     # ../../pacman.conf.d/iso-x86_64.conf; buildiso needs -w)
     - ai2-keyring
     - ai-2
+    # the Knowledge Packs, one package each: they install into
+    # /usr/share/ai2/doc/ and can be removed with pacman
+    - ai2-help
+    - ai2-everyday
+    - ai2-linux-essentials
     - ai2-llama-cpp
     - python
     - python-yaml
