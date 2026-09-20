@@ -86,7 +86,7 @@ def test_cli_about_wait_returns_on_end_of_input(monkeypatch, capsys):
 def test_window_uses_the_wizards_terminals_in_order():
     have = {"xterm", "x-terminal-emulator", "xfce4-terminal"}
     cmd = about.window_command(which=lambda name: name in have)
-    assert cmd == ["xfce4-terminal", "--title=About AI-2", "--geometry=96x16", "--hide-menubar",
+    assert cmd == ["xfce4-terminal", "--title=About AI-2", "--geometry=96x16", "--hide-menubar", "--disable-server",
                    "-x", "ai-2", "about", "--wait"]
     have.discard("xfce4-terminal")
     assert about.window_command(which=lambda name: name in have)[:2] == ["x-terminal-emulator", "-e"]
@@ -110,3 +110,14 @@ def test_cli_window_without_a_terminal_prints_instead(monkeypatch, capsys):
 
 def test_about_says_how_to_get_packs_when_there_are_none():
     assert about.packs_text([]) == "none yet (run: ai-2 knowledge available)"
+
+
+def test_a_window_gets_its_own_terminal_process():
+    """Without --disable-server the second xfce4-terminal is only a client:
+    the window is opened by the instance already running, and its child
+    inherits that instance's stdin. The setup window is such an instance, so
+    the Search Knowledge window it opened read EOF at once and closed before
+    anything could be read (found in a QEMU install, 2026-09-21)."""
+    cmd = about.terminal_window("Search Knowledge", "100x38", ["ai-2", "doc", "search"],
+                                which=lambda n: "/usr/bin/" + n if n == "xfce4-terminal" else None)
+    assert "--disable-server" in cmd and cmd.index("--disable-server") < cmd.index("-x")

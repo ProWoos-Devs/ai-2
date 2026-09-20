@@ -118,7 +118,14 @@ def terminal_window(title: str, geometry: str, run: list[str], which=None) -> li
     which is 80x24 and too small for a window that shows a list."""
     which = which or shutil.which          # looked up now, so a test (or a changed PATH) is seen
     if which("xfce4-terminal"):
-        return ["xfce4-terminal", f"--title={title}", f"--geometry={geometry}", "--hide-menubar", "-x", *run]
+        # --disable-server: without it the second xfce4-terminal on a desktop
+        # is only a client, and the window it asks for is opened by the
+        # instance that is already running, whose stdin the child inherits.
+        # The setup window IS such an instance, so a window it opened got the
+        # setup's own stdin, read EOF at once and closed before anything could
+        # be read (QEMU install, 2026-09-21). Its own process, its own pty.
+        return ["xfce4-terminal", f"--title={title}", f"--geometry={geometry}", "--hide-menubar",
+                "--disable-server", "-x", *run]
     if which("x-terminal-emulator"):
         return ["x-terminal-emulator", "-e", *run]
     if which("xterm"):

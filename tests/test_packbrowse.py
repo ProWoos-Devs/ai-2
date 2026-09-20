@@ -147,5 +147,5 @@ def test_the_menu_entry_opens_a_window_big_enough_for_the_list(monkeypatch):
     monkeypatch.setattr(about.subprocess, "Popen", lambda cmd, **k: opened.append(cmd))
     monkeypatch.setattr(about.shutil, "which", lambda name: "/usr/bin/" + name if name == "xfce4-terminal" else None)
     assert cli.main(["knowledge", "browse", "--window"]) == 0
-    assert opened == [["xfce4-terminal", "--title=Knowledge Packs", "--geometry=100x38", "--hide-menubar",
+    assert opened == [["xfce4-terminal", "--title=Knowledge Packs", "--geometry=100x38", "--hide-menubar", "--disable-server",
                        "-x", "ai-2", "knowledge", "browse"]]
