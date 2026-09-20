@@ -78,7 +78,12 @@ for p in "${pkgs[@]}"; do
   [ "$p" = ai-2 ] && make_ai2_tarball
   # -s installs makedepends via sudo pacman; -f overwrites a stale package;
   # -C cleans an old srcdir so a changed source is never reused by accident.
-  PKGDEST="$OUT" SRCDEST="$SRCDEST" makepkg -s -f -C --noconfirm
+  # A pack package only unpacks a downloaded file, and its one dependency
+  # (ai-2) is a runtime relation that the build container has no reason to
+  # have installed, so -s would stop on "target not found".
+  deps=(-s)
+  case "$p" in ai2-help|ai2-everyday|ai2-linux-essentials) deps=(--nodeps);; esac
+  PKGDEST="$OUT" SRCDEST="$SRCDEST" makepkg "${deps[@]}" -f -C --noconfirm
   echo "--- namcap ---"
   namcap PKGBUILD || true
   for f in "$OUT/$p"*.pkg.tar.zst; do namcap "$f" || true; done
