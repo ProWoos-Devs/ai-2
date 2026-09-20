@@ -9,6 +9,12 @@ It detects the hardware, assigns a capability tier, tunes the system for it, mea
 
 **Knowledge Packs.** A Knowledge Pack is a set of documents the computer searches and answers from in seconds, with no internet, naming the document every answer came from. No model writes those answers, so a 2011 laptop gives the same ones as a new machine, where a chat answer on that laptop takes minutes and can be wrong. Three packs come on the ISO (AI-2's own help, everyday Linux tasks, 196 countries), and **Applications > AI-2 > Search Knowledge** answers right after the install. **Applications > AI-2 > Knowledge Packs** lists the Knowledge Packs there are, with what is in each and who made it, installs the ones you pick by number, and says when one you have has a newer version. One machine can also answer for every other in the house. **The community catalog, https://github.com/ProWoos-Devs/ai2-knowledge, is where every pack is listed with its download and where anyone shares one they made** from their own PDFs and notes; the project's own packs are in it with everyone else's. More in the wiki, [Knowledge Packs](https://github.com/ProWoos-Devs/ai-2/wiki/Knowledge-Packs).
 
+**Get one, or make one.** Every Knowledge Pack, the project's own included, lives in the community catalog at **https://github.com/ProWoos-Devs/ai2-knowledge**:
+
+- **Download**: each entry in the catalog carries its file and its checksum, and `ai-2 knowledge install ID` fetches it by name. The three that come with AI-2 are `ai2-help`, `everyday` and `linux-essentials`.
+- **Share one you made**: build it from your own PDFs and notes with `ai-2 knowledge export`, host the file, and open a pull request adding your entry to the catalog. The eleven steps are in [CONTRIBUTING.md](https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/CONTRIBUTING.md), and the checks that run on your pull request download the file, install it and compare it with what your entry claims.
+- **Suggest or report**: ideas and problems about Knowledge Packs belong in that repository's [Issues](https://github.com/ProWoos-Devs/ai2-knowledge/issues); anything about AI-2 itself belongs in [this one's](https://github.com/ProWoos-Devs/ai-2/issues).
+
 Reference platform is Artix Linux with runit. The oldest validated target is a 2011 laptop (AMD A4-3305M, no SSE4.1, 4 GB RAM, spinning disk) that runs a 0.5B model at about 2 tokens per second from a package built for exactly that CPU class.
 
 ## Install
