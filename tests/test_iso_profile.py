@@ -167,3 +167,25 @@ def test_the_iso_checksum_can_be_signed_and_the_readme_says_how():
     assert "F1889E37B4E5FEC8" in body and "--detach-sign" in body and "gpg --verify" in body
     readme = pathlib.Path("README.md").read_text()
     assert "iso.sha256.sig" in readme and "gpg --verify" in readme
+
+
+def test_the_installer_slide_names_the_packs_the_image_ships():
+    """Rafael, 2026-09-20, reading the slide during an install: it should say
+    which packs are on board, by name. A pack added to or dropped from the
+    image has to reach this slide too."""
+    import yaml
+    catalog = {p["id"]: p for p in yaml.safe_load(
+        pathlib.Path("ai2/data/packs.yml").read_text())["packs"]}
+    prof = yaml.safe_load((ISO / "profile.yaml").read_text())
+    shipped = [p for p in prof["rootfs"]["packages"] if p in ("ai2-help", "ai2-everyday",
+                                                              "ai2-linux-essentials")]
+    slide = (ISO / "live-overlay/usr/share/calamares/branding/ai2/show.qml").read_text()
+    words = {1: "one", 2: "two", 3: "three", 4: "four"}
+    assert f"{words[len(shipped)]} Knowledge Packs" in slide, "the slide miscounts the packs"
+    for pkg in shipped:
+        pack_id = pkg[4:] if not pkg.startswith("ai2-help") else "ai2-help"
+        title = catalog[pack_id]["title"]
+        assert title in slide, f"the slide does not name {title}"
+        for lang in ("es", "de"):
+            ts = (ISO / f"live-overlay/usr/share/calamares/branding/ai2/lang/calamares-ai2_{lang}.ts").read_text()
+            assert title in ts, f"{lang}: the slide translation does not name {title}"

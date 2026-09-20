@@ -20,12 +20,14 @@ lokal wenn möglich, entfernt wenn nicht.</translation>
         <translation>Knowledge Packs</translation>
     </message>
     <message>
-        <source>AI-2 arrives with Knowledge Packs: documents this computer searches
-and answers from in seconds, with no internet, naming its source.
-No AI writes those answers, so an old PC answers as well as a new one.</source>
-        <translation>AI-2 bringt Knowledge Packs mit: Dokumente, die dieser Computer durchsucht
-und aus denen er in Sekunden antwortet, ohne Internet, mit Quellenangabe.
-Keine KI schreibt diese Antworten: ein alter PC antwortet so gut wie ein neuer.</translation>
+        <source>AI-2 arrives with three Knowledge Packs: AI-2 Help, Everyday Reference
+and Linux Essentials. This computer searches them in seconds, with no
+internet, and names the document every answer came from. No AI writes
+those answers, so an old PC answers as well as a new one.</source>
+        <translation>AI-2 kommt mit drei Knowledge Packs: AI-2 Help, Everyday Reference
+und Linux Essentials. Dieser Computer durchsucht sie in Sekunden, ohne
+Internet, und nennt das Dokument zu jeder Antwort. Keine KI schreibt diese
+Antworten, deshalb antwortet ein alter PC so gut wie ein neuer.</translation>
     </message>
     <message>
         <source>Applications &gt; AI-2 &gt; Search Knowledge   works right after install.

@@ -72,7 +72,7 @@ Presentation
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     horizontalAlignment: Text.AlignHCenter
-                    text: qsTr('AI-2 arrives with Knowledge Packs: documents this computer searches\nand answers from in seconds, with no internet, naming its source.\nNo AI writes those answers, so an old PC answers as well as a new one.')
+                    text: qsTr('AI-2 arrives with three Knowledge Packs: AI-2 Help, Everyday Reference\nand Linux Essentials. This computer searches them in seconds, with no\ninternet, and names the document every answer came from. No AI writes\nthose answers, so an old PC answers as well as a new one.')
                     font.family: "monospace"
                     font.pixelSize: 18
                     color: "#B8F5D0"

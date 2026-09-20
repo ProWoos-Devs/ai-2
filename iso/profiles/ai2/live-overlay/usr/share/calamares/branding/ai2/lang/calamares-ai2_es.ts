@@ -20,12 +20,14 @@ local cuando se puede, remoto cuando no.</translation>
         <translation>Knowledge Packs</translation>
     </message>
     <message>
-        <source>AI-2 arrives with Knowledge Packs: documents this computer searches
-and answers from in seconds, with no internet, naming its source.
-No AI writes those answers, so an old PC answers as well as a new one.</source>
-        <translation>AI-2 llega con Knowledge Packs: documentos en los que este ordenador busca
-y de los que responde en segundos, sin internet, diciendo su fuente.
-Esas respuestas no las escribe ninguna IA: un PC antiguo responde tan bien como uno nuevo.</translation>
+        <source>AI-2 arrives with three Knowledge Packs: AI-2 Help, Everyday Reference
+and Linux Essentials. This computer searches them in seconds, with no
+internet, and names the document every answer came from. No AI writes
+those answers, so an old PC answers as well as a new one.</source>
+        <translation>AI-2 llega con tres Knowledge Packs: AI-2 Help, Everyday Reference
+y Linux Essentials. Este ordenador los busca en segundos, sin internet,
+y dice el documento del que sale cada respuesta. Esas respuestas no las
+escribe ninguna IA, así que un PC antiguo responde tan bien como uno nuevo.</translation>
     </message>
     <message>
         <source>Applications &gt; AI-2 &gt; Search Knowledge   works right after install.
