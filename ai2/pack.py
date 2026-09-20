@@ -89,6 +89,18 @@ def origin_of(collection: str) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
+def system_manifest(collection: str) -> dict | None:
+    """The manifest of the copy that came with AI-2, whether or not a copy of
+    the person's own is shadowing it. None when AI-2 ships no such pack."""
+    path = os.path.join(doc.system_doc_root(), collection, MANIFEST)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def manifest_of(collection: str) -> dict | None:
     """The manifest of an installed pack, None for a collection of one's own."""
     path = os.path.join(doc.collection_dir(collection), MANIFEST)
@@ -382,6 +394,15 @@ CATALOG_URL = "https://github.com/ProWoos-Devs/ai2-knowledge"
 # they are read as the same thing.
 CATALOG_ORIGIN = "community catalog"
 _OLD_CATALOG_ORIGINS = ("official catalog",)
+
+
+SYSTEM_ORIGIN = "AI-2 itself"     # what a pack installed by a package records
+
+
+def package_of(pack_id: str) -> str:
+    """The package that carries a pack that came with AI-2, so a message can
+    name the one command that removes it."""
+    return pack_id if pack_id.startswith("ai2-") else "ai2-" + pack_id
 
 
 def origin_label(origin: dict | None) -> str:

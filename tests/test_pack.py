@@ -519,3 +519,72 @@ def test_an_answer_says_when_its_pack_came_from_a_file(home, monkeypatch, capsys
     capsys.readouterr()
     assert cli.main(["doc", "search", "--top", "1", "¿Cuál es la capital?"]) == 0
     assert "[installed from a file, not from the catalog]" in capsys.readouterr().out
+
+
+def _a_system_pack(home, monkeypatch, pack_id="ai2-help", version="2026-09-18", revision=1):
+    """A pack as the ai2-help package installs it: built elsewhere, moved into
+    the read-only system location."""
+    import shutil
+    root = home / "system-doc"
+    (root / pack_id).mkdir(parents=True, exist_ok=True)
+    make_collection("staging", {"help.txt": ["How to find a big file."]})
+    shutil.move(doc.index_path("staging"), str(root / pack_id / "index.sqlite"))
+    doc.remove_collection("staging")
+    (root / pack_id / "manifest.yml").write_text(yaml.safe_dump(
+        {"id": pack_id, "title": "AI-2 Help", "version": version, "revision": revision,
+         "license": "MIT", "languages": ["en"], "embedder": {"id": V2},
+         "index": {"documents": 1, "parts": 1}}), encoding="utf-8")
+    (root / pack_id / "origin.yml").write_text(yaml.safe_dump(
+        {"from": pack.SYSTEM_ORIGIN, "id": pack_id}), encoding="utf-8")
+    monkeypatch.setenv("AI2_SYSTEM_DOC_DIR", str(root))
+    return root
+
+
+def test_a_pack_that_comes_with_ai2_is_not_yours_to_remove(home, monkeypatch, capsys):
+    """Its files belong to a package: deleting them would leave pacman's
+    database wrong and the next update would put them back."""
+    from ai2 import cli
+    _a_system_pack(home, monkeypatch)
+    assert cli.main(["knowledge", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "comes with AI-2 (package ai2-help)" in out
+    assert cli.main(["knowledge", "remove", "ai2-help"]) == 1
+    err = capsys.readouterr().err
+    assert "not yours to remove" in err and "sudo pacman -R ai2-help" in err
+    assert doc.list_collections() == ["ai2-help"], "and it is still there"
+
+
+def test_removing_your_own_copy_puts_the_one_from_ai2_back(home, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setattr(pack, "load_catalog", lambda: [])   # this copy is not the catalog's
+    _a_system_pack(home, monkeypatch, version="2026-09-18")
+    out_path = str(home / "newer.ai2pack")
+    make_collection("src", {"newer.txt": ["A newer answer."]})
+    pack.export_pack("src", out_path, dict(TEMPLATE, id="ai2-help", title="AI-2 Help",
+                                           version="2026-10-01", revision=2))
+    doc.remove_collection("src")
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: "/m/" + f)
+    assert cli.main(["knowledge", "install", out_path]) == 0
+    capsys.readouterr()
+    assert cli.main(["knowledge", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "your copy, over the version that comes with AI-2 (version 2026-09-18)" in out
+    assert cli.main(["knowledge", "remove", "ai2-help"]) == 0
+    said = capsys.readouterr().out
+    assert "Removed your copy of ai2-help" in said and "2026-09-18) is in use again" in said
+    assert doc.is_system("ai2-help")
+
+
+def test_a_system_pack_cannot_be_indexed_into_or_forgotten(home, monkeypatch, capsys):
+    """Both would quietly leave a copy of your own on top of the pack: an
+    empty one, in the case of forget."""
+    from ai2 import cli
+    _a_system_pack(home, monkeypatch)
+    f = home / "note.txt"
+    f.write_text("hello", encoding="utf-8")
+    assert cli.main(["doc", "index", "--in", "ai2-help", str(f)]) == 1
+    assert "not yours to change" in capsys.readouterr().err
+    assert cli.main(["doc", "forget", "--in", "ai2-help", "help.txt"]) == 1
+    err = capsys.readouterr().err
+    assert "cannot be changed" in err and "sudo pacman -R ai2-help" in err
+    assert doc.is_system("ai2-help") and doc.list_collections() == ["ai2-help"]

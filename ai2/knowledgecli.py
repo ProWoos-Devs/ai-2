@@ -64,6 +64,7 @@ def cmd_doc(args) -> int:
 
 
 def _doc_forget(args, docmod) -> int:
+    from . import pack as packmod
     """One document by name (wherever it is, unless that is ambiguous), or
     --all of a collection, which removes the collection itself."""
     names = docmod.list_collections()
@@ -94,6 +95,11 @@ def _doc_forget(args, docmod) -> int:
     if len(where) > 1:
         print(f"error: {args.name!r} is in more than one collection ({', '.join(where)}); say which with --in NAME",
               file=sys.stderr)
+        return 1
+    if docmod.is_system(where[0]):
+        print(f"{where[0]} comes with AI-2 itself and cannot be changed; forgetting a document of it "
+              f"would only leave an empty copy of your own on top of it.\n"
+              f"To stop searching it at all:  sudo pacman -R {packmod.package_of(where[0])}", file=sys.stderr)
         return 1
     docmod.forget(docmod.open_store(docmod.index_path(where[0])), name=args.name)
     print(f"Forgot 1 document." + ("" if where[0] == docmod.DEFAULT_COLLECTION else f" (collection {where[0]})"))
@@ -231,6 +237,16 @@ def cmd_knowledge(args) -> int:
             return 0
         if action == "remove":
             name = args.name
+            system_only = [n for n in (name, *[c for c, m in packmod.installed_packs()
+                                               if m.get("id") == name])
+                           if docmod.is_system(n)]
+            if system_only:
+                one = system_only[0]
+                m = packmod.manifest_of(one) or {}
+                print(f"{one} comes with AI-2 itself, so it is not yours to remove: the files belong to a "
+                      f"package, and an update would put them back.\nTo take it off this computer:  "
+                      f"sudo pacman -R {packmod.package_of(str(m.get('id') or one))}", file=sys.stderr)
+                return 1
             if packmod.manifest_of(name) is None:
                 # `ai-2 knowledge install PACK --as OTHER` puts a pack in a
                 # collection of another name, and every list and window shows
@@ -245,7 +261,12 @@ def cmd_knowledge(args) -> int:
                           "a collection of your own goes with:  ai-2 doc forget --all --in NAME", file=sys.stderr)
                     return 1
                 name = by_id[0]
+            shadowed = packmod.system_manifest(name)
             docmod.remove_collection(name)
+            if shadowed is not None:
+                print(f"Removed your copy of {name}. The version that comes with AI-2 "
+                      f"(version {shadowed.get('version')}) is in use again.")
+                return 0
             print(f"Removed the pack {name}." if name == args.name
                   else f"Removed the pack {args.name}, which was installed as {name}.")
             return 0
@@ -260,8 +281,16 @@ def cmd_knowledge(args) -> int:
             where = packmod.origin_label(origin)
             print(f"  {name:<24} {m.get('title')}, version {m.get('version')}, {idx.get('parts')} parts, "
                   f"license {m.get('license')}")
-            print(f"  {'':<24} from the {where}" if where != "file"
-                  else f"  {'':<24} installed from the file {origin.get('file')}")
+            if docmod.is_system(name):
+                print(f"  {'':<24} comes with AI-2 (package {packmod.package_of(str(m.get('id') or name))})")
+            elif where == "file":
+                print(f"  {'':<24} installed from the file {origin.get('file')}")
+            else:
+                print(f"  {'':<24} from the {where}")
+            shadowed = packmod.system_manifest(name)
+            if shadowed is not None and not docmod.is_system(name):
+                print(f"  {'':<24} your copy, over the version that comes with AI-2 "
+                      f"(version {shadowed.get('version')})")
         return 0
     except (packmod.PackError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -309,8 +338,14 @@ def _doc_index(args, docmod) -> int:
     import subprocess
     import time
     import zipfile
+    from . import pack as packmod
     hw = detect()
     collection = args.collection or docmod.DEFAULT_COLLECTION
+    if docmod.is_system(collection):
+        print(f"{collection} is a Knowledge Pack that comes with AI-2, and its documents are not yours to "
+              f"change. Index into a collection of your own instead:  ai-2 doc index --in mynotes FILE",
+              file=sys.stderr)
+        return 1
     conn = docmod.open_store(None if collection == docmod.DEFAULT_COLLECTION
                              else docmod.index_path(collection))
     model_id = docmod.store_model(conn)
