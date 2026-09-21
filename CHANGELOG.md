@@ -2,7 +2,7 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.19.1] - 2026-09-21
 ### Changed
 - **The setup no longer offers to try the Knowledge Packs.** Asking a question in the middle of a setup was confusing (Rafael, 2026-09-21): it was not clear what had happened, where the answer would appear, or how to get back to the steps. The screen that explains what a Knowledge Pack is stays, and still stops before the steps scroll it away, but it now only says "Press Enter to go on with the setup". Answers live where they belong, in Applications > AI-2 > Search Knowledge, which that screen names. The later "ask one now?" offer at the end of the setup is gone too, along with `doc search --from-setup` and the six strings that existed only for this.
 - **The README is shaped for someone arriving on the page.** Two lines saying what AI-2 is, then how to install it, then the Knowledge Packs, then what a machine can do. The Knowledge Packs block is half its length and names the catalog once instead of twice; the command list keeps the six a person types and sends the rest to the wiki; Architecture and Layout moved under a heading for people who clone the repo; and Status was three versions behind (it still said 1.85 GB and did not know the Knowledge Pack packages existed). The parts that earn trust are untouched: the checksum and signature steps, the 2011-laptop numbers, and the paragraph saying the engine is CPU-only and why.
