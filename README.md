@@ -4,18 +4,9 @@
 
 **Give your computer an AI brain.**
 
-AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support. 
-It detects the hardware, assigns a capability tier, tunes the system for it, measures what the machine can really do, and recommends models that genuinely fit, locally where possible, remotely by explicit choice.
-
-**Knowledge Packs.** A Knowledge Pack is a set of documents the computer searches and answers from in seconds, with no internet, naming the document every answer came from. No model writes those answers, so a 2011 laptop gives the same ones as a new machine, where a chat answer on that laptop takes minutes and can be wrong. Three packs come on the ISO (AI-2's own help, everyday Linux tasks, 196 countries), and **Applications > AI-2 > Search Knowledge** answers right after the install. **Applications > AI-2 > Knowledge Packs** lists the Knowledge Packs there are, with what is in each and who made it, installs the ones you pick by number, and says when one you have has a newer version. One machine can also answer for every other in the house. **The community catalog, https://github.com/ProWoos-Devs/ai2-knowledge, is where every pack is listed with its download and where anyone shares one they made** from their own PDFs and notes; the project's own packs are in it with everyone else's. More in the wiki, [Knowledge Packs](https://github.com/ProWoos-Devs/ai-2/wiki/Knowledge-Packs).
-
-**Get one, or make one.** Every Knowledge Pack, the project's own included, lives in the community catalog at **https://github.com/ProWoos-Devs/ai2-knowledge**:
-
-- **Download**: each entry in the catalog carries its file and its checksum, and `ai-2 knowledge install ID` fetches it by name. The three that come with AI-2 are `ai2-help`, `everyday` and `linux-essentials`.
-- **Share one you made**: build it from your own PDFs and notes with `ai-2 knowledge export`, host the file, and open a pull request adding your entry to the catalog. The eleven steps are in [CONTRIBUTING.md](https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/CONTRIBUTING.md), and the checks that run on your pull request download the file, install it and compare it with what your entry claims.
-- **Suggest or report**: ideas and problems about Knowledge Packs belong in that repository's [Issues](https://github.com/ProWoos-Devs/ai2-knowledge/issues); anything about AI-2 itself belongs in [this one's](https://github.com/ProWoos-Devs/ai-2/issues).
-
-Reference platform is Artix Linux with runit. The oldest validated target is a 2011 laptop (AMD A4-3305M, no SSE4.1, 4 GB RAM, spinning disk) that runs a 0.5B model at about 2 tokens per second from a package built for exactly that CPU class.
+AI-2 turns an ordinary or old PC into a local AI machine that fits what that hardware can actually do. It detects
+the machine, tunes it, measures what it can really manage, and recommends models that fit, locally where possible
+and remotely only by explicit choice. Reference platform is Artix Linux with runit.
 
 ## Install
 
@@ -61,62 +52,46 @@ sudo pacman -S ai2-llama-cpp             # the engine; it picks the build for th
 sudo ai-2 init --apply                   # or just: ai-2 wizard
 ```
 
+## Knowledge Packs
+
+A Knowledge Pack is a set of documents this computer searches and answers from in seconds, with no internet,
+naming the document every answer came from. No model writes those answers, so an old laptop gives the same ones
+as a new machine. Three come with the ISO, and **Applications > AI-2 > Search Knowledge** answers from them right
+after the install.
+
+- **Get more**: `ai-2 knowledge browse` (or **Applications > AI-2 > Knowledge Packs**) lists what there is, with
+  what is in each and who made it, and installs the ones you pick by number.
+- **Make one**: `ai-2 knowledge export` builds a pack from your own PDFs and notes. To share it, host the file and
+  open a pull request adding your entry to the catalog; the steps are in
+  [CONTRIBUTING.md](https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/CONTRIBUTING.md), and the checks on your
+  pull request download the file, install it and compare it with what your entry claims.
+- **Everything lives here**: the community catalog, https://github.com/ProWoos-Devs/ai2-knowledge, where the
+  project's own packs sit with everyone else's. Ideas and problems about packs belong in that repository's
+  [Issues](https://github.com/ProWoos-Devs/ai2-knowledge/issues); anything about AI-2 itself belongs in
+  [this one's](https://github.com/ProWoos-Devs/ai-2/issues).
+
+More in the wiki, [Knowledge Packs](https://github.com/ProWoos-Devs/ai-2/wiki/Knowledge-Packs).
+
+## What your machine can do
+
+`ai-2 benchmark` runs llama.cpp on a fixed workload and scores the machine from 0 to 100. That score, not the
+amount of RAM, decides which model is recommended: RAM alone over-promises. The oldest validated target is a 2011 laptop (AMD A4-3305M, no SSE4.1, 4 GB RAM, spinning disk) that runs a 0.5B model at about 2 tokens per second from a package built for exactly that CPU class.
+
+The packaged llama.cpp runtime is CPU-only, and `ai-2 detect` says so next to any GPU it lists. This position was reviewed with sources on 2026-09-14. CUDA and ROCm are not coming for the hardware AI-2 is built for. The CUDA toolkit package alone is bigger than the whole AI-2 ISO and CUDA 13 dropped the GeForce GTX 10 series and older, while ROCm is over 9 GB installed and supports no GCN card. Proprietary NVIDIA drivers are out-of-tree kernel modules, the same class of problem as the Broadcom WiFi driver, so they will never ship on the image. The one GPU path under consideration is a Vulkan build of llama.cpp on Mesa's open drivers. It is not built, and it would pay off only on a machine with a discrete card of the Radeon RX 400 or GeForce GTX 10 generation or later, never on the shared-memory integrated GPUs of the laptops AI-2 was validated on, which cannot run it at all.
+
 ## Commands
 
 ```
-ai-2 detect          # what AI-2 sees: CPU (and which llama.cpp build it needs), RAM, GPU, disk, init
-ai-2 tier            # the assigned capability tier and why
-ai-2 profile         # everything AI-2 knows about this machine in one view (--json for scripts)
-ai-2 init            # dry run, print the tuning plan for this machine
-ai-2 init --apply    # apply it (root): zram, earlyoom, sysctl, no idle suspend
-ai-2 init --revert   # undo it (root): restore original files, keep packages during inference
-ai-2 benchmark       # run llama.cpp on a fixed workload, compute the 0-100 AI Score and capability stars
-ai-2 recommend       # which local model fits this machine, and when to go remote
-ai-2 runtime install # install the llama.cpp package for this CPU class (--apply, root)
-ai-2 model pull      # download the recommended model (or: ai-2 model pull <id>)
-ai-2 model list      # models on this computer and in the catalog
-ai-2 model rm <id>   # delete a model to free disk space
-ai-2 model verify    # check downloaded models against the catalog checksums
-ai-2 workflow        # what this computer can be used for (chat, translation, documents), gated by the score
-ai-2 workflow install <name>  # download its models; packages printed as a pacman line, not installed
-ai-2 doc index FILE  # read a PDF, text file, DOCX or scan into the documents index (slow on an old CPU)
-ai-2 doc ask "..."   # the closest parts of your documents go to the AI with the question; sources named (PDF pages)
-ai-2 doc search "..." # the closest parts themselves, with their pages; no chat model, seconds instead of minutes
-ai-2 doc search      # with no question it asks for one and keeps asking (the Search Knowledge menu entry)
-ai-2 doc list        # what is indexed, by collection (--in NAME on index/ask/search);  ai-2 doc forget NAME  removes one
-ai-2 gopher                          # serve the Knowledge Packs over Gopher (read them elsewhere with w3m)
-ai-2 knowledge browse                # the Knowledge Packs menu entry: see the Knowledge Packs, pick by number, install or update
-ai-2 knowledge available             # the same list, plain (ai-2 knowledge install ID ..., ai-2 knowledge update)
-ai-2 knowledge install FILE.ai2pack  # add a pack file;  ai-2 knowledge export NAME  makes one from your own documents
-ai-2 transcribe FILE # speech to text with whisper.cpp: a recording or a video's audio into FILE.txt
-                     # (--lang es, --model small; slow on an old CPU, leave it running)
-ai-2 chat            # start the local AI if needed and open the chat page in the browser
-ai-2 chat --terminal # the same chat in the terminal: fastest, minimal memory, works over SSH
-                     # --model with no value lists the models on disk and lets you pick one (-m)
-                     # (recommended on low-end PCs; used automatically when there is no display)
-                     # --speak reads the answers aloud; output is whole sentences, screen-reader friendly
-ai-2 chat --remote   # the same chat with a bigger AI elsewhere (ai-2 remote); says where messages go
-ai-2 remote set URL  # another computer running ai-2 serve, or an API provider (--api-key, --model, --default)
-ai-2 remote show     # also: test (reach it, list its models), default on|off, clear
-ai-2 accessibility   # screen-reader status; `setup` installs and wires Orca and spoken chat
-ai-2 serve           # llama-server on demand with the recommended model, OpenAI-compatible
-                     # API on http://127.0.0.1:8080, exits when idle (the tier sets how long);
-                     # --host 0.0.0.0 --api-key KEY to use it from other devices
-ai-2 stop            # stop the local AI and free its memory
-ai-2 doctor          # check engine, model, tuning, services, repository key
-ai-2 report          # write ~/ai2-report.txt to attach to a bug report
 ai-2 wizard          # the guided setup, re-runnable any time
-ai-2 install         # list the common things AI-2 leaves out (office, printing, media, ...)
-ai-2 install office  # install by short name, or by package name: ai-2 install htop
-                     # a daemon's service is enabled too (printing is useless with cupsd off)
+ai-2 doc search      # ask the Knowledge Packs and your own documents (the Search Knowledge menu entry)
+ai-2 knowledge browse # see the Knowledge Packs there are, install or update by number
+ai-2 chat            # start the local AI if needed and open the chat page (--terminal on a slow machine)
 ai-2 update          # update AI-2, the engine, the model catalog and the system in one step
-                     # --gui on either opens pamac, the graphical Add/Remove Software
-ai-2 guide           # the guide for the installed computer, in the system language
-ai-2 logo            # the mark, in the size the terminal allows
-ai-2 about           # version, the system it is based on, AI Score, website, license
+ai-2 doctor          # check engine, model, tuning, services, repository key
 ```
 
-`AI-2` works as a synonym for `ai-2` everywhere.
+Everything else, 27 commands in all, from `ai-2 detect` to `ai-2 transcribe`, is in the wiki,
+[Commands](https://github.com/ProWoos-Devs/ai-2/wiki/Commands). `AI-2` works as a synonym for `ai-2` everywhere.
 
 ### Using the local AI from other apps
 
@@ -130,29 +105,40 @@ Which machine can be the server is a question for the AI Score, not the tier. On
 
 - `ai-2`, this tool.
 - `ai2-keyring`, the package signing key for pacman.
+- `ai2-help`, `ai2-everyday`, `ai2-linux-essentials`, the three Knowledge Packs that come with AI-2. Each installs
+  the file the catalog publishes, into `/usr/share/ai2/doc/`, so `pacman -Syu` refreshes them and `pacman -R`
+  removes one.
 - `ai2-llama-cpp`, the engine, one package for every CPU class: llama.cpp from one pinned release, built for plain x86-64, plus one CPU backend module per instruction-set level (x64, sse42, sandybridge, ivybridge, piledriver, haswell, ...); ggml scores the modules against the CPU at start and loads the best, x64 always qualifying. Before it ships, every file that must run on a pure-SSE2 machine is disassembled against that instruction set, and the constructors every module runs at load are checked the same way, because a single stray SSE4.1 instruction crashes an old machine. `ai-2 benchmark` records which module ran.
 - `ai2-whisper-cpp`, the speech-to-text engine for `ai-2 transcribe`, from one pinned whisper.cpp release with its own ggml, no ffmpeg linked in. One package for every CPU: like ggml in llama.cpp, it picks the CPU build at start, and the same gate checks every binary and every CPU module before it ships.
 
-## Architecture
+## Status
 
-Three orthogonal pillars. The Adaptation Engine detects hardware, assigns one of six capability tiers (Tiny, Light, Standard, Creator, Studio, Workstation), and applies the corresponding configuration. The Workflow Engine describes what the user wants to do, as declarative YAML profiles. The Runtime Engine executes models; the local runtime is llama.cpp, selected per CPU class, with persistent heavyweight daemons avoided on low-memory tiers.
+AI-2 0.19.0. Tested on two older AMD laptops and through complete QEMU installs. The ISO boots and installs in
+BIOS/MBR and UEFI/GPT modes, a setup wizard runs at the first login, and three Knowledge Packs answer offline from
+the moment it is installed. Hardware detection, tier tuning, AI Score benchmarking, model recommendations, health
+reports, speech to text and the workflow profiles are implemented; `ai-2 workflow install` downloads a profile's
+models and prints its packages as a pacman line rather than installing them. Validation details live in the
+[Wiki](https://github.com/ProWoos-Devs/ai-2/wiki/Validated-Hardware); bugs and ideas belong in
+[Issues](https://github.com/ProWoos-Devs/ai-2/issues).
 
-The packaged llama.cpp runtime is CPU-only, and `ai-2 detect` says so next to any GPU it lists. This position was reviewed with sources on 2026-09-14. CUDA and ROCm are not coming for the hardware AI-2 is built for. The CUDA toolkit package alone is bigger than the whole AI-2 ISO and CUDA 13 dropped the GeForce GTX 10 series and older, while ROCm is over 9 GB installed and supports no GCN card. Proprietary NVIDIA drivers are out-of-tree kernel modules, the same class of problem as the Broadcom WiFi driver, so they will never ship on the image. The one GPU path under consideration is a Vulkan build of llama.cpp on Mesa's open drivers. It is not built, and it would pay off only on a machine with a discrete card of the Radeon RX 400 or GeForce GTX 10 generation or later, never on the shared-memory integrated GPUs of the laptops AI-2 was validated on, which cannot run it at all.
+## For people who clone the repo
 
-**Workflows request capabilities; tiers grant a subset; runtimes execute what was granted.** RAM alone over-promises, so the AI Score measured by `ai-2 benchmark`, not the tier, gates which model is recommended.
+**Architecture.** Three parts. The Adaptation Engine detects hardware, assigns one of six capability tiers (Tiny,
+Light, Standard, Creator, Studio, Workstation) and applies the matching configuration. The Workflow Engine
+describes what the user wants to do, as declarative YAML profiles. The Runtime Engine executes models; the local
+runtime is llama.cpp, chosen per CPU class, and heavyweight daemons are avoided on low-memory tiers. Workflows
+request capabilities, tiers grant a subset, runtimes execute what was granted.
 
-Everything is declarative. Tier definitions live in `ai2/data/tiers/*.yml`, the model catalog in `ai2/data/models.yml`, workflow profiles in `ai2/data/profiles/*.yml`. The engine is deliberately small (Python 3.11+, PyYAML only).
+Everything is declarative. Tier definitions live in `ai2/data/tiers/*.yml`, the model catalog in
+`ai2/data/models.yml`, workflow profiles in `ai2/data/profiles/*.yml`. The engine is deliberately small
+(Python 3.11+, PyYAML only).
 
-## Layout
+**Layout.**
 
 - `ai2/` the tool. `tests/` (`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/`).
 - `packaging/` PKGBUILDs, the ISA gate (`isa-check.sh`), build and sign/publish scripts.
 - `iso/` the artools profile for the AI-2 ISO and the QEMU test helper.
 - `branding/` MOTD and greeter configuration.
-
-## Status
-
-Early and usable, tested on two older AMD laptops and through complete QEMU installs. The ISO (lean by design, 1.85 GB) boots and installs in BIOS/MBR and UEFI/GPT modes, a setup wizard runs at the first login, and local and explicitly configured remote chat are available. Hardware detection, tier tuning, AI Score benchmarking, model recommendations, health reports and the first read-only workflow profiles are implemented. Current validation details live in the [Wiki](https://github.com/ProWoos-Devs/ai-2/wiki/Validated-Hardware); bugs and ideas belong in [Issues](https://github.com/ProWoos-Devs/ai-2/issues).
 
 ## License
 

@@ -2,6 +2,11 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Changed
+- **The README is shaped for someone arriving on the page.** Two lines saying what AI-2 is, then how to install it, then the Knowledge Packs, then what a machine can do. The Knowledge Packs block is half its length and names the catalog once instead of twice; the command list keeps the six a person types and sends the rest to the wiki; Architecture and Layout moved under a heading for people who clone the repo; and Status was three versions behind (it still said 1.85 GB and did not know the Knowledge Pack packages existed). The parts that earn trust are untouched: the checksum and signature steps, the 2011-laptop numbers, and the paragraph saying the engine is CPU-only and why.
+- **"The best AI workstation that hardware can realistically support" is gone**, from the README and from `ai-2 --help`, which carried the same sentence. It says what AI-2 does without the superlative, the way the setup window was changed to.
+
 ## [0.19.0] - 2026-09-21
 ### Changed
 - **Knowledge Packs are presented as what they are, a headline of AI-2.** Rafael installed from scratch and found that the first thing a new user reads, the setup window, did not mention them once, while it carefully told the user not to expect much from the chat. An audit found zero mentions in the first-login setup, START-HERE, the installed Guide, the installer slideshow, About AI-2 and the login message, in all three languages, and nothing on the desktop. They existed as one menu entry and two lines of command help. The framing was backwards: on the machines AI-2 is built for, a chat answer takes minutes and can be wrong, and a Knowledge Pack answers in seconds, word for word, with its source, as well on a 2011 laptop as on a new one.

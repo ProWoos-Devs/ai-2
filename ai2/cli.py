@@ -1146,8 +1146,7 @@ def cmd_wizard(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ai-2",
-        description="AI-2 transforms this PC into the best AI workstation "
-                    "its hardware can realistically support.",
+        description="AI-2 turns this PC into a local AI machine that fits what its hardware can actually do."
     )
     parser.add_argument("--version", action="version", version=f"AI-2 {__version__}")
     sub = parser.add_subparsers(dest="command", metavar="command")
