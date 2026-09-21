@@ -201,6 +201,29 @@ def test_failed_download_leaves_the_score_pending(env, monkeypatch):
     assert rc == 1
 
 
+def test_the_packs_screen_stops_but_asks_nothing(env, monkeypatch, capsys):
+    """Offering a first question in the middle of the setup was confusing
+    (Rafael, 2026-09-21). The screen still stops, so the steps do not scroll
+    it away, and Search Knowledge is where the answers live."""
+    import sys
+    from ai2 import about
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(wz.Wizard, "_installed_packs",
+                        staticmethod(lambda: ["AI-2 Help", "Everyday Reference", "Linux Essentials"]))
+    prompts, ran = [], []
+    monkeypatch.setattr("builtins.input", lambda prompt="": prompts.append(prompt) or "")
+    monkeypatch.setattr(about, "open_window", lambda cmd=None: pytest.fail("the setup must not open a window"))
+    said = []
+    w = wz.Wizard(ask=lambda q, d: d, say=said.append, run=lambda cmd: ran.append(cmd) or 0)
+    w._knowledge_packs_intro()
+    screen = "\n".join(said)
+    assert "Knowledge Packs" in screen and "AI-2 > Search Knowledge" in screen
+    assert prompts == ["\nPress Enter to go on with the setup: "]
+    assert ran == [], "nothing is run from the setup"
+    for gone in ("try them now", "first question"):
+        assert gone not in screen and gone not in prompts[0]
+
+
 @pytest.mark.parametrize("locale", ["en_US.UTF-8", "es_ES.UTF-8", "de_DE.UTF-8"])
 def test_the_knowledge_packs_screen_explains_and_breathes(env, monkeypatch, locale):
     """The first screen of the setup, as Rafael asked for it on 2026-09-19:
@@ -237,56 +260,3 @@ def test_the_knowledge_packs_screen_explains_and_breathes(env, monkeypatch, loca
     monkeypatch.setattr(i18n, "_catalog", None)
 
 
-def test_the_first_question_opens_the_search_loop_once(env, monkeypatch):
-    """Typing a question at setup must open Search Knowledge, not a one-shot
-    that cannot open a document, and must not wrap a second question loop
-    around it."""
-    import sys
-    from ai2 import about
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
-    monkeypatch.setattr(about.shutil, "which", lambda name: None)   # no terminal to open
-    ran = []
-    questions = iter(["how do I find a big file?", "must not be asked"])
-    monkeypatch.setattr("builtins.input", lambda prompt="": next(questions))
-    w = wz.Wizard(ask=lambda q, d: d, say=lambda t: None, run=lambda cmd: ran.append(cmd) or 0)
-    w._first_question()
-    # no terminal to open here, so it runs in place and --from-setup makes the
-    # loop say how to come back (Rafael, 2026-09-20)
-    assert len(ran) == 1 and ran[0][-3:] == ["search", "--from-setup", "how do I find a big file?"]
-    assert w._asked_the_packs is True
-
-
-def test_the_first_question_opens_its_own_window_when_it_can(env, monkeypatch):
-    """Rafael, mid-install 2026-09-20: answering inside the setup window was
-    confusing and the answer wrapped into what space was left. It opens the
-    same window the Search Knowledge menu entry opens."""
-    import sys
-    from ai2 import about
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
-    monkeypatch.setattr("builtins.input", lambda prompt="": "how do I find a big file?")
-    monkeypatch.setattr(about.shutil, "which",
-                        lambda name: "/usr/bin/" + name if name == "xfce4-terminal" else None)
-    opened, ran, said = [], [], []
-    monkeypatch.setattr(about, "open_window", about.open_window.__wrapped__
-                        if hasattr(about.open_window, "__wrapped__") else _real_open_window)
-    monkeypatch.setattr(about.subprocess, "Popen", lambda cmd, **kw: opened.append(cmd))
-    w = wz.Wizard(ask=lambda q, d: d, say=said.append, run=lambda cmd: ran.append(cmd) or 0)
-    w._first_question()
-    assert ran == [], "it must not run inside the setup window when it can open one"
-    assert len(opened) == 1
-    cmd = opened[0]
-    assert cmd[0] == "xfce4-terminal" and "--geometry=100x38" in cmd
-    assert cmd[-3:] == ["doc", "search", "how do I find a big file?"]
-    assert "--from-setup" not in cmd, "in its own window, the way out is closing it"
-    assert "own window" in "\n".join(said) and "setup goes on here" in "\n".join(said)
-
-
-def test_an_empty_first_question_leaves_the_search_for_later(env, monkeypatch):
-    import sys
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
-    ran = []
-    monkeypatch.setattr("builtins.input", lambda prompt="": "")
-    w = wz.Wizard(ask=lambda q, d: d, say=lambda t: None, run=lambda cmd: ran.append(cmd) or 0)
-    w._first_question()
-    assert ran == []
-    assert not getattr(w, "_asked_the_packs", False)

@@ -1294,7 +1294,6 @@ def main(argv: list[str] | None = None) -> int:
     p_d_ask.set_defaults(func=cmd_doc)
     p_d_search = d_sub.add_parser("search", help="show the parts of your documents closest to a question, with their pages; no chat model")
     p_d_search.add_argument("question", nargs="*", help="the question; with none, it asks for one and keeps asking")
-    p_d_search.add_argument("--from-setup", action="store_true", help=argparse.SUPPRESS)
     p_d_search.add_argument("--top", type=int, default=3, help="how many parts to show (default 3)")
     p_d_search.add_argument("--doc", help="search only this document (name as in ai-2 doc list)")
     p_d_search.add_argument("--in", dest="collection", metavar="NAME", help="only this collection (ai-2 doc list shows them)")

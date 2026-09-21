@@ -405,7 +405,6 @@ class Wizard:
         mark_setup_done()
         self.report["completed"] = True
         self._save_report()
-        self._try_the_packs()
         return 0
 
     @staticmethod
@@ -440,62 +439,27 @@ class Wizard:
                         "\nThe steps that follow set up the other part of AI-2, the chat AI, which depends on\n"
                         "the hardware.")
                      .format(titles=", ".join(titles)))
-            self._first_question()
+            self._pause_on_the_packs()
         else:
             self.say(tr("\nKnowledge Packs let this computer answer from documents, in seconds, offline, naming\n"
                         "the source of every answer. None are installed here yet:  Applications > AI-2 >\n"
                         "Search Knowledge  offers them, and so does  ai-2 knowledge available ."))
 
-    def _first_question(self) -> None:
-        """Stop on the Knowledge Packs screen, and let the first thing a person
-        does with AI-2 be asking it something. Without the stop, steps 1 and 2
-        print straight after and push this text to the top edge of the window,
-        off it on a 768-pixel screen (seen in the first test image, 2026-09-19).
+    def _pause_on_the_packs(self) -> None:
+        """Stop on the Knowledge Packs screen before the steps scroll it away.
+        Without the stop, steps 1 and 2 print straight after and push this text
+        to the top edge of the window, off it on a 768-pixel screen (seen in
+        the first test image, 2026-09-19). It used to offer a first question
+        here; that was confusing in the middle of a setup (Rafael, 2026-09-21),
+        and Applications > AI-2 > Search Knowledge is where the answers live.
         Only for a person at a terminal: never in --yes, never under a script."""
         import sys
         if self.yes or not sys.stdin.isatty():
             return
         try:
-            question = input(tr("\nType a question to try them now, or just press Enter to go on with the setup: ")).strip()
+            input(tr("\nPress Enter to go on with the setup: "))
         except (EOFError, KeyboardInterrupt):
             return
-        if not question:
-            return
-        self._asked_the_packs = True
-        self._open_search(question)
-
-    def _open_search(self, question: str = "") -> None:
-        """Search Knowledge in a window of its own, the same one the menu entry
-        opens. Rafael, mid-install 2026-09-20: answering inside the setup
-        window was confusing (the setup seemed to be gone) and the answer wrapped
-        into the narrower space left under the setup text. In its own 100x38
-        window the answer has the width it was written for, and closing it
-        leaves the setup exactly where it was.
-
-        Without a terminal to open (no X, a plain console, a machine without
-        xfce4-terminal or xterm) it runs here instead, and then the loop says
-        how to come back."""
-        import sys
-        from . import about
-        run = [sys.executable, "-c", "import sys; from ai2.cli import main; sys.exit(main())",
-               "doc", "search"]
-        window = about.terminal_window("Search Knowledge", "100x38", run + ([question] if question else []))
-        if window is not None and about.open_window(window):
-            self.say(tr("\nIt opened in its own window, Search Knowledge. Ask it what you like and "
-                        "close that window when you are done; the setup goes on here."))
-            return
-        self.run(run + ["--from-setup"] + ([question] if question else []))
-
-    def _try_the_packs(self) -> None:
-        """Offer a first question while the person is still looking at the
-        screen. Only for a person: never in --yes, never without a terminal."""
-        import sys
-        if self.yes or not sys.stdin.isatty() or not self._installed_packs():
-            return
-        if getattr(self, "_asked_the_packs", False):
-            return                      # they already did, at the start; asking again is noise
-        if self.ask(tr("\nAsk the Knowledge Packs a first question now?"), True):
-            self._open_search()
 
     def _check_updates(self) -> None:
         """Tell the user, in one line, whether system updates are waiting. The

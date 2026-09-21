@@ -911,9 +911,7 @@ def _doc_search_loop(args, docmod, width, first: str | None = None) -> int:
         if notice:
             print("\n" + notice)
     _doc_more_hints()
-    back = getattr(args, "from_setup", False)
-    print(tr("\nAnother question, or press Enter on an empty line to go back to the setup.") if back
-          else tr("\nType a question, or press Enter on an empty line to finish."))
+    print(tr("\nType a question, or press Enter on an empty line to finish."))
     asked = 0
     last_hits: list[dict] = []
     radius: dict[int, int] = {}       # how far each result has been opened so far
@@ -949,9 +947,7 @@ def _doc_search_loop(args, docmod, width, first: str | None = None) -> int:
             asked += 1
             last_hits, radius = hits, {}
             _doc_show_hits(hits, width)
-            print(tr("\nType a number to read more of that one, ask something else, or press Enter "
-                     "to go back to the setup.") if back
-                  else tr("\nType a number to read more of that one, or ask something else."))
+            print(tr("\nType a number to read more of that one, or ask something else."))
     print(tr("\nDone.") if asked else tr("\nNothing asked."))
     return 0
 
