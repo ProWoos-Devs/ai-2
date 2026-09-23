@@ -21,7 +21,7 @@ A complete system: Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool,
    curl -fsSL https://raw.githubusercontent.com/ProWoos-Devs/ai2-packages/main/ai2-package-signing.asc | gpg --import
    gpg --verify ai-2-x86_64.iso.sha256.sig ai-2-x86_64.iso.sha256
    ```
-   It should say a good signature from the AI-2 signing key, `F1889E37B4E5FEC8`.
+   It should say a good signature from the AI-2 signing key, `F1889E37B4E5FEC8`. The key, how pacman checks every package, and how to stay on an older version are on one page, [Verifying and Pinning](https://github.com/ProWoos-Devs/ai-2/wiki/Verifying-and-Pinning).
 3. Write it to a USB stick of 4 GB or more, or burn it to a DVD. Linux or macOS (replace `sdX`, everything on the stick is erased): `sudo dd if=ai-2-x86_64.iso of=/dev/sdX bs=4M conv=fsync status=progress`. Windows: Rufus or balenaEtcher in their default mode.
 4. Boot the computer from the stick. It starts a live desktop (logs in by itself, user `ai-2`, password `ai-2`) that you can try without touching your disks. `START-HERE.txt` on that desktop explains the installation; "Install AI-2" starts the installer.
 
