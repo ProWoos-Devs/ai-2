@@ -6,6 +6,16 @@ how far each language has got.
     tools/translations.py check [--template T]  structure and placeholders; with T, strings
                                                 missing from or stale in each .ts
     tools/translations.py coverage [--template T] [--markdown]
+    tools/translations.py credits               the README's table of translators, from translators.json
+    tools/translations.py readme [--write]      the generated blocks in README.md and TRANSLATING.md
+                                                (installer languages, translators); without
+                                                --write, exit 1 if they are out of date
+    tools/translations.py stale --template T    per language, the texts of the parts it has
+                                                started that are not translated yet
+    tools/translations.py issues --template T [--dry-run]
+                                                open or update one issue per language with
+                                                stale texts, mentioning its translators (CI,
+                                                when a release is published)
 
 The .qm files are build output, never committed: a translator sends the .ts,
 CI compiles it to prove it compiles, and the ISO build compiles it again
@@ -31,6 +41,9 @@ LANG_DIR = BRANDING / "lang"
 DESKTOP_DIR = ROOT / "branding/desktop"
 LANGUAGES_JSON = ROOT / "ai2/data/languages.json"
 I18N_DIR = ROOT / "ai2/data/i18n"
+TRANSLATORS_JSON = ROOT / "translators.json"
+README = ROOT / "README.md"
+ISSUE_TITLE = "Translation update: {name} ({code})"
 
 # The source files whose tr() templates make up the app catalog.
 TR_SOURCES = ["ai2/wizard.py", "ai2/chatterm.py", "ai2/updates.py", "ai2/about.py",
@@ -170,6 +183,157 @@ def _frac(pair) -> str:
     return f"{done}/{total}" if total is not None else f"{done}/?"
 
 
+def translators() -> dict[str, dict]:
+    """{code: {"language": its own name, "translators": [{name, github, url?}]}}"""
+    return json.loads(TRANSLATORS_JSON.read_text(encoding="utf-8"))
+
+
+def language_name(code: str) -> str:
+    return translators().get(code, {}).get("language", code)
+
+
+def credits_rows() -> list[str]:
+    """One README table row per language, English first, in the order of
+    translators.json."""
+    rows = []
+    for code, entry in translators().items():
+        people = entry["translators"]
+        names = ", ".join(f"[{p['name']}]({p.get('url') or 'https://github.com/' + p['github']})" for p in people)
+        rows.append(f"| {language_name(code)} | `{code}` | {names} |")
+    return rows
+
+
+def installer_languages() -> list[str]:
+    """English plus every language with an installer catalog, in the order
+    of translators.json, by their English names."""
+    have = {"en"} | {ts_code(p) for p in ts_files()}
+    listed = translators()
+    order = [c for c in listed if c in have] + sorted(have - set(listed))
+    return [listed.get(c, {}).get("english", c) for c in order]
+
+
+GENERATED = {
+    "installer-languages": lambda: "\n".join(f"- {name}" for name in installer_languages()),
+    "translators": lambda: "| Language | Code | Translated by |\n|---|---|---|\n" + "\n".join(credits_rows()),
+}
+GENERATED_IN = {"installer-languages": [README, ROOT / "TRANSLATING.md"], "translators": [README]}
+
+
+def render_generated(text: str, block: str) -> str:
+    start, end = f"<!-- {block}:start -->", f"<!-- {block}:end -->"
+    before, rest = text.split(start, 1)
+    _, after = rest.split(end, 1)
+    return f"{before}{start}\n{GENERATED[block]()}\n{end}{after}"
+
+
+def stale(template: pathlib.Path) -> dict[str, dict[str, list[str]]]:
+    """Per language, what is untranslated in the parts it has started: the
+    installer if it has a .ts, the app if it has a catalog, and each menu
+    file where it has at least one key. A part nobody has taken on is not
+    stale, it is simply not translated, and nobody is chased about it."""
+    wanted_ts = template_sources(template)
+    keys = tr_keys()
+    desktop = desktop_entries()
+    out: dict[str, dict[str, list[str]]] = {}
+    for code in languages():
+        found: dict[str, list[str]] = {}
+        ts = LANG_DIR / f"calamares-ai2_{code}.ts"
+        if ts.is_file():
+            done = {s for s, _, finished in ts_messages(ts) if finished}
+            if missing := sorted(wanted_ts - done):
+                found[f"iso/profiles/ai2/live-overlay/usr/share/calamares/branding/ai2/lang/{ts.name}"] = missing
+        catalog_path = I18N_DIR / f"{code}.json"
+        if catalog_path.is_file():
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            if missing := sorted(keys - set(catalog)):
+                found[f"ai2/data/i18n/{code}.json"] = missing
+        for name, entries in desktop.items():
+            if not any(k.endswith(f"[{code}]") for k in entries):
+                continue
+            missing = [f"{k}={entries[k]}" for k in DESKTOP_KEYS
+                       if k in entries and any(key.startswith(k + "[") for key in entries)
+                       and f"{k}[{code}]" not in entries]
+            if missing:
+                found[f"branding/desktop/{name}"] = missing
+        if found:
+            out[code] = found
+    return out
+
+
+def issue_body(code: str, found: dict[str, list[str]]) -> str:
+    people = translators().get(code, {}).get("translators", [])
+    mentions = " ".join(f"@{p['github']}" for p in people)
+    lines = [f"{mentions} English texts changed in this release, and these are not in {language_name(code)} yet. "
+             "Until they are, they show in English, so nothing is broken.", ""]
+    for path, items in found.items():
+        # a fenced block per file: the texts carry line breaks, backticks do not
+        lines += [f"**{path}**, {len(items)} text{'s' if len(items) != 1 else ''}", "```text"]
+        lines.append("\n\n".join(item.strip("\n") for item in items))
+        lines += ["```", ""]
+    lines.append("How to add them is in https://github.com/ProWoos-Devs/ai-2/blob/main/TRANSLATING.md. "
+                 "One pull request for all of them is fine, and so is saying here that you cannot do it now.")
+    return "\n".join(lines)
+
+
+def _github(method: str, path: str, payload: dict | None = None):
+    import os
+    import urllib.request
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}{path}",
+        method=method, data=json.dumps(payload).encode() if payload else None,
+        headers={"Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                 "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read() or b"null")
+
+
+def cmd_credits(_args) -> int:
+    print("\n".join(credits_rows()))
+    return 0
+
+
+def cmd_readme(args) -> int:
+    outdated = []
+    for block, paths in GENERATED_IN.items():
+        for path in paths:
+            text = path.read_text(encoding="utf-8")
+            new = render_generated(text, block)
+            if new != text:
+                outdated.append(f"{path.name}: {block}")
+                if args.write:
+                    path.write_text(new, encoding="utf-8")
+    for item in outdated:
+        print(("rewrote " if args.write else "out of date: ") + item)
+    return 1 if outdated and not args.write else 0
+
+
+def cmd_stale(args) -> int:
+    print(json.dumps(stale(args.template), ensure_ascii=False, indent=1))
+    return 0
+
+
+def cmd_issues(args) -> int:
+    found_all = stale(args.template)
+    if not found_all:
+        print("every started translation is complete")
+        return 0
+    open_issues = [] if args.dry_run else _github("GET", "/issues?state=open&per_page=100")
+    for code, found in found_all.items():
+        title = ISSUE_TITLE.format(name=language_name(code), code=code)
+        body = issue_body(code, found)
+        existing = next((i for i in open_issues if i["title"] == title and "pull_request" not in i), None)
+        if args.dry_run:
+            print(f"== {'update' if existing else 'open'}: {title}\n{body}\n")
+        elif existing:
+            _github("POST", f"/issues/{existing['number']}/comments",
+                    {"body": "Still missing after this release:\n\n" + body})
+            print(f"commented on #{existing['number']} {title}")
+        else:
+            issue = _github("POST", "/issues", {"title": title, "body": body})
+            print(f"opened #{issue['number']} {title}")
+    return 0
+
+
 def cmd_build(_args) -> int:
     lrelease = shutil.which("lrelease") or next(
         (p for p in ("/usr/lib/qt6/bin/lrelease", "/usr/lib/qt5/bin/lrelease") if pathlib.Path(p).is_file()), None)
@@ -226,6 +390,17 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("build").set_defaults(func=cmd_build)
+    sub.add_parser("credits").set_defaults(func=cmd_credits)
+    p = sub.add_parser("readme")
+    p.add_argument("--write", action="store_true")
+    p.set_defaults(func=cmd_readme)
+    p = sub.add_parser("stale")
+    p.add_argument("--template", type=pathlib.Path, required=True)
+    p.set_defaults(func=cmd_stale)
+    p = sub.add_parser("issues")
+    p.add_argument("--template", type=pathlib.Path, required=True)
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_issues)
     for name, func in (("check", cmd_check), ("coverage", cmd_coverage)):
         p = sub.add_parser(name)
         p.add_argument("--template", type=pathlib.Path)

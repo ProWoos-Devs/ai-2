@@ -74,9 +74,26 @@ More in the wiki, [Knowledge Packs](https://github.com/ProWoos-Devs/ai-2/wiki/Kn
 
 ## Translations
 
-AI-2 speaks English, Spanish and German, and Polish in the installer. Anyone can add a language, with no programs to
-install and nothing to compile; [TRANSLATING.md](TRANSLATING.md) walks the whole way, and the checks on your pull
-request say what is still missing.
+So far, in the installer AI-2 speaks the following languages:
+
+<!-- installer-languages:start -->
+- English
+- Spanish
+- German
+- Polish
+<!-- installer-languages:end -->
+
+Anyone can add a language, with no programs to install and nothing to compile; [TRANSLATING.md](TRANSLATING.md) walks
+the whole way, and the checks on your pull request say what is still missing.
+
+<!-- translators:start -->
+| Language | Code | Translated by |
+|---|---|---|
+| English | `en` | [ProWoos team](https://github.com/ProWoos-Devs) |
+| Español | `es` | [Rafael Minuesa](https://github.com/rafael-minuesa) |
+| Deutsch | `de` | [ProWoos team](https://github.com/ProWoos-Devs) |
+| Polski | `pl` | [Mateusz Szczepaniak](https://github.com/szczepaniakmateusz59-del) |
+<!-- translators:end -->
 
 ## What your machine can do
 

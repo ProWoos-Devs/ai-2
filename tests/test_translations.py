@@ -62,3 +62,51 @@ def test_coverage_report_runs():
     assert "| Language |" in out
     for code in ("es", "de"):
         assert f"| {code} |" in out
+
+
+def test_every_language_has_its_translators():
+    """translators.json names who did each language: the README credits them
+    and the release issues mention them."""
+    listed = translations.translators()
+    for code in ["en", *translations.languages()]:
+        assert code in listed, f"{code}: add your language and your name to translators.json"
+    for code, entry in listed.items():
+        assert entry.get("language"), f"{code}: translators.json needs the language's own name"
+        assert entry.get("english"), f"{code}: translators.json needs the language's name in English"
+        assert entry.get("translators"), f"{code}: translators.json lists nobody"
+        for person in entry["translators"]:
+            assert person.get("name") and re.fullmatch(r"[A-Za-z0-9-]+", person.get("github", "")), \
+                f"{code}: each translator needs a name and a GitHub username"
+
+
+def test_generated_lists_are_current():
+    """The installer languages (README.md, TRANSLATING.md) and the
+    translators table (README.md) are made from the files; the message gives
+    the exact text, so it can be pasted in the web editor."""
+    for block, paths in translations.GENERATED_IN.items():
+        for path in paths:
+            text = path.read_text(encoding="utf-8")
+            assert f"<!-- {block}:start -->" in text, f"{path.name} lost its {block} markers"
+            assert translations.render_generated(text, block) == text, (
+                f"{path.name}: between <!-- {block}:start --> and <!-- {block}:end --> put exactly\n"
+                f"{translations.GENERATED[block]()}\n(or run tools/translations.py readme --write)")
+
+
+def test_release_issue_mentions_the_translators():
+    body = translations.issue_body("pl", {"branding/desktop/x.desktop": ["Name=Search Knowledge"]})
+    for person in translations.translators()["pl"]["translators"]:
+        assert f"@{person['github']}" in body
+    assert "Name=Search Knowledge" in body and "TRANSLATING.md" in body
+
+
+def test_nothing_is_stale_against_the_committed_strings():
+    """With the installer strings each catalog already has as the template,
+    a language only shows up when a part it started lost texts."""
+    import tempfile
+    sources = sorted({s for ts in translations.ts_files() for s, _, _ in translations.ts_messages(ts)})
+    with tempfile.NamedTemporaryFile("w", suffix=".ts", delete=False, encoding="utf-8") as fh:
+        from xml.sax.saxutils import escape
+        fh.write('<?xml version="1.0"?><TS version="2.1"><context><name>t</name>'
+                 + "".join(f"<message><source>{escape(s)}</source></message>" for s in sources)
+                 + "</context></TS>")
+    assert translations.stale(pathlib.Path(fh.name)) == {}

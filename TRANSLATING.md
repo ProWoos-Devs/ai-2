@@ -1,6 +1,15 @@
 # Translating AI-2, step by step
 
-AI-2 speaks English, Spanish and German, and Polish in the installer. Anyone can add a language. You need a GitHub account and nothing else. There is no program to install, nothing to compile, and nobody to ask for permission until the pull request at the end.
+So far, in the installer AI-2 speaks the following languages:
+
+<!-- installer-languages:start -->
+- English
+- Spanish
+- German
+- Polish
+<!-- installer-languages:end -->
+
+Anyone can add a language. You need a GitHub account and nothing else. There is no program to install, nothing to compile, and nobody to ask for permission until the pull request at the end.
 
 This page is written for a first translation. Everything can be done in the GitHub web editor.
 
@@ -66,7 +75,20 @@ Name[fr]=Rechercher dans les connaissances
 
 Open each file, press the pencil icon to edit, and add a line for your language under every `Name`, `GenericName` and `Comment` that already has Spanish and German lines. Leave alone the ones that have none; they stay English on purpose (a product name like "AI-2 Chat", or an entry no menu shows).
 
-### 1.3 Open the pull request
+### 1.3 Add your name
+
+1. Add your language and yourself to [`translators.json`](https://github.com/ProWoos-Devs/ai-2/blob/main/translators.json), after the others, with the language's name in its own words, its name in English, and your GitHub username:
+
+   ```json
+   "fr": {"language": "Français", "english": "French", "translators": [{"name": "Your Name", "github": "your-username"}]}
+   ```
+
+   If someone already translated the language, add yourself to its `translators` list instead.
+2. Two lists are made from that file and from the installer files, and the checks show you their exact new text to paste. In [`README.md`](https://github.com/ProWoos-Devs/ai-2/blob/main/README.md), the list of installer languages gets `- French` and the Translations table gets your row, ``| Français | `fr` | [Your Name](https://github.com/your-username) |``. The same `- French` goes in the list at the top of this page.
+
+The README credits you, and when English texts change you are the one we ask (see "Keeping it current").
+
+### 1.4 Open the pull request
 
 Commit your changes to a new branch in your fork, with a message that says what it is ("French translation of the installer"), then press **Contribute > Open pull request**. Say in the description which parts you translated.
 
@@ -116,7 +138,7 @@ Both are plain text files in [`branding/`](https://github.com/ProWoos-Devs/ai-2/
 2. Add that same `start_here_line` near the top of the English [`branding/START-HERE.txt`](https://github.com/ProWoos-Devs/ai-2/blob/main/branding/START-HERE.txt), under the Spanish and German lines. That English file is the one on the live desktop, and this line is how someone who does not read English finds theirs.
 3. In your installer file from Part 1, set the file path text to your START-HERE, `file:///usr/share/doc/ai2/COMMENCER-ICI.txt`.
 
-Then open the pull request as in 1.3.
+Then add your name as in 1.3, if this is a new pull request, and open it as in 1.4.
 
 ---
 
@@ -137,7 +159,7 @@ Then a maintainer reads it. We may suggest wording, and if another speaker of yo
 
 ## Keeping it current
 
-English texts change from one release to the next. When they do, the translations check lists the texts your language does not have yet ("not translated yet"), and we open an issue that mentions you. Nothing breaks in the meantime; the new texts show in English until they are translated.
+English texts change from one release to the next. When a release is published, every language that no longer has all the texts of a part it had translated gets an issue titled "Translation update: <language> (<code>)", which mentions its translators from `translators.json` and lists exactly the texts that are missing. A part your language never started is left alone. Nothing breaks in the meantime; the new texts show in English until they are translated, and if you cannot do it now, say so in the issue.
 
 ## Checking it on your own computer
 

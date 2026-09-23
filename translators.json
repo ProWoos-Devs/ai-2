@@ -1,0 +1,6 @@
+{
+  "en": {"language": "English", "english": "English", "translators": [{"name": "ProWoos team", "github": "ProWoos", "url": "https://github.com/ProWoos-Devs"}]},
+  "es": {"language": "Español", "english": "Spanish", "translators": [{"name": "Rafael Minuesa", "github": "rafael-minuesa"}]},
+  "de": {"language": "Deutsch", "english": "German", "translators": [{"name": "ProWoos team", "github": "ProWoos", "url": "https://github.com/ProWoos-Devs"}]},
+  "pl": {"language": "Polski", "english": "Polish", "translators": [{"name": "Mateusz Szczepaniak", "github": "szczepaniakmateusz59-del"}]}
+}

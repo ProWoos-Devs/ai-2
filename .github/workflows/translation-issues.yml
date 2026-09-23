@@ -1,0 +1,28 @@
+name: translation-issues
+# When a release is published, every language that has fallen behind in a
+# part it had started gets one issue, mentioning its translators from
+# translators.json, or a comment on the one already open. Parts nobody has
+# taken on are left alone. Run by hand from the Actions tab to check now.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  issues:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - run: sudo apt-get update -q && sudo apt-get install -y -q qt6-l10n-tools
+      - name: Strings the installer asks for
+        run: /usr/lib/qt6/bin/lupdate -silent iso/profiles/ai2/live-overlay/usr/share/calamares/branding/ai2/*.qml -ts "$RUNNER_TEMP/template.ts"
+      - name: Open or update the issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python tools/translations.py issues --template "$RUNNER_TEMP/template.ts"
