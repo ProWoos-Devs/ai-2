@@ -24,10 +24,10 @@ lokalnie, gdy to możliwe, zdalnie, gdy nie.</translation>
 and Linux Essentials. This computer searches them in seconds, with no
 internet, and names the document every answer came from. No AI writes
 those answers, so an old PC answers as well as a new one.</source>
-        <translation>AI-2 zawiera trzy Pakiety Wiedzy: AI-2 Help, Everyday Reference
-i Linux Essentials. Ten komputer przeszukuje je w kilka sekund, bez
-internetu, i podaje dokument, z którego pochodzi każda odpowiedź. Żadna SI nie
-pisze tych odpowiedzi, dlatego stary komputer odpowiada tak samo dobrze jak nowy.</translation>
+        <translation>AI-2 zawiera trzy Pakiety Wiedzy: AI-2 Help, Everyday Reference i
+Linux Essentials. Ten komputer przeszukuje je w kilka sekund, bez internetu,
+i podaje dokument, z którego pochodzi każda odpowiedź. Żadna SI nie pisze
+tych odpowiedzi, dlatego stary komputer odpowiada tak samo dobrze jak nowy.</translation>
     </message>
     <message>
         <source>Applications &gt; AI-2 &gt; Search Knowledge   works right after install.
@@ -61,9 +61,9 @@ pobiera pierwszy model i mierzy twój AI Score.</translation>
         <source>AI-2 ships with a small starter model on board, so the chat
 works right after install, even with no internet. Being small, it
 can get facts wrong: for facts, ask the Knowledge Packs instead.</source>
-        <translation>AI-2 zawiera mały model startowy, więc czat
-działa od razu po instalacji, nawet bez internetu. Ponieważ jest mały,
-może podawać błędne informacje. Aby sprawdzić fakty, skorzystaj z Pakietów Wiedzy.</translation>
+        <translation>AI-2 zawiera mały model startowy, więc czat działa od razu po instalacji,
+nawet bez internetu. Ponieważ jest mały, może podawać błędne informacje.
+Aby sprawdzić fakty, skorzystaj z Pakietów Wiedzy.</translation>
     </message>
     <message>
         <source>Once online, the setup wizard measures this machine
@@ -91,8 +91,8 @@ Model online jest używany tylko wtedy, gdy wyraźnie go wybierzesz.</translatio
         <source>AI-2 installs only what it needs: the desktop, a browser,
 a text editor and the AI engine. Light on old machines.
 Anything else is one command away:</source>
-        <translation>AI-2 instaluje tylko to, czego potrzebuje: pulpit, przeglądarkę,
-edytor tekstu i silnik SI. Zużywa niewiele zasobów także na starszych komputerach.
+        <translation>AI-2 instaluje tylko to, czego potrzebuje: pulpit, przeglądarkę, edytor
+tekstu i silnik SI. Zużywa niewiele zasobów także na starszych komputerach.
 Pozostałe programy zainstalujesz jednym poleceniem:</translation>
     </message>
     <message>

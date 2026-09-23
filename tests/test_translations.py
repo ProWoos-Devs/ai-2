@@ -23,6 +23,12 @@ def test_every_installer_catalog_is_sound():
     assert not problems, "\n".join(problems)
 
 
+def test_slide_texts_fit_the_slide():
+    assert len(translations.slide_font_sizes()) >= 20, "show.qml texts not found"
+    problems = [p for ts in translations.ts_files() for p in translations.slide_overflows(ts)]
+    assert not problems, "\n".join(problems)
+
+
 def test_a_broken_catalog_is_reported(tmp_path):
     bad = tmp_path / "calamares-ai2_xx.ts"
     bad.write_text('<?xml version="1.0"?><TS version="2.1" language="yy"><context><name>c</name>'

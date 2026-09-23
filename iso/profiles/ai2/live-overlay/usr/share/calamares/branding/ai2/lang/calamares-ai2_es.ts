@@ -35,7 +35,8 @@ Add more in  Applications > AI-2 > Knowledge Packs , or make one from your own P
 The community catalog, to get packs and share yours:  github.com/ProWoos-Devs/ai2-knowledge</source>
         <translation>Aplicaciones &gt; AI-2 &gt; Buscar conocimiento   funciona nada más instalar.
 Añade más en  Aplicaciones > AI-2 > Paquetes de Conocimiento , o crea uno con tus propios PDF.
-El catálogo de la comunidad, para obtener paquetes y compartir los tuyos:  github.com/ProWoos-Devs/ai2-knowledge</translation>
+El catálogo de la comunidad, para obtener paquetes y compartir los tuyos:
+github.com/ProWoos-Devs/ai2-knowledge</translation>
     </message>
     <message>
         <source>First steps</source>

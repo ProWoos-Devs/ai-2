@@ -91,6 +91,42 @@ def ts_problems(path: pathlib.Path) -> list[str]:
     return problems
 
 
+# The slideshow (show.qml) draws every text in one line per line break, no
+# wrapping, in a monospace font whose advance is 0.602 em (DejaVu Sans Mono),
+# inside a slide area measured at 888 px in the 1100x700 installer window. A
+# longer line is cut off at both edges, which the translator never sees.
+SLIDE_WIDTH_PX = 860
+MONO_ADVANCE = 0.602
+
+
+def slide_font_sizes() -> dict[str, int]:
+    """{English text: font pixel size} for every qsTr() text in show.qml."""
+    qml = (BRANDING / "show.qml").read_text(encoding="utf-8")
+    sizes = {}
+    for block in re.split(r"\n\s*Text\s*\{", qml)[1:]:
+        text = re.search(r"text: qsTr\('((?:[^'\\]|\\.)*)'\)", block)
+        size = re.search(r"font.pixelSize: (\d+)", block)
+        if text and size:
+            key = text.group(1).encode("latin-1", "backslashreplace").decode("unicode_escape")
+            sizes[key.encode("latin-1").decode("utf-8")] = int(size.group(1))
+    return sizes
+
+
+def slide_overflows(path: pathlib.Path) -> list[str]:
+    """Lines of this catalog's slide texts that would be cut off."""
+    sizes = slide_font_sizes()
+    out = []
+    for source, text, finished in ts_messages(path):
+        if not finished or source not in sizes:
+            continue
+        for line in text.split("\n"):
+            width = len(line) * MONO_ADVANCE * sizes[source]
+            if width > SLIDE_WIDTH_PX:
+                out.append(f"{path.name}: this slide line is about {width:.0f} px, wider than the slide "
+                           f"({SLIDE_WIDTH_PX}); break it into two lines: {line!r}")
+    return out
+
+
 def template_sources(template: pathlib.Path) -> set[str]:
     return {source for source, _, _ in ts_messages(template)}
 
@@ -349,7 +385,7 @@ def cmd_build(_args) -> int:
 
 
 def cmd_check(args) -> int:
-    problems = [p for ts in ts_files() for p in ts_problems(ts)]
+    problems = [p for ts in ts_files() for p in ts_problems(ts) + slide_overflows(ts)]
     if args.template:
         wanted = template_sources(args.template)
         for ts in ts_files():
