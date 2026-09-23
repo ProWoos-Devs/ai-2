@@ -15,6 +15,27 @@ jobs:
           python-version: "3.12"
       - run: pip install pyyaml pytest
       - run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/
+  # No key, token or password in the tree or its history. The gitleaks
+  # program (MIT) at a pinned version with its checksum checked; the
+  # gitleaks-action wrapper would need a license key for an organization repo.
+  secrets:
+    runs-on: ubuntu-24.04
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          cd "$RUNNER_TEMP"
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          curl -sSfLO "$base/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep "linux_x64.tar.gz" "gitleaks_${GITLEAKS_VERSION}_checksums.txt" | sha256sum -c -
+          tar xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
+      - name: Scan the whole history
+        run: $RUNNER_TEMP/gitleaks git --redact --no-banner -v .
   # The installer catalogs compile, keep their placeholders, and match the
   # strings the installer asks for; the .desktop files validate; the step
   # summary shows each language's coverage. A translator never builds a .qm.
