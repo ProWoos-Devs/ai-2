@@ -72,6 +72,12 @@ after the install.
 
 More in the wiki, [Knowledge Packs](https://github.com/ProWoos-Devs/ai-2/wiki/Knowledge-Packs).
 
+## Translations
+
+AI-2 speaks English, Spanish and German, and Polish in the installer. Anyone can add a language, with no programs to
+install and nothing to compile; [TRANSLATING.md](TRANSLATING.md) walks the whole way, and the checks on your pull
+request say what is still missing.
+
 ## What your machine can do
 
 `ai-2 benchmark` runs llama.cpp on a fixed workload and scores the machine from 0 to 100. That score, not the
