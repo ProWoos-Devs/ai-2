@@ -4,10 +4,11 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 ### Added
-- **The installer speaks Polish.** The slideshow and the welcome page's own strings, translated by Mateusz Szczepaniak (https://github.com/ProWoos-Devs/ai-2/pull/17), with the compiled `calamares-ai2_pl.qm` alongside. The Search Knowledge and Knowledge Packs menu entries carry Polish names to match the slideshow, "Szukaj wiedzy" and "Pakiety Wiedzy", the product name keeping its capitals as in the other languages. The first-login setup, Search Knowledge and the Knowledge Packs window are still English, Spanish and German only.
+- **The installer speaks Polish.** The slideshow and the welcome page's own strings, translated by Mateusz Szczepaniak (https://github.com/ProWoos-Devs/ai-2/pull/17). The Search Knowledge and Knowledge Packs menu entries carry Polish names to match the slideshow, "Szukaj wiedzy" and "Pakiety Wiedzy", the product name keeping its capitals as in the other languages. The first-login setup, Search Knowledge and the Knowledge Packs window are still English, Spanish and German only.
 
 ### Changed
 - **One list of languages, `ai2/data/languages.json`.** It names each language's two guides (START-HERE and the Guide, under their translated names) and its line in the English START-HERE. The tr() catalogs, `ai-2 guide` and its `--lang` choices, and the files the package installs all read it, so adding a language no longer means editing code. `tests/test_languages.py` says what a new entry is still missing. First step of https://github.com/ProWoos-Devs/AI-2-workspace/issues/79.
+- **Translators never build anything.** The installer's compiled catalogs (`.qm`) are no longer in the repository: `tools/translations.py build` makes them, `iso/stage-profile.sh` refuses to stage an image without current ones, and CI compiles every `.ts` on each pull request. CI also checks each catalog (valid XML, `language` matching the file name, `%1` placeholders kept), compares it with the strings the installer really asks for (`lupdate` over the QML), validates the `.desktop` files, and writes a coverage table per language (installer, app, menu entries, guides) to the run summary; `tools/translations.py coverage` prints the same table locally. The app catalog check now also covers the Knowledge Packs commands' strings (`knowledgecli.py`), which were translated but not checked. Second step of https://github.com/ProWoos-Devs/AI-2-workspace/issues/79.
 
 ## [0.19.1] - 2026-09-21
 ### Changed

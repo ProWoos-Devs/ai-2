@@ -2,46 +2,20 @@
 wizard passes to tr() exists in every language, and every translation keeps
 exactly the placeholders of its English key. This is what keeps the catalogs
 from rotting silently when a wizard string changes."""
-import ast
+import importlib.util
 import pathlib
 import re
 
 from ai2 import i18n
-from ai2.benchmark import STAR_LABELS, feel
 
-SOURCES = [pathlib.Path("ai2/wizard.py"), pathlib.Path("ai2/chatterm.py"),
-           pathlib.Path("ai2/updates.py"), pathlib.Path("ai2/about.py"),
-           pathlib.Path("ai2/packbrowse.py"), pathlib.Path("ai2/cli.py")]
-
-FEEL_STRINGS = [feel(t) for t in (1, 3, 8, 20)]
-
-
-def _file_keys(path: pathlib.Path) -> set[str]:
-    """Every literal template a source file sends through tr(): direct
-    tr(...) calls, and head(n, title) titles (head applies tr itself),
-    including conditional titles like ("Ready" if ... else "Almost ready")."""
-    keys = set()
-    tree = ast.parse(path.read_text())
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        name = getattr(node.func, "id", getattr(node.func, "attr", None))
-        if name == "tr" and node.args and isinstance(node.args[0], ast.Constant):
-            keys.add(node.args[0].value)
-        if name == "head" and len(node.args) == 2:
-            arg = node.args[1]
-            if isinstance(arg, ast.Constant):
-                keys.add(arg.value)
-            elif isinstance(arg, ast.IfExp):
-                for part in (arg.body, arg.orelse):
-                    if isinstance(part, ast.Constant):
-                        keys.add(part.value)
-    return keys
+_spec = importlib.util.spec_from_file_location(
+    "translations", pathlib.Path(__file__).resolve().parent.parent / "tools" / "translations.py")
+translations = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(translations)
 
 
 def required_keys() -> set[str]:
-    keys = set().union(*(_file_keys(p) for p in SOURCES))
-    return keys | set(STAR_LABELS.values()) | set(FEEL_STRINGS)
+    return translations.tr_keys()
 
 
 def test_catalogs_cover_every_wizard_string():

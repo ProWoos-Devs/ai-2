@@ -14,6 +14,17 @@ set -euo pipefail
 SRC=/ai2-repo/www/ai-2
 DST=/root/artools-workspace/iso-profiles/ai2
 
+# The installer's compiled catalogs are build output, not in git. They are made
+# on the host (the container has no Qt tools) with tools/translations.py build;
+# refuse to stage an image whose installer would silently speak English.
+for ts in "$SRC"/iso/profiles/ai2/live-overlay/usr/share/calamares/branding/ai2/lang/*.ts; do
+  qm="${ts%.ts}.qm"
+  if [ ! -f "$qm" ] || [ "$ts" -nt "$qm" ]; then
+    echo "$(basename "$qm") is missing or older than its .ts: run www/ai-2/tools/translations.py build on the host first" >&2
+    exit 1
+  fi
+done
+
 rm -rf "$DST"
 cp -a "$SRC/iso/profiles/ai2" "$DST"
 

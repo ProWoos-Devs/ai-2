@@ -1,0 +1,2 @@
+# compiled installer catalogs: tools/translations.py build makes them
+iso/profiles/ai2/live-overlay/usr/share/calamares/branding/ai2/lang/*.qm

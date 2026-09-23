@@ -15,6 +15,29 @@ jobs:
           python-version: "3.12"
       - run: pip install pyyaml pytest
       - run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q tests/
+  # The installer catalogs compile, keep their placeholders, and match the
+  # strings the installer asks for; the .desktop files validate; the step
+  # summary shows each language's coverage. A translator never builds a .qm.
+  translations:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - run: sudo apt-get update -q && sudo apt-get install -y -q qt6-l10n-tools desktop-file-utils
+      - name: Compile every installer catalog
+        run: PATH=/usr/lib/qt6/bin:$PATH python tools/translations.py build
+      - name: Strings the installer asks for
+        run: /usr/lib/qt6/bin/lupdate -silent iso/profiles/ai2/live-overlay/usr/share/calamares/branding/ai2/*.qml -ts "$RUNNER_TEMP/template.ts"
+      - name: Check the catalogs
+        run: python tools/translations.py check --template "$RUNNER_TEMP/template.ts"
+      - name: Validate the menu entries
+        run: desktop-file-validate --no-hints branding/desktop/*.desktop
+      - name: Coverage
+        if: always()
+        run: python tools/translations.py coverage --template "$RUNNER_TEMP/template.ts" --markdown >> "$GITHUB_STEP_SUMMARY"
   # The packs' URLs, sizes and hashes, against the real files: weekly, and
   # whenever the packaged copy of the catalog changes (that is the commit that
   # can get them wrong).
