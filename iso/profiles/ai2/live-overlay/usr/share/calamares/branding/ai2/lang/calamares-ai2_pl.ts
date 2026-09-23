@@ -5,7 +5,7 @@
     <name>show</name>
     <message>
         <source>Honest about your hardware</source>
-        <translation>Szczery wobec twojego sprzętu</translation>
+        <translation>Uczciwie o możliwościach twojego sprzętu</translation>
     </message>
     <message>
         <source>ai-2 benchmark measures what this machine can really do
@@ -63,12 +63,12 @@ works right after install, even with no internet. Being small, it
 can get facts wrong: for facts, ask the Knowledge Packs instead.</source>
         <translation>AI-2 zawiera mały model startowy, więc czat
 działa od razu po instalacji, nawet bez internetu. Ponieważ jest mały,
-może mylić się w faktach: po fakty pytaj raczej Pakiety Wiedzy.</translation>
+może podawać błędne informacje. Aby sprawdzić fakty, skorzystaj z Pakietów Wiedzy.</translation>
     </message>
     <message>
         <source>Once online, the setup wizard measures this machine
 and offers bigger models that fit your hardware.</source>
-        <translation>Gdy jesteś online, kreator konfiguracji mierzy tę maszynę
+        <translation>Po połączeniu z internetem kreator konfiguracji sprawdza wydajność tego komputera
 i oferuje większe modele dopasowane do twojego sprzętu.</translation>
     </message>
     <message>
@@ -92,8 +92,8 @@ Model online jest używany tylko wtedy, gdy wyraźnie go wybierzesz.</translatio
 a text editor and the AI engine. Light on old machines.
 Anything else is one command away:</source>
         <translation>AI-2 instaluje tylko to, czego potrzebuje: pulpit, przeglądarkę,
-edytor tekstu i silnik SI. Lekki na starych maszynach.
-Wszystko inne jest o jedno polecenie dalej:</translation>
+edytor tekstu i silnik SI. Zużywa niewiele zasobów także na starszych komputerach. 
+Pozostałe programy zainstalujesz jednym poleceniem:</translation>
     </message>
     <message>
         <source>$ sudo pacman -S atril        PDF viewer
@@ -111,7 +111,7 @@ $ sudo pacman -S libreoffice-still</translation>
         <source>Artix is Arch Linux without systemd; AI-2 uses its runit init.
 Rolling release: you update, you never reinstall.
 Documentation: https://wiki.artixlinux.org</source>
-        <translation>Artix to Arch Linux bez systemd; AI-2 korzysta z jego inita runit.
+        <translation>Artix to Arch Linux bez systemd; AI-2 korzysta z systemu inicjalizacji runit.
 Wydanie kroczące: aktualizujesz, nigdy nie instalujesz od nowa.
 Dokumentacja: https://wiki.artixlinux.org</translation>
     </message>
@@ -121,13 +121,13 @@ Dokumentacja: https://wiki.artixlinux.org</translation>
     </message>
     <message>
         <source>Your feedback</source>
-        <translation>Twoja informacja zwrotna</translation>
+        <translation>Twoja opinia</translation>
     </message>
     <message>
         <source>AI-2 is young. If something does not work on your machine,
 say so; the hardware you report is the hardware AI-2 gets better on.</source>
-        <translation>AI-2 jest młode. Jeśli coś nie działa na twojej maszynie,
-daj znać; sprzęt, który zgłosisz, to sprzęt, na którym AI-2 się poprawia.</translation>
+        <translation>AI-2 to młody projekt. Jeśli coś nie działa na twoim komputerze,
+daj znać — twoje zgłoszenie pomoże usprawnić działanie AI-2 na takim sprzęcie.</translation>
     </message>
     <message>
         <source>Bugs and ideas: https://github.com/ProWoos-Devs/ai-2/issues
@@ -148,7 +148,7 @@ O projekcie: https://prowoos.com/software-development/linux/ai-2/</translation>
     </message>
     <message>
         <source>&lt;p&gt;The next pages ask a few questions (location, keyboard, disk, your user) and then install %1 on this computer.&lt;/p&gt;&lt;p&gt;Nothing is written to your disks until you confirm the summary and the installation starts.&lt;/p&gt;</source>
-        <translation>&lt;p&gt;Kolejne strony zadają kilka pytań (lokalizacja, klawiatura, dysk, twój użytkownik), a potem instalują %1 na tym komputerze.&lt;/p&gt;&lt;p&gt;Na twoich dyskach nic nie zostanie zapisane, dopóki nie potwierdzisz podsumowania i nie rozpocznie się instalacja.&lt;/p&gt;</translation>
+        <translation>&lt;p&gt;Na kolejnych stronach odpowiesz na kilka pytań dotyczących lokalizacji, klawiatury, dysku i konta użytkownika. Następnie instalator zainstaluje %1 na tym komputerze.&lt;/p&gt;&lt;p&gt;Na twoich dyskach nic nie zostanie zapisane, dopóki nie potwierdzisz podsumowania i nie rozpocznie się instalacja.&lt;/p&gt;</translation>
     </message>
     <message>
         <source>Read the guide (START HERE)</source>
