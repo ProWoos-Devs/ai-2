@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Added
+- **The installer speaks Polish.** The slideshow and the welcome page's own strings, translated by Mateusz Szczepaniak (https://github.com/ProWoos-Devs/ai-2/pull/17), with the compiled `calamares-ai2_pl.qm` alongside. The Search Knowledge and Knowledge Packs menu entries carry Polish names to match the slideshow, "Szukaj wiedzy" and "Pakiety Wiedzy", the product name keeping its capitals as in the other languages. The first-login setup, Search Knowledge and the Knowledge Packs window are still English, Spanish and German only.
+
 ## [0.19.1] - 2026-09-21
 ### Changed
 - **The setup no longer offers to try the Knowledge Packs.** Asking a question in the middle of a setup was confusing (Rafael, 2026-09-21): it was not clear what had happened, where the answer would appear, or how to get back to the steps. The screen that explains what a Knowledge Pack is stays, and still stops before the steps scroll it away, but it now only says "Press Enter to go on with the setup". Answers live where they belong, in Applications > AI-2 > Search Knowledge, which that screen names. The later "ask one now?" offer at the end of the setup is gone too, along with `doc search --from-setup` and the six strings that existed only for this.

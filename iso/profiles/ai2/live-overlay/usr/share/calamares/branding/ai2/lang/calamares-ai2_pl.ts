@@ -127,7 +127,7 @@ Dokumentacja: https://wiki.artixlinux.org</translation>
         <source>AI-2 is young. If something does not work on your machine,
 say so; the hardware you report is the hardware AI-2 gets better on.</source>
         <translation>AI-2 to młody projekt. Jeśli coś nie działa na twoim komputerze,
-daj znać. twoje zgłoszenie pomoże usprawnić działanie AI-2 na takim sprzęcie.</translation>
+daj znać. Twoje zgłoszenie pomoże usprawnić działanie AI-2 na takim sprzęcie.</translation>
     </message>
     <message>
         <source>Bugs and ideas: https://github.com/ProWoos-Devs/ai-2/issues
