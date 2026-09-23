@@ -9,7 +9,11 @@ speaks the language the user picked in the installer.
 
 Placeholders use str.format ({name}); tests/test_i18n.py enforces that every
 catalog value keeps exactly the placeholders of its key, and that every
-template the wizard passes to tr() exists in every catalog."""
+template the wizard passes to tr() exists in every catalog.
+
+The languages are the ones listed in ai2/data/languages.json, the single list
+a translator adds a language to (with the file names of its two guides and
+its line in the English START-HERE); nothing else in the code names them."""
 
 from __future__ import annotations
 
@@ -17,7 +21,19 @@ import importlib.resources
 import json
 import os
 
-LANGUAGES = ("es", "de")
+
+
+def _load_languages() -> dict[str, dict[str, str]]:
+    try:
+        text = importlib.resources.files("ai2").joinpath("data/languages.json").read_text()
+        return json.loads(text)
+    except (OSError, ValueError):
+        return {"en": {"name": "English", "start_here": "START-HERE.txt",
+                       "guide": "AI-2-GUIDE.txt"}}
+
+
+LANGUAGE_INFO = _load_languages()
+LANGUAGES = tuple(code for code in LANGUAGE_INFO if code != "en")
 
 _catalog: dict[str, str] | None = None
 

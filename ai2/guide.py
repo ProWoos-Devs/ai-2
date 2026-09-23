@@ -6,8 +6,8 @@ to hand somebody, and until now nothing pointed at any document at all. This
 module owns the second guide, the one about the computer the user now has:
 talking to the AI, adding software, updating, getting help.
 
-Three languages, chosen from the locale the installer set, with English as the
-fallback. Plain text on purpose: it opens in the one text editor AI-2 ships, it
+One guide per language in ai2/data/languages.json, chosen from the locale the
+installer set, with English as the fallback. Plain text on purpose: it opens in the one text editor AI-2 ships, it
 reads correctly through a screen reader, and it works over SSH with `ai-2
 guide`.
 """
@@ -18,11 +18,9 @@ import os
 import shutil
 import subprocess
 
-FILES = {
-    "en": "AI-2-GUIDE.txt",
-    "es": "AI-2-GUIA.txt",
-    "de": "AI-2-ANLEITUNG.txt",
-}
+from .i18n import LANGUAGE_INFO
+
+FILES = {code: info["guide"] for code, info in LANGUAGE_INFO.items()}
 
 DOC_DIR = "/usr/share/doc/ai2"
 

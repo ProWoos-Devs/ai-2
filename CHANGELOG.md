@@ -6,6 +6,9 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ### Added
 - **The installer speaks Polish.** The slideshow and the welcome page's own strings, translated by Mateusz Szczepaniak (https://github.com/ProWoos-Devs/ai-2/pull/17), with the compiled `calamares-ai2_pl.qm` alongside. The Search Knowledge and Knowledge Packs menu entries carry Polish names to match the slideshow, "Szukaj wiedzy" and "Pakiety Wiedzy", the product name keeping its capitals as in the other languages. The first-login setup, Search Knowledge and the Knowledge Packs window are still English, Spanish and German only.
 
+### Changed
+- **One list of languages, `ai2/data/languages.json`.** It names each language's two guides (START-HERE and the Guide, under their translated names) and its line in the English START-HERE. The tr() catalogs, `ai-2 guide` and its `--lang` choices, and the files the package installs all read it, so adding a language no longer means editing code. `tests/test_languages.py` says what a new entry is still missing. First step of https://github.com/ProWoos-Devs/AI-2-workspace/issues/79.
+
 ## [0.19.1] - 2026-09-21
 ### Changed
 - **The setup no longer offers to try the Knowledge Packs.** Asking a question in the middle of a setup was confusing (Rafael, 2026-09-21): it was not clear what had happened, where the answer would appear, or how to get back to the steps. The screen that explains what a Knowledge Pack is stays, and still stops before the steps scroll it away, but it now only says "Press Enter to go on with the setup". Answers live where they belong, in Applications > AI-2 > Search Knowledge, which that screen names. The later "ask one now?" offer at the end of the setup is gone too, along with `doc search --from-setup` and the six strings that existed only for this.

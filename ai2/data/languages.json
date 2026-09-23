@@ -1,0 +1,19 @@
+{
+  "en": {
+    "name": "English",
+    "start_here": "START-HERE.txt",
+    "guide": "AI-2-GUIDE.txt"
+  },
+  "es": {
+    "name": "Español",
+    "start_here": "EMPIEZA-AQUI.txt",
+    "guide": "AI-2-GUIA.txt",
+    "start_here_line": "En español: /usr/share/doc/ai2/EMPIEZA-AQUI.txt"
+  },
+  "de": {
+    "name": "Deutsch",
+    "start_here": "START-HIER.txt",
+    "guide": "AI-2-ANLEITUNG.txt",
+    "start_here_line": "Auf Deutsch: /usr/share/doc/ai2/START-HIER.txt"
+  }
+}

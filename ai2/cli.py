@@ -7,7 +7,7 @@ import sys
 from dataclasses import asdict
 
 from . import __version__, branding, gopher, persona, remote
-from .i18n import tr
+from .i18n import LANGUAGE_INFO, tr
 from .backends import get_package_backend, get_service_backend
 from .benchmark import STAR_LABELS, measure
 from .detect import detect
@@ -1391,7 +1391,7 @@ def main(argv: list[str] | None = None) -> int:
     p_inst.set_defaults(func=cmd_install)
 
     p_guide = sub.add_parser("guide", help="the AI-2 guide for this computer: what it does, adding software, updating")
-    p_guide.add_argument("--lang", choices=sorted(("en", "es", "de")),
+    p_guide.add_argument("--lang", choices=sorted(LANGUAGE_INFO),
                          help="guide language (default: the system language)")
     p_guide.add_argument("--open", action="store_true", help="open it in the desktop text editor")
     p_guide.add_argument("--path", action="store_true", help="print the file path only")

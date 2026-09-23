@@ -65,14 +65,15 @@ package() {
   install -Dm644 branding/desktop/ai2-update-check.desktop "$pkgdir/etc/xdg/autostart/ai2-update-check.desktop"
   install -Dm644 packaging/ai-2/ai2-updates.profile.sh "$pkgdir/etc/profile.d/ai2-updates.sh"
   install -Dm644 branding/ai2-icon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/ai2.svg"
-  install -Dm644 branding/START-HERE.txt "$pkgdir/usr/share/doc/ai2/START-HERE.txt"
-  install -Dm644 branding/EMPIEZA-AQUI.txt "$pkgdir/usr/share/doc/ai2/EMPIEZA-AQUI.txt"
-  install -Dm644 branding/START-HIER.txt "$pkgdir/usr/share/doc/ai2/START-HIER.txt"
-  # the guide for the installed system (the one `ai-2 guide` opens); the
-  # START-HERE family above is the live stick's
-  install -Dm644 branding/AI-2-GUIDE.txt "$pkgdir/usr/share/doc/ai2/AI-2-GUIDE.txt"
-  install -Dm644 branding/AI-2-GUIA.txt "$pkgdir/usr/share/doc/ai2/AI-2-GUIA.txt"
-  install -Dm644 branding/AI-2-ANLEITUNG.txt "$pkgdir/usr/share/doc/ai2/AI-2-ANLEITUNG.txt"
+  # Per language, from ai2/data/languages.json: the START-HERE guide (the live
+  # stick's) and the guide for the installed system (the one `ai-2 guide`
+  # opens), each under its translated name.
+  local doc
+  for doc in $(python -c 'import json
+for info in json.load(open("ai2/data/languages.json")).values():
+    print(info["start_here"], info["guide"])'); do
+    install -Dm644 "branding/$doc" "$pkgdir/usr/share/doc/ai2/$doc"
+  done
   # mousepad (the only text editor) wraps long lines; pacman compiles schemas
   install -Dm644 branding/90_ai2.gschema.override "$pkgdir/usr/share/glib-2.0/schemas/90_ai2.gschema.override"
 
