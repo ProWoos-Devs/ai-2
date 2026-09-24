@@ -5,6 +5,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ## [Unreleased]
 ### Added
 - **Secret scanning.** Every push and pull request runs gitleaks over the whole history of the repository, the program itself at a pinned version with its checksum checked, and fails on anything that looks like a key, token or password. https://github.com/ProWoos-Devs/AI-2-workspace/issues/76
+- **One page on verifying what you install**, the wiki's [Verifying and Pinning](https://github.com/ProWoos-Devs/ai-2/wiki/Verifying-and-Pinning): the signing key and its fingerprint, checking the image and its signed checksum, how pacman checks every package, installing and holding an older version, and what AI-2 does not do. Linked from the README's install steps. https://github.com/ProWoos-Devs/AI-2-workspace/issues/77
 
 ### Fixed
 - **Installer slides no longer cut off lines.** A slide draws each line as it is, without wrapping, so a line wider than the slide loses its first and last letters. Three Polish lines and one Spanish line (the community catalog address, since ISO 20260921) did; each is now split into two, with no word changed. `tools/translations.py check`, which CI runs on every pull request, measures every slide line with the slide's font and fails with the line to split, since a translator never sees the slides.
