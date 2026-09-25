@@ -10,6 +10,9 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ### Fixed
 - **Installer slides no longer cut off lines.** A slide draws each line as it is, without wrapping, so a line wider than the slide loses its first and last letters. Three Polish lines and one Spanish line (the community catalog address, since ISO 20260921) did; each is now split into two, with no word changed. `tools/translations.py check`, which CI runs on every pull request, measures every slide line with the slide's font and fails with the line to split, since a translator never sees the slides.
 
+### Changed
+- **The first-login setup window opens with the desktop and says "please wait".** It used to wait 8 seconds with nothing on screen before opening, long enough for someone to think no setup was coming (reported from a test install, https://github.com/ProWoos-Devs/ai-2/issues/18). The window now opens at once with "AI-2 setup is starting, please wait..." in the system language and the setup begins 8 seconds later, through the new `ai-2 wizard --wait SECONDS`. https://github.com/ProWoos-Devs/AI-2-workspace/issues/86
+
 ## [0.19.2] - 2026-09-23
 ### Added
 - **The installer speaks Polish.** The slideshow and the welcome page's own strings, translated by Mateusz Szczepaniak (https://github.com/ProWoos-Devs/ai-2/pull/17). The Search Knowledge and Knowledge Packs menu entries carry Polish names to match the slideshow, "Szukaj wiedzy" and "Pakiety Wiedzy", the product name keeping its capitals as in the other languages. The first-login setup, Search Knowledge and the Knowledge Packs window are still English, Spanish and German only.

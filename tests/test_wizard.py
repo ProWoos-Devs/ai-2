@@ -260,3 +260,32 @@ def test_the_knowledge_packs_screen_explains_and_breathes(env, monkeypatch, loca
     monkeypatch.setattr(i18n, "_catalog", None)
 
 
+
+
+def test_wizard_wait_says_please_wait_before_starting(monkeypatch, capsys):
+    """At first login the window opens with the desktop: `ai-2 wizard --wait N`
+    prints the please-wait line first, then waits, then starts the setup."""
+    from ai2 import cli
+    events = []
+    monkeypatch.setattr(cli.time, "sleep", lambda s: events.append(("sleep", s)))
+    monkeypatch.setattr(wz.Wizard, "go", lambda self: events.append(("go",)) or 0)
+    assert cli.main(["wizard", "--wait", "8"]) == 0
+    assert capsys.readouterr().out.startswith("AI-2 setup is starting, please wait...")
+    assert events == [("sleep", 8.0), ("go",)]
+
+
+def test_wizard_without_wait_starts_at_once(monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setattr(cli.time, "sleep", lambda s: pytest.fail("slept without --wait"))
+    monkeypatch.setattr(wz.Wizard, "go", lambda self: 0)
+    assert cli.main(["wizard"]) == 0
+    assert "please wait" not in capsys.readouterr().out
+
+
+def test_first_boot_opens_the_window_without_a_blank_wait():
+    """The 8 s settle happens inside the window (--wait), not before it opens."""
+    import pathlib
+    script = (pathlib.Path(__file__).resolve().parent.parent / "branding" / "ai2-first-boot").read_text()
+    code = [line.split("#")[0] for line in script.splitlines()]
+    assert not any(line.strip().startswith("sleep") for line in code)
+    assert "ai-2 wizard --wait 8" in script

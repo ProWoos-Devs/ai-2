@@ -13,9 +13,11 @@ ai-2 guide --place-desktop >/dev/null 2>&1
 
 marker="${XDG_CONFIG_HOME:-$HOME/.config}/ai2/setup-done"
 [ -e "$marker" ] && exit 0
-sleep 8   # let the desktop settle first
+# The window opens with the desktop and says "please wait" in the system
+# language while the desktop settles (--wait 8), instead of 8 blank seconds
+# in which the setup looks like it is not coming.
 # Keep the window open at the end so the last step (how to use the AI) can be read.
-run="ai-2 wizard; printf '\n\nPress Enter to close this window. '; read _"
+run="ai-2 wizard --wait 8; printf '\n\nPress Enter to close this window. '; read _"
 if command -v xfce4-terminal >/dev/null 2>&1; then
     exec xfce4-terminal --title="AI-2 setup" --geometry=100x38 --hide-menubar -x sh -c "$run"
 elif command -v x-terminal-emulator >/dev/null 2>&1; then

@@ -146,5 +146,6 @@
   "[installed]": "[instalado]",
   "by {contact}": "por {contact}",
   "{id} is already installed and up to date.": "{id} ya está instalado y al día.",
-  "\nPress Enter to go on with the setup: ": "\nPulsa Intro para seguir con la configuración: "
+  "\nPress Enter to go on with the setup: ": "\nPulsa Intro para seguir con la configuración: ",
+  "AI-2 setup is starting, please wait...": "La configuración de AI-2 se está iniciando, espera un momento..."
 }

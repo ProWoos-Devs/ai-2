@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from dataclasses import asdict
 
 from . import __version__, branding, gopher, persona, remote
@@ -1137,6 +1138,11 @@ def cmd_guide(args) -> int:
 def cmd_wizard(args) -> int:
     from .wizard import Wizard
     try:
+        if args.wait > 0:
+            # The first-login window opens with the desktop and says so at once,
+            # instead of staying blank while the desktop settles.
+            print(tr("AI-2 setup is starting, please wait..."), flush=True)
+            time.sleep(args.wait)
         return Wizard(yes=args.yes).go()
     except KeyboardInterrupt:
         print("\nStopped. Run  ai-2 wizard  any time to continue.")
@@ -1362,6 +1368,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p_wiz = sub.add_parser("wizard", help="guided setup: scan, tune, measure, pick and download a model")
     p_wiz.add_argument("--yes", action="store_true", help="unattended: take the default answer everywhere")
+    p_wiz.add_argument("--wait", type=float, default=0, metavar="SECONDS",
+                       help="say the setup is starting, wait this long, then start (used at first login)")
     p_wiz.set_defaults(func=cmd_wizard)
 
     p_upd = sub.add_parser("update-check", help="check for pending system updates (cached; notifies the desktop with --notify)")
