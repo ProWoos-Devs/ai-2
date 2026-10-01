@@ -97,6 +97,65 @@ def test_check_failure_keeps_old_state(tmp_path, monkeypatch):
     assert updates.check_now() is None
 
 
+def _local_db(tmp_path, monkeypatch, when):
+    """A stand-in installed-package database whose mtime the test sets."""
+    db = tmp_path / "local"
+    db.mkdir()
+    os.utime(db, (when, when))
+    monkeypatch.setattr(updates, "PACMAN_LOCAL_DB", str(db))
+    return db
+
+
+def test_a_listing_outrun_by_an_installation_is_not_saved(tmp_path, monkeypatch):
+    """RMM-PC, 2026-10-01: pamac-checkupdates listed 51 updates, waited for
+    Software Updates to finish installing them, then printed the 51. Saved,
+    that count raised a bubble over a current system at the next two logins."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
+    now = time.time()
+    db = _local_db(tmp_path, monkeypatch, now - 3600)
+    runs = []
+    def run_check(timeout_s):
+        runs.append(time.time())
+        if len(runs) == 1:                    # the installation lands while this run waits
+            os.utime(db, (now - 60, now - 60))
+            return ["ai-2", "linux"], True
+        return [], True
+    monkeypatch.setattr(updates, "_run_check", run_check)
+    st = updates.check_now(sleep=lambda s: None)
+    assert st["count"] == 0 and len(runs) == 2
+    assert st["checked_at"] <= runs[1]        # dated by the start of the listing it kept
+    assert updates.state_is_fresh(20)
+    # packages that keep changing under every listing: "could not check", state kept
+    runs.clear()
+    def always_outrun(timeout_s):
+        runs.append(1)
+        os.utime(db, (now + len(runs), now + len(runs)))
+        return ["ai-2"], True
+    monkeypatch.setattr(updates, "_run_check", always_outrun)
+    assert updates.check_now(sleep=lambda s: None) is None
+    assert len(runs) == updates.LIST_ATTEMPTS and updates.load_state()["count"] == 0
+
+
+def test_check_waits_for_a_running_transaction(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setattr(updates.shutil, "which", lambda name: "/usr/bin/" + name)
+    _local_db(tmp_path, monkeypatch, time.time() - 3600)
+    lock = tmp_path / "db.lck"
+    lock.touch()
+    monkeypatch.setattr(updates, "PACMAN_LOCK", str(lock))
+    ticks = []
+    def sleep(s):
+        ticks.append(s)
+        if len(ticks) == 3:
+            lock.unlink()
+    def run_check(timeout_s):
+        assert not lock.exists()
+        return ["a"], True
+    monkeypatch.setattr(updates, "_run_check", run_check)
+    assert updates.check_now(sleep=sleep)["count"] == 1 and len(ticks) == 3
+
+
 def test_state_freshness(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     monkeypatch.setattr(updates, "PACMAN_LOCAL_DB", str(tmp_path / "nonexistent"))

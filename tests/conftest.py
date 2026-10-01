@@ -18,13 +18,20 @@ def _no_real_update_checker(monkeypatch, tmp_path):
     is created fresh, so no refresh is ever "due" and check_now() never waits
     for a daemon (that wait, 300 s per call, was the other half of the
     2026-09-14 hang, on the laptop the real stamp had happened to be fresh);
-    a test of the due path sets its own stamp path or ages this one."""
+    a test of the due path sets its own stamp path or ages this one.
+
+    pacman's installed-package database and its lock point into the tmp dir
+    too, at paths that do not exist: a check discards a listing that database
+    outran and waits while the lock is there, so a package installed on the
+    developer's machine during a run would otherwise change a test's result."""
     from ai2 import updates
     stamp = tmp_path / "pamac-refresh_timestamp"
     stamp.touch()
     monkeypatch.setattr(updates, "CHECK_CMD", "ai2-test-checkupdates")
     monkeypatch.setattr(updates, "PAMAC_REFRESH_STAMP", str(stamp))
     monkeypatch.setattr(updates, "PAMAC_CONF", str(tmp_path / "pamac.conf"))
+    monkeypatch.setattr(updates, "PACMAN_LOCAL_DB", str(tmp_path / "pacman-local"))
+    monkeypatch.setattr(updates, "PACMAN_LOCK", str(tmp_path / "pacman-db.lck"))
 
 
 @pytest.fixture(autouse=True)

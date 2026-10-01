@@ -133,24 +133,54 @@ def check_now(timeout_s: int = 600, wait_refresh_s: int = 300, sleep=time.sleep)
     if not shutil.which(CHECK_CMD):
         return None
     before = _stamp_mtime()
-    due = refresh_due()
-    names, ok = _run_check(timeout_s)
-    if not ok:
-        return None
-    if due:
+    if refresh_due():
+        _, ok = _run_check(timeout_s)        # this run is the one that asks for the refresh
+        if not ok:
+            return None
         deadline = time.monotonic() + wait_refresh_s
         while _stamp_mtime() == before and time.monotonic() < deadline:
             sleep(1)
         if _stamp_mtime() == before:
             return None
-        names, ok = _run_check(timeout_s)
-        if not ok:
-            return None
-    st = {"checked_at": time.time(), "count": len(names), "packages": names[:10]}
+    listed = _list_settled(timeout_s, wait_refresh_s, sleep)
+    if listed is None:
+        return None
+    names, started = listed
+    st = {"checked_at": started, "count": len(names), "packages": names[:10]}
     os.makedirs(state_dir(), exist_ok=True)
     with open(state_file(), "w") as fh:
         json.dump(st, fh)
     return st
+
+
+LIST_ATTEMPTS = 3
+
+
+def _list_settled(timeout_s: int, wait_lock_s: int, sleep):
+    """The pending updates and the time the listing began, or None when it
+    failed or packages kept changing under it.
+
+    pamac-checkupdates lists first and prints last, and in between it has the
+    daemon refresh the .files databases, which waits for whatever the daemon
+    is doing. On a 2011 laptop, 2026-10-01, it listed 51 updates while
+    Software Updates was downloading them, waited for the installation to
+    finish, and printed the 51 a minute after they were installed; saved with
+    the time it ended, that count looked newer than the installation, and
+    the next two logins raised "51 updates available" over a current system.
+    So a listing counts only if the installed-package database did not change
+    while it ran, and it is dated by its start, which is what
+    state_is_fresh() compares with that database."""
+    for _ in range(LIST_ATTEMPTS):
+        deadline = time.monotonic() + wait_lock_s
+        while os.path.exists(PACMAN_LOCK) and time.monotonic() < deadline:
+            sleep(1)
+        started, db = time.time(), _db_mtime()
+        names, ok = _run_check(timeout_s)
+        if not ok:
+            return None
+        if _db_mtime() == db:
+            return names, started
+    return None
 
 
 # The bubble does not expire. Measured on the shipped image (xfce4-notifyd,
