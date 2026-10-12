@@ -162,6 +162,8 @@ Everything is declarative. Tier definitions live in `ai2/data/tiers/*.yml`, the 
 - `packaging/` PKGBUILDs, the ISA gate (`isa-check.sh`), build and sign/publish scripts.
 - `iso/` the artools profile for the AI-2 ISO and the QEMU test helper.
 - `branding/` MOTD and greeter configuration.
+- `manual/` the wiki, one file per page. It is edited here, in the same commit as the change it describes; `tools/wiki-sync.sh` pushes it to the wiki and the tests check every link into it.
+- `migrations/` the per-user scripts that finish an update for each account (`migrations/README.md`).
 
 ## License
 
