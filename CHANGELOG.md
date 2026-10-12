@@ -2,6 +2,10 @@
 
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Added
+- **Migrations: an update finishes itself for every account.** A package upgrade replaces the files the package owns and nothing else, so a cache written by old code, or a marker that should be cleared once, stayed in each home directory until it expired or someone cleared it by hand (the stale update count of 0.19.3 became a FAQ entry for that reason). A release now ships small scripts in `migrations/`, installed at `/usr/share/ai2/migrations/`, that `ai-2 update` runs after a successful upgrade and that every login runs for the account logging in, silently, recorded in `~/.local/state/ai2/migrate.log`, so an update made through Software Updates or a plain pacman is finished at the next login. Each runs once per account, in name order, touches only that account's own files and never asks for a password; a failure is reported, stays pending with the ones after it, and `ai-2 doctor` says so. `ai-2 migrate` runs them by hand, `ai-2 migrate --pending` lists them. The first one forgets the update count saved by 0.19.2 or older. The rules for writing one are in `migrations/README.md`. The mechanism is taken from Omarchy's `migrations/` directory.
+
 ## [0.19.3] - 2026-10-01
 ### Added
 - **Secret scanning.** Every push and pull request runs gitleaks over the whole history of the repository, the program itself at a pinned version with its checksum checked, and fails on anything that looks like a key, token or password. https://github.com/ProWoos-Devs/AI-2-workspace/issues/76

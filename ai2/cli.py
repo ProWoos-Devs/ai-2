@@ -1091,8 +1091,34 @@ def cmd_update(args) -> int:
               "Add it with:  ai-2 install pamac\nUpdating here instead.\n")
     rc = software.update()
     if rc == 0:
+        # Finish the update for this account (ai2/migrate.py). A failure here
+        # is reported but does not turn a completed upgrade into a failed one.
+        from . import migrate
+        migrate.run_pending()
         _mention_knowledge_packs()
     return rc
+
+
+def cmd_migrate(args) -> int:
+    """Run the per-user migrations an update left pending (see ai2/migrate.py).
+    The login hook runs this with --quiet; `ai-2 update` runs the same thing
+    after the upgrade. --pending only lists them, exit 0 when there are any."""
+    from . import migrate, sysinfo
+    if args.pending:
+        names = migrate.pending()
+        for name in names:
+            print(f"{name}  {migrate.describe(os.path.join(migrate.MIGRATIONS_DIR, name))}")
+        return 0 if names else 1
+    if sysinfo.is_live_session():
+        if not args.quiet:
+            print("This is the live session from the USB stick; nothing to finish here.")
+        return 0
+    if args.quiet:
+        return migrate.run_quietly()
+    completed, failed = migrate.run_pending()
+    if not completed and failed is None:
+        print("Nothing pending: this account is up to date with the installed AI-2.")
+    return 1 if failed else 0
 
 
 def cmd_install(args) -> int:
@@ -1390,6 +1416,12 @@ def main(argv: list[str] | None = None) -> int:
     p_up.add_argument("--gui", action="store_true",
                       help="open the graphical Add/Remove Software on its updates page instead")
     p_up.set_defaults(func=cmd_update)
+    p_mig = sub.add_parser("migrate", help="finish an update for this account: run the per-user migrations "
+                           "still pending (ai-2 update and every login do this too)")
+    p_mig.add_argument("--pending", action="store_true", help="only list what is pending (exit 0 when there is something)")
+    p_mig.add_argument("--quiet", action="store_true",
+                       help="nothing on the terminal; what ran is recorded in ~/.local/state/ai2/migrate.log")
+    p_mig.set_defaults(func=cmd_migrate)
 
     p_inst = sub.add_parser("install", help="install software AI-2 leaves out (office, printing, media, ...) or any package")
     p_inst.add_argument("what", nargs="*", help="short names from 'ai-2 install --list', or package names")

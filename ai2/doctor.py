@@ -288,6 +288,17 @@ def check_updates() -> Check:
     return Check(INFO, "Updates", f"{n} package update(s) available; run: ai-2 update" if n else "system is current")
 
 
+def check_migrations() -> Check:
+    """Per-user migrations an update left for this account (ai2/migrate.py).
+    Pending ones mean an update was installed by Software Updates or pacman
+    and this account has not logged in since, or one of them failed."""
+    from . import migrate
+    names = migrate.pending()
+    if not names:
+        return Check(OK, "Migrations", "this account is up to date with the installed AI-2")
+    return Check(WARN, "Migrations", f"{len(names)} pending for this account; run: ai-2 migrate")
+
+
 def run_checks(hw: Hardware, backend=None) -> list[Check]:
     checks = [check_tier(), check_runtime(hw), check_other_runtimes(hw), check_score()]
     checks += check_models(hw)
@@ -301,7 +312,7 @@ def run_checks(hw: Hardware, backend=None) -> list[Check]:
             never = (resolve_config(tiers[tid], tiers).get("services") or {}).get("never") or []
             for svc in never:
                 checks.append(check_service(backend, svc, False))
-    checks += [check_server(), check_keyring(), check_updates()]
+    checks += [check_server(), check_keyring(), check_updates(), check_migrations()]
     return checks
 
 

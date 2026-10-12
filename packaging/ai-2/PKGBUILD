@@ -98,6 +98,10 @@ for info in json.load(open("ai2/data/languages.json")).values():
   install -Dm755 packaging/ai-2/sv/ai2-boot/run "$pkgdir/etc/runit/sv/ai2-boot/run"
   install -Dm644 packaging/ai-2/systemd/ai2-boot.service "$pkgdir/usr/lib/systemd/system/ai2-boot.service"
 
+  # per-user migrations, run by `ai-2 update` and at login (migrations/README.md)
+  install -d "$pkgdir/usr/share/ai2/migrations"
+  install -m644 migrations/*.sh "$pkgdir/usr/share/ai2/migrations/"
+
   install -Dm644 branding/motd "$pkgdir/usr/share/ai2/motd"
   install -Dm644 branding/lightdm-gtk-greeter.conf "$pkgdir/usr/share/ai2/lightdm-gtk-greeter.conf"
   # ... and a hook that copies them into /etc after an upgrade, but only when
