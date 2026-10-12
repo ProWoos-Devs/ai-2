@@ -32,6 +32,10 @@ On an installed system, start with `ai-2 doctor`, which checks the engine, model
 
 **A bubble says updates are available, and Software Updates then has nothing to install.** Fixed in ai-2 0.19.3. In earlier versions, an update check that was running while updates were being installed could save its old count afterwards, and the bubble repeated that count at the next logins. It clears by itself within a day. To clear it at once, run `ai-2 update-check` in a terminal, which checks again and answers "The system is current."
 
+**Does an update finish by itself?** The packages do, at once. What a package cannot reach is each account's own files under its home directory, so since the version after 0.19.3 a release can ship a migration for those (`migrations/README.md` in the repository says what one may do). `ai-2 update` runs the pending ones after the upgrade, and every login runs them for the account logging in, silently, so an update made through Software Updates is finished the next time you log in. `ai-2 migrate --pending` lists what is waiting, `ai-2 migrate` runs it, and `ai-2 doctor` reports it. A migration never asks for a password and only touches that account's files.
+
+**`sudo pacman -Syu` asks me about a Broadcom driver.** This computer has the `broadcom-wl` or `broadcom-wl-dkms` package. A plain upgrade can swap the driver for the dkms build without the kernel headers it needs, and the WiFi is gone after the reboot. `ai-2 update` checks that first (it removes a wl driver the machine has no chip for, or adds the headers), so answer no and run `ai-2 update`, or use Software Updates. On a machine without that package pacman runs exactly as before.
+
 ## Remote access
 
 **Getting help from someone remotely, in the live session.** Double-click "Remote help (SSH)" on the live desktop, it shows the exact command and password the helper types on their computer. Only machines on your own network can connect, and it ends at shutdown.

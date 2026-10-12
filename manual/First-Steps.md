@@ -50,11 +50,13 @@ The full list is on [[Commands]]. Every command has `--help`, and `AI-2` works a
 
 ## Staying up to date
 
-AI-2, the AI engine and the model catalog all update the normal Artix/Arch way, from AI-2's signed package repository that is already configured:
+AI-2, the AI engine and the model catalog all update the normal Artix/Arch way, from AI-2's signed package repository that is already configured. One command, or Applications > AI-2 > Software Updates:
 
 ```
-sudo pacman -Syu
+ai-2 update
 ```
+
+It runs `sudo pacman -Syu`, printing the command first, and then finishes the update for your account (see Updates in [[FAQ and Troubleshooting]]). Typing `sudo pacman -Syu` yourself is fine too; what it leaves for your account is finished at your next login.
 
 Being based on Artix means a rolling release, you update, you never reinstall for a new version. AI-2 checks for updates passively and tells you when some are waiting.
 

@@ -60,3 +60,13 @@ def test_the_sync_script_is_the_only_way_pages_reach_the_wiki():
     assert "--delete" in text and "--check" in text and "ai-2.wiki.git" in text
     assert subprocess.run(["bash", "-n", str(script)]).returncode == 0
 
+
+def test_every_top_level_command_is_on_the_commands_page():
+    """Six commands (update, install, guide, ...) were missing when the manual
+    moved into the repository (2026-10-12); the README sends people here for
+    "everything else"."""
+    cli = pathlib.Path("ai2/cli.py").read_text(encoding="utf-8")
+    commands = re.findall(r'\bsub\.add_parser\("([a-z0-9-]+)"', cli)
+    page = (MANUAL / "Commands.md").read_text(encoding="utf-8")
+    missing = [c for c in commands if f"ai-2 {c}" not in page]
+    assert missing == []

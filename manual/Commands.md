@@ -66,11 +66,22 @@ A knowledge pack is how the slow part moves to a fast computer (the [[Knowledge 
 |---|---|
 | `ai-2 transcribe FILE` | Turns a recording, a voice note or a video's audio into FILE.txt with whisper.cpp, offline. Anything that is not a 16 kHz mono WAV is converted with `ffmpeg` first. `--lang es` names the language (detected otherwise), `--model tiny`, `base` (default) or `small` picks the speech model, downloaded on first use, `-o` sets the output file. Needs the `ai2-whisper-cpp` package, one for every CPU. File transcription only, slow on an old computer: the engine works in 30-second windows, and the tiny model on the 2011 reference laptop took about 13 seconds per window. |
 
+## Software and updates
+
+| Command | What it does |
+|---|---|
+| `ai-2 update` | Update AI-2, the AI engine, the model catalog and the whole system in one step. It prints the `sudo pacman -Syu` it runs, checks a Broadcom WiFi driver first, and then finishes the update for your account (the migrations below). `--gui` opens Software Updates instead. |
+| `ai-2 install <name>` | Install software AI-2 leaves out by a short name (`office`, `pdf`, `printing`, `media`, ...) or by package name, enabling the service a daemon needs on runit. `--list` shows the short names, `--gui` opens Add/Remove Software. |
+| `ai-2 migrate` | Finish an update for this account: run the per-user migrations still pending. `ai-2 update` and every login do this on their own; `--pending` only lists them. See Updates in [[FAQ and Troubleshooting]]. |
+| `ai-2 update-check` | Check for pending system updates without installing anything. The desktop runs `ai-2 update-check --notify --every 6` for the life of the session, which is where the "updates available" bubble and the one-line hint in a new terminal come from. |
+
 ## Health and help
 
 | Command | What it does |
 |---|---|
 | `ai-2 doctor` | Check engine, model, tuning, services and repository key. |
 | `ai-2 report` | Write `~/ai2-report.txt` to attach to a bug report. |
+| `ai-2 guide` | The AI-2 guide for this computer in the system language (`--lang es`, `--open` in the text editor, `--path`). The first login puts it on the desktop. |
+| `ai-2 accessibility` | Screen-reader status; `ai-2 accessibility setup` installs Orca and spoken chat for this user. See [[Accessibility]]. |
 | `ai-2 logo` | The mark, in the size the terminal allows. |
 | `ai-2 about` | The AI-2 version, the system it is based on, this computer's AI Score, the website and the license. The menu entry Applications > AI-2 > About AI-2 shows the same in a terminal window. |
