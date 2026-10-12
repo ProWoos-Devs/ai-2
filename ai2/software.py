@@ -192,7 +192,9 @@ def update(say=print, run=subprocess.run, preflight=None) -> int:
     extra = pre(say, run, _sudo())
     if extra is None:
         return 1
-    cmd = _sudo() + ["pacman", "-Syu", *extra]
+    # /usr/bin by its full path: /usr/local/bin/pacman (packaging/ai-2/pacman-wrapper.sh)
+    # would otherwise ask about the Broadcom package the preflight just dealt with
+    cmd = _sudo() + ["/usr/bin/pacman", "-Syu", *extra]
     say("Updating AI-2 and the rest of the system. This is the only update there is.")
     say("Running:  " + " ".join(cmd))
     if _sudo():

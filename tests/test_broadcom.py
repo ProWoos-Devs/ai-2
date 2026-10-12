@@ -57,13 +57,13 @@ def test_update_runs_the_removal_first_then_the_upgrade_with_extras(monkeypatch,
     plan = broadcom.Plan("remove-wl", pre_commands=[["pacman", "-Rns", "--noconfirm", "broadcom-wl"]], message="no Broadcom here")
     pre = lambda say, run_, sudo: broadcom.preflight(say, run_, sudo, plan=plan)
     assert software.update(run=run, preflight=pre) == 0
-    assert calls == [["sudo", "pacman", "-Rns", "--noconfirm", "broadcom-wl"], ["sudo", "pacman", "-Syu"]]
+    assert calls == [["sudo", "pacman", "-Rns", "--noconfirm", "broadcom-wl"], ["sudo", "/usr/bin/pacman", "-Syu"]]
     assert "no Broadcom here" in capsys.readouterr().out
     calls.clear()
     plan = broadcom.Plan("needs-headers", extra_packages=["linux-headers"], message="Broadcom found")
     pre = lambda say, run_, sudo: broadcom.preflight(say, run_, sudo, plan=plan)
     assert software.update(run=run, preflight=pre) == 0
-    assert calls == [["sudo", "pacman", "-Syu", "linux-headers"]]
+    assert calls == [["sudo", "/usr/bin/pacman", "-Syu", "linux-headers"]]
 
 
 def test_failed_removal_stops_the_update(monkeypatch, capsys):

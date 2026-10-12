@@ -112,8 +112,8 @@ def test_update_runs_one_full_upgrade(monkeypatch, capsys):
     monkeypatch.setattr(software.os, "geteuid", lambda: 0)
     calls = []
     assert software.update(run=_runner(calls), preflight=lambda say, run, sudo: []) == 0
-    assert calls == [["pacman", "-Syu"]]
-    assert "pacman -Syu" in capsys.readouterr().out
+    assert calls == [["/usr/bin/pacman", "-Syu"]]
+    assert "/usr/bin/pacman -Syu" in capsys.readouterr().out
 
 
 def test_update_reports_a_failure(monkeypatch, capsys):
@@ -163,3 +163,86 @@ def test_pamac_restart_button_gets_a_reboot_the_user_may_run():
     root_branch = text.index('if [ "$(id -u)" -eq 0 ]; then')
     assert text.index('exec /usr/bin/reboot "$@"', root_branch) < text.index("loginctl reboot")
     assert subprocess.run(["sh", "-n", str(script)]).returncode == 0
+
+
+def _pacman_shim(tmp_path, broadcom: bool):
+    """The wrapper with /usr/bin/pacman rewritten to a fake that records its
+    arguments and answers -Qq broadcom-wl the way the test says."""
+    import pathlib
+    import shutil
+    fake = tmp_path / "pacman"
+    fake.write_text("#!/bin/sh\necho \"$@\" >> \"$0.log\"\n"
+                    + ("[ \"$1\" = -Qq ] && exit 0\n" if broadcom else "[ \"$1\" = -Qq ] && exit 1\n")
+                    + "exit 0\n")
+    fake.chmod(0o755)
+    shim = tmp_path / "shim"
+    shim.write_text(pathlib.Path("packaging/ai-2/pacman-wrapper.sh").read_text()
+                    .replace("real=/usr/bin/pacman", f"real={fake}"))
+    shim.chmod(0o755)
+    return shim, fake
+
+
+def _run_shim(shim, args, answer=None):
+    """On a pseudo-terminal, since the shim asks only when stdin and stdout
+    are terminals; `answer` is what the person types, None for nothing."""
+    import os
+    import pty
+    import subprocess
+    master, slave = pty.openpty()
+    proc = subprocess.Popen([str(shim), *args], stdin=slave, stdout=slave, stderr=slave)
+    os.close(slave)
+    out = b""
+    if answer is not None:
+        import time
+        time.sleep(0.3)
+        os.write(master, (answer + "\n").encode())
+    while True:
+        try:
+            chunk = os.read(master, 4096)
+        except OSError:
+            break
+        if not chunk:
+            break
+        out += chunk
+    rc = proc.wait()
+    os.close(master)
+    return rc, out.decode(errors="replace")
+
+
+def test_a_direct_upgrade_passes_through_on_a_machine_without_a_broadcom_package(tmp_path):
+    shim, fake = _pacman_shim(tmp_path, broadcom=False)
+    rc, out = _run_shim(shim, ["-Syu"])
+    assert rc == 0 and "Broadcom" not in out
+    assert (tmp_path / "pacman.log").read_text().splitlines()[-1] == "-Syu"
+
+
+def test_a_direct_upgrade_on_a_broadcom_machine_asks_and_stops_by_default(tmp_path):
+    shim, fake = _pacman_shim(tmp_path, broadcom=True)
+    rc, out = _run_shim(shim, ["-Syu"], answer="")
+    assert rc == 1 and "Broadcom" in out and "ai-2 update" in out
+    assert "-Syu" not in (tmp_path / "pacman.log").read_text().splitlines()
+    rc, out = _run_shim(shim, ["--sync", "--sysupgrade"], answer="y")
+    assert rc == 0
+    assert (tmp_path / "pacman.log").read_text().splitlines()[-1] == "--sync --sysupgrade"
+
+
+def test_everything_that_is_not_an_upgrade_never_asks(tmp_path):
+    import subprocess
+    shim, fake = _pacman_shim(tmp_path, broadcom=True)
+    for args in (["-Ss", "htop"], ["-S", "htop"], ["-Qu"], ["-Rns", "broadcom-wl"], ["-Q"], ["-Sy"],
+                 ["--query", "--upgrades"], ["-U", "x.pkg.tar.zst"]):
+        rc, out = _run_shim(shim, args)
+        assert rc == 0 and "Broadcom" not in out, args
+        assert (tmp_path / "pacman.log").read_text().splitlines()[-1] == " ".join(args)
+    # an upgrade with no terminal (a script, a cron job) goes straight through
+    rc = subprocess.run([str(shim), "-Syu"], stdin=subprocess.DEVNULL, capture_output=True).returncode
+    assert rc == 0 and (tmp_path / "pacman.log").read_text().splitlines()[-1] == "-Syu"
+
+
+def test_the_package_puts_the_pacman_wrapper_ahead_of_usr_bin_and_update_avoids_it():
+    import pathlib
+    import subprocess
+    pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text(encoding="utf-8")
+    assert 'install -Dm755 packaging/ai-2/pacman-wrapper.sh "$pkgdir/usr/local/bin/pacman"' in pkgbuild
+    assert subprocess.run(["sh", "-n", "packaging/ai-2/pacman-wrapper.sh"]).returncode == 0
+    assert '"/usr/bin/pacman", "-Syu"' in pathlib.Path("ai2/software.py").read_text(encoding="utf-8")

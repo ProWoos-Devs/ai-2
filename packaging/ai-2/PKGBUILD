@@ -89,6 +89,8 @@ for info in json.load(open("ai2/data/languages.json")).values():
   install -Dm644 packaging/ai-2/ai2-pamac.hook "$pkgdir/usr/share/libalpm/hooks/zz-ai2-pamac.hook"
   # pamac's Restart button runs `reboot` as the user; runit's reboot is root-only
   install -Dm755 packaging/ai-2/reboot-wrapper.sh "$pkgdir/usr/local/bin/reboot"
+  # a word before a hand-typed `pacman -Syu` on a machine with a Broadcom driver package
+  install -Dm755 packaging/ai-2/pacman-wrapper.sh "$pkgdir/usr/local/bin/pacman"
 
   # session bus at $XDG_RUNTIME_DIR/bus (WebKit sandbox needs it; see the script)
   install -Dm755 packaging/ai-2/30-ai2-session-bus.sh "$pkgdir/etc/X11/xinit/xinitrc.d/30-ai2-session-bus.sh"
