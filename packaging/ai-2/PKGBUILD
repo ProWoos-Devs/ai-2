@@ -100,6 +100,11 @@ for info in json.load(open("ai2/data/languages.json")).values():
   install -Dm755 packaging/ai-2/sv/ai2-boot/run "$pkgdir/etc/runit/sv/ai2-boot/run"
   install -Dm644 packaging/ai-2/systemd/ai2-boot.service "$pkgdir/usr/lib/systemd/system/ai2-boot.service"
 
+  # crash records: the kernel hands every crash to the handler (no dump kept),
+  # the desktop says so once and `ai-2 doctor` says what to do (ai2/crashes.py)
+  install -Dm755 packaging/ai-2/crash-handler.sh "$pkgdir/usr/lib/ai2/crash-handler"
+  install -Dm644 packaging/ai-2/60-ai2-crashes.conf "$pkgdir/usr/lib/sysctl.d/60-ai2-crashes.conf"
+
   # per-user migrations, run by `ai-2 update` and at login (migrations/README.md)
   install -d "$pkgdir/usr/share/ai2/migrations"
   install -m644 migrations/*.sh "$pkgdir/usr/share/ai2/migrations/"

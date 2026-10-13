@@ -35,6 +35,16 @@ def _no_real_update_checker(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _no_real_crash_log(monkeypatch, tmp_path):
+    """The crash record of the machine running the suite is not a test's
+    input: the log and the seen-mark point into the tmp dir (absent), so no
+    test raises a bubble about a developer's own crashes."""
+    from ai2 import crashes
+    monkeypatch.setattr(crashes, "LOG", str(tmp_path / "crashes.log"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+
+
+@pytest.fixture(autouse=True)
 def _no_real_model_download(monkeypatch, request):
     """No test may download a model. Until 0.18.7 the model directory ignored
     XDG_DATA_HOME, so a test that reached a download quietly found the

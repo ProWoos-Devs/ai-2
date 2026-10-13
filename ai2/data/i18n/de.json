@@ -147,5 +147,10 @@
   "by {contact}": "von {contact}",
   "{id} is already installed and up to date.": "{id} ist bereits installiert und aktuell.",
   "\nPress Enter to go on with the setup: ": "\nDrück Enter, um mit der Einrichtung weiterzumachen: ",
-  "AI-2 setup is starting, please wait...": "Die AI-2-Einrichtung startet, bitte warten..."
+  "AI-2 setup is starting, please wait...": "Die AI-2-Einrichtung startet, bitte warten...",
+  "{program} stopped unexpectedly": "{program} wurde unerwartet beendet",
+  "{program} and {n} other programs stopped unexpectedly": "{program} und {n} weitere Programme wurden unerwartet beendet",
+  "The AI engine's build does not fit this CPU. In a terminal, run:  ai-2 doctor": "Der Build der KI-Engine passt nicht zu dieser CPU. Führe in einem Terminal aus:  ai-2 doctor",
+  "Nothing was sent anywhere. For what to do, run:  ai-2 doctor  (or  ai-2 crashes  for the list)": "Es wurde nichts irgendwohin gesendet. Was zu tun ist, sagt:  ai-2 doctor  (oder  ai-2 crashes  für die Liste)",
+  "{program} and one other program stopped unexpectedly": "{program} und ein weiteres Programm wurden unerwartet beendet"
 }

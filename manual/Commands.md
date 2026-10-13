@@ -81,6 +81,7 @@ A knowledge pack is how the slow part moves to a fast computer (the [[Knowledge 
 |---|---|
 | `ai-2 doctor` | Check engine, model, tuning, services and repository key. |
 | `ai-2 report` | Write `~/ai2-report.txt` to attach to a bug report. |
+| `ai-2 crashes` | The programs that stopped unexpectedly for this account in the last 7 days, and what to do about each. The desktop says so once in a bubble; `ai-2 doctor` has the same as a check. Only a name, a signal and a time are kept, never a memory dump, and nothing is sent anywhere. |
 | `ai-2 guide` | The AI-2 guide for this computer in the system language (`--lang es`, `--open` in the text editor, `--path`). The first login puts it on the desktop. |
 | `ai-2 accessibility` | Screen-reader status; `ai-2 accessibility setup` installs Orca and spoken chat for this user. See [[Accessibility]]. |
 | `ai-2 logo` | The mark, in the size the terminal allows. |

@@ -36,6 +36,12 @@ On an installed system, start with `ai-2 doctor`, which checks the engine, model
 
 **`sudo pacman -Syu` asks me about a Broadcom driver.** This computer has the `broadcom-wl` or `broadcom-wl-dkms` package. A plain upgrade can swap the driver for the dkms build without the kernel headers it needs, and the WiFi is gone after the reboot. `ai-2 update` checks that first (it removes a wl driver the machine has no chip for, or adds the headers), so answer no and run `ai-2 update`, or use Software Updates. On a machine without that package pacman runs exactly as before.
 
+## Crashes
+
+**A bubble said a program stopped unexpectedly.** The kernel tells AI-2 when a program crashes (an illegal instruction, a memory access error, an abort), and the desktop says so once, at the next login round of the update check. Only the program's name, the signal and the time are kept, in `/var/lib/ai2/crashes.log`; no memory dump is written and nothing leaves the computer. `ai-2 crashes` lists the last 7 days with a sentence on what to do, and `ai-2 doctor` carries the same as a check. One case AI-2 can explain on its own: the AI engine stopping with an illegal instruction means its build does not fit this CPU, and the message says to run `ai-2 doctor` and, if it finds nothing wrong, to send `ai-2 report`.
+
+**I do not want crashes recorded.** Put a file after ours in `/etc/sysctl.d/`, for example `/etc/sysctl.d/99-no-crash-record.conf` with the line `kernel.core_pattern = core`, and run `sudo sysctl --system`. `ai-2 doctor` then says the records are off.
+
 ## Remote access
 
 **Getting help from someone remotely, in the live session.** Double-click "Remote help (SSH)" on the live desktop, it shows the exact command and password the helper types on their computer. Only machines on your own network can connect, and it ends at shutdown.

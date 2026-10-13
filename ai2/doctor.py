@@ -299,6 +299,15 @@ def check_migrations() -> Check:
     return Check(WARN, "Migrations", f"{len(names)} pending for this account; run: ai-2 migrate")
 
 
+def check_crashes() -> Check:
+    """What stopped unexpectedly for this account (ai2/crashes.py): the
+    record the kernel handler keeps, no dump. The AI engine dying with an
+    illegal instruction is a build that does not fit this CPU, and FAILs."""
+    from . import crashes
+    status, detail = crashes.check()
+    return Check({"ok": OK, "warn": WARN, "fail": FAIL}.get(status, INFO), "Crashes", detail)
+
+
 def run_checks(hw: Hardware, backend=None) -> list[Check]:
     checks = [check_tier(), check_runtime(hw), check_other_runtimes(hw), check_score()]
     checks += check_models(hw)
@@ -312,7 +321,7 @@ def run_checks(hw: Hardware, backend=None) -> list[Check]:
             never = (resolve_config(tiers[tid], tiers).get("services") or {}).get("never") or []
             for svc in never:
                 checks.append(check_service(backend, svc, False))
-    checks += [check_server(), check_keyring(), check_updates(), check_migrations()]
+    checks += [check_server(), check_keyring(), check_updates(), check_migrations(), check_crashes()]
     return checks
 
 
@@ -358,6 +367,12 @@ def report_text(hw: Hardware, checks: list[Check]) -> str:
                 continue
             lines.append(f"--- {path.replace(home, '~')}")
             lines.append(body)
+    from . import crashes
+    recent = crashes.mine()
+    if recent:
+        lines.append("\n== Crashes of this account, last 7 days (program, signal; no dump kept)")
+        for c in recent:
+            lines.append(f"  {c.when}  {c.comm}  {c.signal_name}  {c.path.replace(home, '~')}")
     log = serverstate.log_file()
     if os.path.isfile(log):
         lines.append(f"\n== Last lines of {log.replace(home, '~')}")

@@ -1047,6 +1047,15 @@ def cmd_update_check(args, sleep=None) -> int:
     max_age = args.max_age
     holder = None                     # pid of the process holding a bubble up
     while True:
+        if args.notify:
+            # What stopped unexpectedly since the last notice (ai2/crashes.py):
+            # one plain bubble, then remembered, so it is said once.
+            from . import crashes
+            try:
+                if crashes.notify_new():
+                    print("Told about a program that stopped unexpectedly (ai-2 crashes).", flush=True)
+            except Exception as exc:  # noqa: BLE001 - never let the crash notice break the update loop
+                print(f"Crash notice skipped: {exc}", flush=True)
         cached = bool(max_age) and updates.state_is_fresh(max_age)
         st = (updates.load_state() or {}) if cached else (updates.check_now() or updates.load_state() or {})
         count = st.get("count")
@@ -1097,6 +1106,12 @@ def cmd_update(args) -> int:
         migrate.run_pending()
         _mention_knowledge_packs()
     return rc
+
+
+def cmd_crashes(args) -> int:
+    """List what stopped unexpectedly for this account (ai2/crashes.py)."""
+    from . import crashes
+    return crashes.listing()
 
 
 def cmd_migrate(args) -> int:
@@ -1384,6 +1399,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")
     p_doc.set_defaults(func=cmd_doctor)
+
+    p_crash = sub.add_parser("crashes", help="programs that stopped unexpectedly in the last 7 days, and what to do")
+    p_crash.set_defaults(func=cmd_crashes)
 
     p_rep = sub.add_parser("report", help="write a bug-report file with hardware, checks and logs")
     p_rep.add_argument("-o", "--output", help="file to write (default ~/ai2-report.txt)")
