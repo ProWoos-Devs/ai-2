@@ -35,22 +35,13 @@ rm -rf "$DST/live-overlay"
 cp -aL /root/artools-workspace/iso-profiles/common/live-overlay "$DST/live-overlay"
 cp -a "$SRC/iso/profiles/ai2/live-overlay/." "$DST/live-overlay/"
 # "Install for someone else": the owner config is the offline one without the
-# Users page, so every offline module config is reused beside its own two files
-# (Calamares looks up module configs only under its own config directory).
-# These are SYMLINKS, not copies, because buildiso's configure_calamares fills
-# in services-artix.conf (the system services to enable: lightdm, NetworkManager
-# ...) and postcfg.conf AFTER staging, and only for calamares-offline and
-# calamares-online, never calamares-owner. A copy made here would freeze the
-# unfilled `services: []` and the installed system would boot with no display
-# manager or network (found 2026-10-13). A relative symlink resolves to the
-# filled offline file wherever the tree ends up (workspace, then /etc in livefs).
-for _m in "$DST"/live-overlay/etc/calamares-offline/modules/*; do
-    _name=$(basename "$_m")
-    [ -e "$DST/live-overlay/etc/calamares-owner/modules/$_name" ] && continue
-    ln -s "../../calamares-offline/modules/$_name" \
-          "$DST/live-overlay/etc/calamares-owner/modules/$_name"
-done
-unset _m _name
+# Users page. The offline module configs are NOT reused here, because buildiso's
+# configure_calamares fills in services-artix.conf (the system services to
+# enable) and postcfg.conf only for calamares-offline/online, after staging, so
+# anything placed here freezes an empty service list (the installed system then
+# boots to a bare console, found 2026-10-13). The owner launcher copies the
+# already-filled offline module configs in at run time instead; the owner dir
+# ships only its own settings.conf and shellprocess@owner.conf.
 
 # Compose root-overlay: the stock xfce profile symlinks these into artools'
 # common overlays and our copied profile lost the links (found 2026-08-18 when

@@ -8,6 +8,16 @@
 # install without the Users page; the first boot asks the owner (ai2/owner.py).
 config=/etc/calamares-offline
 if [ "${1:-}" = "--for-another-owner" ]; then
+    # Build the owner config here, not at build time. buildiso's
+    # configure_calamares fills in services-artix.conf (the system services to
+    # enable: lightdm, NetworkManager ...) and postcfg.conf only for
+    # calamares-offline and calamares-online, never calamares-owner, and it
+    # dereferences overlay symlinks before that fill, so anything the image
+    # ships in the owner dir freezes an empty service list and the installed
+    # system boots to a bare console (found 2026-10-13). On the running live
+    # session the offline module configs ARE filled, so copy them in now; the
+    # owner dir keeps its own settings.conf and shellprocess@owner.conf.
+    pkexec sh -c 'cp -L /etc/calamares-offline/modules/*.conf /etc/calamares-owner/modules/'
     config=/etc/calamares-owner
     shift
 fi

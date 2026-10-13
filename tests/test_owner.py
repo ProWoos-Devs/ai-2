@@ -163,16 +163,20 @@ def test_the_stick_offers_the_owner_install():
            [s for s in execs if s != "shellprocess@owner"]
     launcher = (ISO / "live-overlay/usr/bin/ai2-install").read_text()
     assert "--for-another-owner" in launcher and "/etc/calamares-owner" in launcher
+    # the launcher copies the FILLED offline module configs into the owner dir
+    # at run time (buildiso fills them only for offline/online), see 2026-10-13
+    assert "cp -L /etc/calamares-offline/modules/*.conf /etc/calamares-owner/modules/" in launcher
     entry = (ISO / "live-overlay/usr/share/applications/ai2-install-owner.desktop").read_text()
     assert "Exec=ai2-install --for-another-owner" in entry
     items = (ISO / "live-overlay/usr/bin/desktop-items").read_text()
     assert "ai2-install-owner.desktop" in items
     assert items.index("ai2-install-owner.desktop") < items.index("calamares-config-switcher.desktop")
+    # stage-profile must NOT place offline's module configs in the owner dir:
+    # buildiso fills services-artix.conf only for offline/online, so a build-time
+    # copy or symlink freezes the empty service list (found 2026-10-13). The
+    # launcher copies the filled configs in at run time instead.
     stage = pathlib.Path("iso/stage-profile.sh").read_text()
-    # owner reuses offline's module configs as SYMLINKS, not copies, so
-    # services-artix.conf resolves to the one buildiso fills after staging
-    # (a copy would freeze the empty service list; found 2026-10-13).
-    assert 'ln -s "../../calamares-offline/modules/$_name"' in stage
+    assert "calamares-owner/modules/$_name" not in stage
     assert 'cp -an "$DST/live-overlay/etc/calamares-offline/modules/."' not in stage
 
 
