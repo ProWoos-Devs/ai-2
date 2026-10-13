@@ -140,6 +140,9 @@ def test_the_package_ships_the_session_and_the_script():
     session = pathlib.Path("packaging/ai-2/owner-setup-session.sh").read_text(encoding="utf-8")
     assert subprocess.run(["sh", "-n", "packaging/ai-2/owner-setup-session.sh"]).returncode == 0
     assert "sudo -n /usr/bin/ai-2 owner-setup" in session
+    # the session loops while the owner is owed: lightdm shows its greeter
+    # after an automatic session ends, and the temporary account cannot log in
+    assert f"while [ -e {owner.PENDING} ]" in session and "exec xfce4-terminal" not in session
     xsession = pathlib.Path("branding/desktop/ai2-owner-setup.desktop").read_text(encoding="utf-8")
     assert "Exec=/usr/lib/ai2/owner-setup-session" in xsession and "NoDisplay=true" in xsession
 
