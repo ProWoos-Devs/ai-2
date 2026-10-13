@@ -169,7 +169,11 @@ def test_the_stick_offers_the_owner_install():
     assert "ai2-install-owner.desktop" in items
     assert items.index("ai2-install-owner.desktop") < items.index("calamares-config-switcher.desktop")
     stage = pathlib.Path("iso/stage-profile.sh").read_text()
-    assert 'calamares-offline/modules/." "$DST/live-overlay/etc/calamares-owner/modules/"' in stage
+    # owner reuses offline's module configs as SYMLINKS, not copies, so
+    # services-artix.conf resolves to the one buildiso fills after staging
+    # (a copy would freeze the empty service list; found 2026-10-13).
+    assert 'ln -s "../../calamares-offline/modules/$_name"' in stage
+    assert 'cp -an "$DST/live-overlay/etc/calamares-offline/modules/."' not in stage
 
 
 def test_every_live_guide_mentions_it():
