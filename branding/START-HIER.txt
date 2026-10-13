@@ -111,6 +111,13 @@ AI-2 AUF DIESEM COMPUTER INSTALLIEREN
 Das installierte System startet in den AI-2-Anmeldebildschirm. Melde dich
 mit dem Benutzer an, den du angelegt hast.
 
+Für jemand anderen installieren: Doppelklick stattdessen auf
+"Install for someone else". Es folgen dieselben Schritte ohne die Seite
+Benutzer, und beim ersten Start fragt der Computer seinen Besitzer nach
+Name, Anmeldename, Passwort und dem Namen des Computers, in der Sprache,
+die du gewählt hast; dann startet er neu und macht mit der üblichen
+Einrichtung weiter. Nichts von dir bleibt darauf zurück.
+
 
 ERSTE SCHRITTE NACH DER INSTALLATION
 

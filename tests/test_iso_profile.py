@@ -95,7 +95,7 @@ def test_every_installer_job_has_its_config_and_script():
     """A job left in the sequence after its config or script is deleted fails
     the install, and a config with no job runs nothing: both are silent."""
     import re
-    for cfg in ("offline", "online"):
+    for cfg in ("offline", "online", "owner"):
         base = ISO / f"live-overlay/etc/calamares-{cfg}"
         if not (base / "settings.conf").exists():
             continue
@@ -106,6 +106,9 @@ def test_every_installer_job_has_its_config_and_script():
         assert used == set(declared), f"{cfg}: instances and sequence disagree"
         for name, inst in declared.items():
             conf = base / "modules" / inst["config"]
+            if not conf.exists() and cfg == "owner":
+                # stage-profile.sh copies the offline module configs beside the owner ones
+                conf = ISO / "live-overlay/etc/calamares-offline/modules" / inst["config"]
             assert conf.exists(), f"{cfg}: {conf} is missing"
             for line in yaml.safe_load(conf.read_text())["script"]:
                 cmd = line["command"] if isinstance(line, dict) else line

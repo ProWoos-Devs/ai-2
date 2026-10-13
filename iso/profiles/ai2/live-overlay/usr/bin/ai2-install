@@ -4,7 +4,14 @@
 # 2026-08-16: online is experimental, always go with offline). Same two steps
 # Artix's calamares-config-switcher does after its dialog; the live polkit
 # rules make both pkexec calls silent.
-pkexec ln -snf /etc/calamares-offline /etc/calamares
+# "Install for someone else" (the second desktop icon): the same offline
+# install without the Users page; the first boot asks the owner (ai2/owner.py).
+config=/etc/calamares-offline
+if [ "${1:-}" = "--for-another-owner" ]; then
+    config=/etc/calamares-owner
+    shift
+fi
+pkexec ln -snf "$config" /etc/calamares
 # The live boot activates any swap partition it finds on the internal disk;
 # Calamares then refuses to offer "Erase disk" for that disk (in-use
 # partition). Found 2026-08-25 on a machine whose previous Linux left a swap

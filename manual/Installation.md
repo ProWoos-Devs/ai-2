@@ -57,3 +57,7 @@ Back up anything you care about first, installing can erase a disk. Then double-
 Windows lives on NTFS partitions, a Linux system shows under its own name, and AI-2 labels its own partition "AI-2". When in doubt, the size tells partitions apart.
 
 Read the summary page (the last moment to go back), install, tick "Restart now", and remove the stick when asked. The installed system boots to the AI-2 login screen. Continue with [[First Steps]].
+
+### Installing for someone else
+
+When the computer is for another person (a relative, a refurbished machine), double-click "Install for someone else" instead. The installer runs the same steps without the Users page. The first time the computer starts, it asks the owner for a name, a login name, a password and the computer's name, in the language you picked in the installer, then restarts; the login screen asks for that password and the usual first-login setup follows. Until the owner has answered, the computer logs a temporary account into that question by itself; the account has no password, can run nothing but the question, and is removed with the answer. Nothing of the installer's stays on the machine. The command behind it is `ai-2 owner-setup`.

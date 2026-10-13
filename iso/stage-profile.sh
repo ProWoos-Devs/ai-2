@@ -34,6 +34,10 @@ cp -a "$SRC/iso/profiles/ai2" "$DST"
 rm -rf "$DST/live-overlay"
 cp -aL /root/artools-workspace/iso-profiles/common/live-overlay "$DST/live-overlay"
 cp -a "$SRC/iso/profiles/ai2/live-overlay/." "$DST/live-overlay/"
+# "Install for someone else": the owner config is the offline one without the
+# Users page, so every offline module config is copied beside its own two files
+# (Calamares looks up module configs only under its own config directory).
+cp -an "$DST/live-overlay/etc/calamares-offline/modules/." "$DST/live-overlay/etc/calamares-owner/modules/"
 
 # Compose root-overlay: the stock xfce profile symlinks these into artools'
 # common overlays and our copied profile lost the links (found 2026-08-18 when

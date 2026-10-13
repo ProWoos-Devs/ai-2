@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=XSession
+Name=AI-2 owner setup
+Comment=Asks the owner's name and password at the first boot of a computer installed for someone else (ai-2 owner-setup)
+Exec=/usr/lib/ai2/owner-setup-session
+TryExec=/usr/lib/ai2/owner-setup-session
+NoDisplay=true

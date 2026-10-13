@@ -38,6 +38,12 @@ if [ -f "${BINDIR}"/ai2-remote-help ]; then
     chmod +x "$xdg/ai2-remote-help.desktop"
 fi
 
+# AI-2: "Install for someone else" sits under "Install AI-2" (copied before it).
+if [ -f "${BINDIR}"/ai2-install ]; then
+    cp "$src/ai2-install-owner.desktop" "$xdg/ai2-install-owner.desktop"
+    chmod +x "$xdg/ai2-install-owner.desktop"
+fi
+
 if [ -f "${BINDIR}"/ai2-install ]; then
     launcher='calamares-config-switcher.desktop'
     cp "$src/$launcher" "$xdg/$launcher"

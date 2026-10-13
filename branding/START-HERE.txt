@@ -97,6 +97,12 @@ INSTALLING AI-2 ON THIS COMPUTER
 The installed system boots to the AI-2 login screen. Log in with the user
 you created.
 
+Installing for someone else: double-click "Install for someone else"
+instead. The same steps follow without the Users page, and the first time
+the computer starts it asks the owner for a name, a login name, a password
+and the computer's name, in the language you picked, then restarts and
+goes on with the usual setup. Nothing of yours stays on it.
+
 
 FIRST STEPS AFTER INSTALLING
 

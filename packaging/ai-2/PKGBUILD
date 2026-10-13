@@ -100,6 +100,11 @@ for info in json.load(open("ai2/data/languages.json")).values():
   install -Dm755 packaging/ai-2/sv/ai2-boot/run "$pkgdir/etc/runit/sv/ai2-boot/run"
   install -Dm644 packaging/ai-2/systemd/ai2-boot.service "$pkgdir/usr/lib/systemd/system/ai2-boot.service"
 
+  # install for another owner (ai2/owner.py): the session the first boot logs
+  # the temporary account into, and the script it runs
+  install -Dm755 packaging/ai-2/owner-setup-session.sh "$pkgdir/usr/lib/ai2/owner-setup-session"
+  install -Dm644 branding/desktop/ai2-owner-setup.desktop "$pkgdir/usr/share/xsessions/ai2-owner-setup.desktop"
+
   # crash records: the kernel hands every crash to the handler (no dump kept),
   # the desktop says so once and `ai-2 doctor` says what to do (ai2/crashes.py)
   install -Dm755 packaging/ai-2/crash-handler.sh "$pkgdir/usr/lib/ai2/crash-handler"

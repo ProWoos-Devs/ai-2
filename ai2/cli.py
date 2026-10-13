@@ -1108,6 +1108,20 @@ def cmd_update(args) -> int:
     return rc
 
 
+def cmd_owner_setup(args) -> int:
+    """Install for another owner (ai2/owner.py): --prepare inside the target
+    during the install; without flags, as root at the first boot, the
+    owner's account."""
+    from . import owner
+    if os.geteuid() != 0:
+        print("This needs root:  sudo ai-2 owner-setup")
+        return 1
+    if args.prepare:
+        return owner.prepare()
+    owner._system_lang()
+    return owner.run_setup(reboot=not args.no_reboot)
+
+
 def cmd_crashes(args) -> int:
     """List what stopped unexpectedly for this account (ai2/crashes.py)."""
     from . import crashes
@@ -1399,6 +1413,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p_doc = sub.add_parser("doctor", help="check that the engine, model, tuning and services are in order")
     p_doc.set_defaults(func=cmd_doctor)
+
+    p_owner = sub.add_parser("owner-setup", help="on a computer installed for someone else: the owner's name, "
+                                                 "login and password at the first boot (root)")
+    p_owner.add_argument("--prepare", action="store_true", help="inside the target during the install: leave the first boot asking")
+    p_owner.add_argument("--no-reboot", action="store_true", help=argparse.SUPPRESS)
+    p_owner.set_defaults(func=cmd_owner_setup)
 
     p_crash = sub.add_parser("crashes", help="programs that stopped unexpectedly in the last 7 days, and what to do")
     p_crash.set_defaults(func=cmd_crashes)

@@ -16,6 +16,8 @@ On an installed system, start with `ai-2 doctor`, which checks the engine, model
 
 **An install made with ISO 20260816 or 20260817 boots to a text-mode GRUB without Windows in the menu.** Those two ISOs lost Artix's GRUB defaults. On an affected install, set `GRUB_DISABLE_OS_PROBER=false` in `/etc/default/grub`, then run `sudo grub-mkconfig -o /boot/grub/grub.cfg`. ISOs from 20260819 on are fixed.
 
+**I installed AI-2 on a computer for someone else; how do they get their own account?** Install it with "Install for someone else" on the live desktop: the first boot asks the owner for a name and a password and goes on from there ([[Installation]]). On a computer already installed the ordinary way, add an account with `sudo useradd -m -G wheel NAME` and `sudo passwd NAME`, and delete yours afterwards with `sudo userdel -r YOURNAME` from the new one.
+
 ## Using the AI
 
 **The chat page says "Not Secure".** Expected. The page is served by your own computer at 127.0.0.1, nothing leaves the machine, there is nothing to secure.

@@ -105,6 +105,13 @@ INSTALAR AI-2 EN ESTE ORDENADOR
 El sistema instalado arranca en la pantalla de inicio de sesión de AI-2.
 Entra con el usuario que creaste.
 
+Instalar para otra persona: haz doble clic en "Install for someone else"
+en su lugar. Siguen los mismos pasos sin la página de Usuarios, y la
+primera vez que arranca el ordenador pide a su dueño un nombre, un nombre
+de usuario, una contraseña y el nombre del ordenador, en el idioma que
+elegiste; después se reinicia y sigue con la configuración habitual. No
+queda nada tuyo en él.
+
 
 PRIMEROS PASOS DESPUÉS DE INSTALAR
 

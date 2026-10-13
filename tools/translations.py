@@ -47,7 +47,7 @@ ISSUE_TITLE = "Translation update: {name} ({code})"
 
 # The source files whose tr() templates make up the app catalog.
 TR_SOURCES = ["ai2/wizard.py", "ai2/chatterm.py", "ai2/updates.py", "ai2/about.py",
-              "ai2/packbrowse.py", "ai2/knowledgecli.py", "ai2/cli.py", "ai2/crashes.py"]
+              "ai2/packbrowse.py", "ai2/knowledgecli.py", "ai2/cli.py", "ai2/crashes.py", "ai2/owner.py"]
 DESKTOP_KEYS = ("Name", "GenericName", "Comment")
 
 

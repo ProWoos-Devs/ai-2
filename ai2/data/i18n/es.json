@@ -152,5 +152,21 @@
   "{program} and {n} other programs stopped unexpectedly": "{program} y {n} programas más se cerraron de forma inesperada",
   "The AI engine's build does not fit this CPU. In a terminal, run:  ai-2 doctor": "La compilación del motor de IA no corresponde a esta CPU. En una terminal, ejecuta:  ai-2 doctor",
   "Nothing was sent anywhere. For what to do, run:  ai-2 doctor  (or  ai-2 crashes  for the list)": "No se ha enviado nada a ningún sitio. Para saber qué hacer, ejecuta:  ai-2 doctor  (o  ai-2 crashes  para ver la lista)",
-  "{program} and one other program stopped unexpectedly": "{program} y otro programa más se cerraron de forma inesperada"
+  "{program} and one other program stopped unexpectedly": "{program} y otro programa más se cerraron de forma inesperada",
+  "This computer was not installed for another owner, so there is nothing to set up here.": "Este ordenador no se instaló para otra persona, así que aquí no hay nada que configurar.",
+  "To add an account:  sudo useradd -m -G wheel NAME  and  sudo passwd NAME": "Para añadir una cuenta:  sudo useradd -m -G wheel NOMBRE  y  sudo passwd NOMBRE",
+  "Welcome. This computer was prepared for you; a few answers and it is yours.": "Bienvenido. Este ordenador se preparó para ti; unas pocas respuestas y es tuyo.",
+  "Your name, as the login screen should show it: ": "Tu nombre, tal como debe verse en la pantalla de inicio de sesión: ",
+  "Login name [{default}]: ": "Nombre de usuario [{default}]: ",
+  "A login name has only lowercase letters, digits, - and _, and starts with a letter.": "Un nombre de usuario solo tiene minúsculas, dígitos, - y _, y empieza por una letra.",
+  "That name is already taken on this computer.": "Ese nombre ya está en uso en este ordenador.",
+  "Password (also used for administrator tasks; nothing shows while you type): ": "Contraseña (también para tareas de administración; no se ve nada mientras escribes): ",
+  "At least {n} characters, please.": "Al menos {n} caracteres, por favor.",
+  "The same password again: ": "La misma contraseña otra vez: ",
+  "They do not match; once more.": "No coinciden; otra vez.",
+  "This computer's name on the network [{default}]: ": "Nombre de este ordenador en la red [{default}]: ",
+  "Letters, digits and - only, starting and ending with a letter or digit.": "Solo letras, dígitos y -, empezando y terminando por una letra o un dígito.",
+  "Creating the account failed: {error}": "No se pudo crear la cuenta: {error}",
+  "Setting the password failed: {error}": "No se pudo establecer la contraseña: {error}",
+  "Done, {name}. The computer restarts now; log in with your password, and the AI-2 setup starts.": "Listo, {name}. El ordenador se reinicia ahora; entra con tu contraseña y empezará la configuración de AI-2."
 }

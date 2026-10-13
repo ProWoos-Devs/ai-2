@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Install for someone else
+GenericName=System Installer
+Comment=Install AI-2 without creating the account: the owner is asked for a name and password at the first boot
+TryExec=ai2-install
+Exec=ai2-install --for-another-owner
+Icon=/usr/share/icons/hicolor/scalable/apps/ai2.svg
+Terminal=false
+StartupNotify=true
+Categories=Qt;System;
