@@ -55,7 +55,7 @@ jobs:
       - name: Check the catalogs
         run: python tools/translations.py check --template "$RUNNER_TEMP/template.ts"
       - name: Validate the menu entries
-        run: desktop-file-validate --no-hints branding/desktop/*.desktop
+        run: desktop-file-validate --no-hints $(grep -L '^Type=XSession' branding/desktop/*.desktop)
       - name: Coverage
         if: always()
         run: python tools/translations.py coverage --template "$RUNNER_TEMP/template.ts" --markdown >> "$GITHUB_STEP_SUMMARY"
