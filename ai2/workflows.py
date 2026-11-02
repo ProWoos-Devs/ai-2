@@ -86,8 +86,11 @@ def evaluate(profile: dict, hw, score: dict | None, recommended: dict | None,
         verdict, why = "unknown", "no AI Score yet (ai-2 benchmark)"
     elif short:
         needs = ", ".join(f"{STAR_LABELS.get(c, c)} {have}/{need} stars" for c, (have, need) in short.items())
-        if profile.get("remote") and remote_cfg:
+        if profile.get("remote") and remote_cfg and remote_cfg.get("default"):
             verdict, why = "remote", f"too slow locally ({needs}); uses the remote AI at {remote_cfg['url']}"
+        elif profile.get("remote") and remote_cfg:
+            # a remote that is not the default is used only when asked for
+            verdict, why = "slow", f"too slow locally ({needs}); add --remote to use the remote AI at {remote_cfg['url']}"
         elif profile.get("remote"):
             verdict, why = "slow", f"too slow locally ({needs}); a remote AI would do it: ai-2 remote set <url>"
         else:
@@ -136,7 +139,7 @@ def render_info(r: dict) -> str:
     if r.get("speech_model"):
         lines.append(f"  Speech model: whisper {r['speech_model']} (ai-2 transcribe downloads it on first use)")
     if p.get("remote"):
-        lines.append("  Remote:      can use the remote AI when this computer is too slow (ai-2 remote)")
+        lines.append("  Remote:      can use a remote AI when you ask for it or make it the default (ai-2 remote)")
     if p.get("usage"):
         lines.append("  How to use:")
         lines += [f"    {u}" for u in p["usage"]]

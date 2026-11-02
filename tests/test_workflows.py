@@ -48,8 +48,11 @@ def test_no_score_means_unknown_and_zero_stars_means_slow_with_the_way_out(monke
     assert _ev("chat", None)["verdict"] == "unknown"
     r = _ev("translation", _score(translation=0))
     assert r["verdict"] == "slow" and "ai-2 remote set" in r["why"]
-    r = _ev("translation", _score(translation=0), remote={"url": "http://10.0.0.5:8080"})
+    r = _ev("translation", _score(translation=0), remote={"url": "http://10.0.0.5:8080", "default": True})
     assert r["verdict"] == "remote" and "10.0.0.5" in r["why"]
+    # a remote that is not the default is used only when asked for
+    r = _ev("translation", _score(translation=0), remote={"url": "http://10.0.0.5:8080", "default": False})
+    assert r["verdict"] == "slow" and "--remote" in r["why"] and "10.0.0.5" in r["why"]
 
 
 def test_documents_lists_missing_packages_and_install_plan_prints_pacman(monkeypatch):

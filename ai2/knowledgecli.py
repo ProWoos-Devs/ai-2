@@ -18,7 +18,7 @@ import os
 import sys
 import textwrap
 
-from . import branding, runner, serverstate
+from . import branding, remote, runner, serverstate
 from .detect import detect
 from .i18n import tr
 from .models import is_starter, load_catalog
@@ -982,13 +982,14 @@ def _doc_ask(args, docmod) -> int:
     messages = docmod.build_messages(question, hits)
     n_tokens = sum(docmod.estimate_tokens(m["content"]) for m in messages)
     est = docmod.prefill_seconds(n_tokens, score, chat_model)
-    if args.remote:
-        use_remote = True
-    elif args.local or cfg is None:
-        use_remote = False
-    else:
-        use_remote = bool(cfg.get("default")) or chat_model is None or is_starter(chat_model) \
-            or (est is not None and est > docmod.SLOW_PREFILL_S)
+    # Excerpts of a person's documents leave this computer only when asked:
+    # --remote, or the remote they made the default. A slow or missing local
+    # model earns advice, never a transfer. Same rule as `ai-2 chat`.
+    use_remote = args.remote or (cfg is not None and bool(cfg.get("default")) and not args.local)
+    send_hint = None
+    if cfg is not None and not args.local:
+        send_hint = (f"To use the remote AI at {remote.describe(cfg)}, add --remote. "
+                     "The question and the excerpts of your documents then leave this computer.")
     if use_remote:
         print(f"Asking {remote.describe(cfg)}. The question and the excerpts of your documents leave this computer.")
         stream = functools.partial(stream_reply, headers=remote.headers(cfg), model=cfg.get("model"),
@@ -996,14 +997,22 @@ def _doc_ask(args, docmod) -> int:
         base = cfg["url"]
     else:
         if chat_model is None:
-            print("error: no chat model on this computer yet (ai-2 wizard), and no remote AI (ai-2 remote set).",
-                  file=sys.stderr)
+            if send_hint:
+                print(f"error: no chat model on this computer yet (ai-2 wizard). {send_hint}", file=sys.stderr)
+            else:
+                print("error: no chat model on this computer yet (ai-2 wizard), and no remote AI (ai-2 remote set).",
+                      file=sys.stderr)
             return 1
-        if est is not None and est > docmod.SLOW_PREFILL_S:
+        slow = est is not None and est > docmod.SLOW_PREFILL_S
+        if slow:
             print(f"Note: this computer may need up to {max(1, round(est / 60))} minute(s) to read the excerpts "
-                  "before the first word of the answer. A remote AI would be faster:  ai-2 remote set <url>")
+                  "before the first word of the answer.")
         if is_starter(chat_model):
             print(f"Note: {chat_model['label']} is a very small starter model; it can get facts wrong.")
+        if (slow or is_starter(chat_model)) and send_hint:
+            print(f"Note: {send_hint}")
+        elif slow and cfg is None:
+            print("Note: a remote AI would be faster:  ai-2 remote set <url>")
         avail = mem_available_mib()
         if avail is not None and avail < int(chat_model.get("ram_peak_mb", 0)):
             serverstate.stop_server(name=serverstate.EMBED)   # make room, it restarts on demand

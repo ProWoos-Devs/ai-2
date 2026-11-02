@@ -45,7 +45,7 @@ EMBED_IDLE_S = 600         # the embedding server never stays resident, even on 
 CHUNK_WORDS = 110
 OVERLAP_WORDS = 20
 TOP_K = 3
-SLOW_PREFILL_S = 60        # above this the local answer is "minutes", route to the remote if there is one
+SLOW_PREFILL_S = 60        # above this the local answer is "minutes", say so and name --remote if there is one
 ANSWER_MIN_TG = 1.0        # the answering model may be slower than the chat floor (1.5); the user accepted a wait
 ANSWER_TEMPERATURE = 0.2   # extraction, not creativity; at the server default (0.8) the 0.5B wandered
 

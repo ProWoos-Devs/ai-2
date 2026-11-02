@@ -894,3 +894,130 @@ def test_nothing_writes_into_the_system_location(tmp_path, monkeypatch):
     doc.add_document(conn, "mine.txt", "/mine.txt", ["mine"], [fake_vec("mine")], 1)
     conn.close()
     assert (root / "ai2-help" / "index.sqlite").read_bytes() == before, "the package's file was written to"
+
+
+# ----------------------------------------------- `ai-2 doc ask`, the command
+# Excerpts of a person's documents leave the computer only when asked: --remote
+# or a remote they made the default. These run the command through cli.main, so
+# a broken import or a routing change fails here and not on someone's machine.
+
+REMOTE_URL = "http://10.0.0.5:8080/"
+
+
+@pytest.fixture
+def ask(tmp_path, monkeypatch):
+    """Run `ai-2 doc ask` with one indexed document, recording every request."""
+    from ai2 import chatterm, cli, models, sysinfo
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    by_id = {m["id"]: m for m in models.load_catalog()}
+    world = {"remote": None, "model": by_id["qwen2.5-0.5b"], "prefill": 5.0, "sent": [], "chat_servers": []}
+
+    def fake_ensure(hw, model, port, record, **kw):
+        if record == serverstate.EMBED:
+            return "http://127.0.0.1:8081/"
+        world["chat_servers"].append(model["id"])
+        return "http://127.0.0.1:8080/"
+
+    def fake_stream(base, messages, **kw):
+        world["sent"].append({"base": base, "text": " ".join(m["content"] for m in messages)})
+        yield "An answer."
+
+    monkeypatch.setattr(knowledgecli, "detect", lambda: type("HW", (), {"ram_mib": 8000, "cpu_variant": "avx2"})())
+    monkeypatch.setattr(knowledgecli.remote, "load", lambda: world["remote"])
+    monkeypatch.setattr(knowledgecli, "load_score", lambda: None)
+    monkeypatch.setattr(knowledgecli, "installed_models",
+                        lambda cat: [{"id": world["model"]["id"], "catalog": world["model"]}] if world["model"] else [])
+    monkeypatch.setattr(runner, "_ensure_server", fake_ensure)
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    monkeypatch.setattr(doc, "prefill_seconds", lambda n, score, model: world["prefill"])
+    monkeypatch.setattr(chatterm, "stream_reply", fake_stream)
+    monkeypatch.setattr(sysinfo, "mem_available_mib", lambda: 8000)
+    conn = doc.open_store()
+    doc.set_store_model(conn, "nomic-embed-text-v2-moe", 8)
+    doc.add_document(conn, "c.txt", "/c.txt", ["La capital del Estado es la villa de Madrid."], [fake_vec("Madrid")], words=9)
+    conn.close()
+    world["run"] = lambda *flags: cli.main(["doc", "ask", *flags, "Madrid capital"])
+    world["by_id"] = by_id
+    return world
+
+
+def _nondefault():
+    return {"url": REMOTE_URL, "default": False}
+
+
+def _went_remote(world):
+    return any(s["base"] == REMOTE_URL for s in world["sent"])
+
+
+def test_doc_ask_answers_locally_with_no_remote(ask, capsys):
+    assert ask["run"]() == 0
+    out = capsys.readouterr().out
+    assert "An answer." in out and "Sources: [1] c.txt" in out
+    assert ask["chat_servers"] == ["qwen2.5-0.5b"] and not _went_remote(ask)
+    assert "villa de Madrid" in ask["sent"][0]["text"]          # the excerpt reached the local AI
+
+
+def test_doc_ask_stays_local_when_slow_or_starter_and_remote_is_not_the_default(ask, capsys):
+    ask["remote"] = _nondefault()
+    for model, prefill in (("qwen2.5-0.5b", 999.0), ("gemma3-270m", 5.0)):
+        ask["model"], ask["prefill"] = ask["by_id"][model], prefill
+        assert ask["run"]() == 0
+        out = capsys.readouterr().out
+        assert not _went_remote(ask)
+        assert "add --remote" in out and "leave this computer" in out      # named, not taken
+    assert ask["chat_servers"] == ["qwen2.5-0.5b", "gemma3-270m"]
+
+
+def test_doc_ask_with_no_local_model_refuses_instead_of_sending(ask, capsys):
+    ask["remote"], ask["model"] = _nondefault(), None
+    assert ask["run"]() == 1
+    err = capsys.readouterr().err
+    assert "no chat model" in err and "--remote" in err
+    assert ask["sent"] == []
+
+
+def test_doc_ask_sends_only_when_asked(ask, capsys):
+    ask["remote"] = _nondefault()
+    assert ask["run"]("--remote") == 0                          # asked this time
+    assert _went_remote(ask) and "villa de Madrid" in ask["sent"][-1]["text"]
+    assert "leave this computer" in capsys.readouterr().out     # and it says so first
+    ask["sent"].clear()
+    ask["remote"] = {"url": REMOTE_URL, "default": True}
+    assert ask["run"]() == 0                                    # their saved default
+    assert _went_remote(ask) and "leave this computer" in capsys.readouterr().out
+    ask["sent"].clear()
+    assert ask["run"]("--local") == 0                           # --local beats the default
+    assert ask["sent"] and not _went_remote(ask)
+
+
+def test_doc_ask_refuses_local_and_remote_together(ask, capsys):
+    ask["remote"] = _nondefault()
+    with pytest.raises(SystemExit):
+        ask["run"]("--local", "--remote")
+    assert ask["sent"] == []
+
+
+def test_doc_ask_remote_with_none_configured_is_an_error(ask, capsys):
+    assert ask["run"]("--remote") == 1
+    assert "no remote AI configured" in capsys.readouterr().err and ask["sent"] == []
+
+
+def test_doc_ask_no_model_and_no_remote_says_how_to_get_either(ask, capsys):
+    ask["model"] = None
+    assert ask["run"]() == 1
+    assert "ai-2 remote set" in capsys.readouterr().err
+
+
+def test_doc_ask_unknown_or_undownloaded_model_is_an_error(ask, capsys, monkeypatch):
+    assert ask["run"]("--model", "no-such-model") == 1
+    assert "not a chat model" in capsys.readouterr().err
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: None)
+    assert ask["run"]("--model", "qwen2.5-0.5b") == 1
+    assert "not downloaded" in capsys.readouterr().err
+    assert ask["sent"] == []
+
+
+def test_doc_ask_with_nothing_indexed_says_so(ask, capsys, tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty"))
+    assert ask["run"]() == 1
+    assert "No documents indexed yet" in capsys.readouterr().err and ask["sent"] == []
