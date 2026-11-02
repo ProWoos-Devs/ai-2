@@ -38,7 +38,7 @@ import time
 import urllib.request
 import zipfile
 
-from .models import RAM_HEADROOM_MIB, embedding_models
+from .models import RAM_HEADROOM_MIB, embedding_models, fit_for_ram
 
 EMBED_PORT = 8081          # the chat server has 8080
 EMBED_IDLE_S = 600         # the embedding server never stays resident, even on persistent tiers
@@ -593,13 +593,13 @@ def choose_answer_model(present: list[dict], ram_mib: int, score: dict | None) -
     on rafaminu-pc that is the 270M starter, which cannot read excerpts at all
     (it answered a question about the Constitution with "I am programmed to be
     a safe and helpful AI assistant", 2026-09-14) while Qwen2.5 0.5B on the
-    same disk can. So, the largest model on disk that fits RAM and is estimated
-    from the AI Score to generate at least ANSWER_MIN_TG tok/s; failing that the
-    largest that fits; without a score the same. `present` is the chat catalog
-    filtered to files on disk."""
+    same disk can. So, the largest model on disk that may start on this RAM
+    (models.fit_for_ram) and is estimated from the AI Score to generate at least
+    ANSWER_MIN_TG tok/s; failing that the largest of those; without a score the
+    same; None when none may start. `present` is the chat catalog filtered to
+    files on disk."""
     from .models import estimate_tps
-    budget = max(0, ram_mib - RAM_HEADROOM_MIB)
-    fits = [m for m in present if m["ram_peak_mb"] <= budget] or list(present)
+    fits = fit_for_ram(present, ram_mib)
     if not fits:
         return None
     if score and score.get("tg_tps"):

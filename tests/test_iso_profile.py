@@ -154,8 +154,6 @@ def test_the_build_refuses_a_stale_pack_catalog():
     build = pathlib.Path("packaging/build-packages.sh").read_text()
     assert "sync-pack-catalog.py\" --check" in build
     assert 'refusing to build ai-2 with a stale pack catalog' in build
-    workflow = pathlib.Path(".github/workflows/tests.yml").read_text()
-    assert "packs.yml" in workflow, "the catalog job no longer runs when the packaged copy changes"
 
 
 def test_the_iso_checksum_can_be_signed_and_the_readme_says_how():

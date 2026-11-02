@@ -283,6 +283,13 @@ def _usable_model(hw) -> dict | None:
     return best_present_model(load_catalog(), hw.ram_mib)
 
 
+def _no_fit_message(hw) -> str | None:
+    """The explanation when models are on disk but none may start on this RAM."""
+    from .models import no_fit_message
+    catalog = load_catalog()
+    return no_fit_message([m["catalog"] for m in installed_models(catalog) if m["id"]], catalog, hw.ram_mib)
+
+
 PICK_MODEL = "?"   # `--model` given with no value: ask interactively
 
 
@@ -481,7 +488,9 @@ def cmd_serve(args) -> int:
     else:
         model = _usable_model(hw)
         if model is None:
-            print("error: no model on this computer yet. Run 'ai-2 wizard', or name one: "
+            too_big = _no_fit_message(hw)
+            print(f"error: {too_big}" if too_big else
+                  "error: no model on this computer yet. Run 'ai-2 wizard', or name one: "
                   "ai-2 serve --model <id>", file=sys.stderr)
             return 1
     path = runtime.find_model_file(model["file"])
@@ -568,6 +577,50 @@ def cmd_accessibility(args) -> int:
     return a11y.setup() if args.action == "setup" else a11y.status()
 
 
+def _start_chat_server(args, hw, url: str) -> dict | None:
+    """Start the chat server detached and wait until it reports ready. The model
+    it runs, or None with the reason printed."""
+    import subprocess
+    import time
+    runtime_dir = runtime.find_runtime(hw.cpu_variant)
+    model = runner._catalog_entry(args.model) if args.model else _usable_model(hw)
+    too_big = _no_fit_message(hw) if model is None else None
+    if too_big:
+        print(f"error: {too_big}", file=sys.stderr)
+        return None
+    if runtime_dir is None or model is None or runtime.find_model_file(model["file"]) is None:
+        print("AI-2 is not set up on this computer yet. Run:  ai-2 wizard", file=sys.stderr)
+        return None
+    state_dir = serverstate.state_dir()
+    os.makedirs(state_dir, exist_ok=True)
+    log = open(serverstate.log_file(), "ab")
+    cmd = [sys.executable, "-m", "ai2.cli", "serve", "--port", str(args.port)]
+    if args.idle_timeout is not None:
+        cmd += ["--idle-timeout", str(args.idle_timeout)]
+    if args.model:
+        cmd += ["--model", model["id"]]
+    subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                     start_new_session=True,
+                     cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    # whole lines, no dot spinner: screen readers only follow completed
+    # lines, and the sighted cost of a line every 10 s is nil
+    print(f"Starting the AI ({model['label']}) ... this takes a moment on a slow disk", flush=True)
+    start = time.monotonic()
+    deadline = start + args.wait
+    last_note = start
+    while time.monotonic() < deadline and not runner._server_ready(url):
+        time.sleep(2)
+        now = time.monotonic()
+        if now - last_note >= 10:
+            last_note = now
+            print(f"  still starting ({int(now - start)} s)", flush=True)
+    if not runner._server_ready(url):
+        print(f"error: the server did not come up within {args.wait} s "
+              f"(see {os.path.join(state_dir, 'serve.log')})", file=sys.stderr)
+        return None
+    return model
+
+
 def cmd_chat(args) -> int:
     """Make sure the local AI server runs (start it on demand, detached) and
     open the chat page in the browser. The server stops itself when idle."""
@@ -596,40 +649,21 @@ def cmd_chat(args) -> int:
               f"Stop it first:  ai-2 stop", file=sys.stderr)
         return 1
     started_here = False
+    model = None
     if not runner._server_ready(url):
-        runtime_dir = runtime.find_runtime(hw.cpu_variant)
-        model = runner._catalog_entry(args.model) if args.model else _usable_model(hw)
-        if runtime_dir is None or model is None or runtime.find_model_file(model["file"]) is None:
-            print("AI-2 is not set up on this computer yet. Run:  ai-2 wizard", file=sys.stderr)
-            return 1
-        state_dir = serverstate.state_dir()
-        os.makedirs(state_dir, exist_ok=True)
-        log = open(serverstate.log_file(), "ab")
-        cmd = [sys.executable, "-m", "ai2.cli", "serve", "--port", str(args.port)]
-        if args.idle_timeout is not None:
-            cmd += ["--idle-timeout", str(args.idle_timeout)]
-        if args.model:
-            cmd += ["--model", model["id"]]
-        subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
-                         start_new_session=True,
-                         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        # whole lines, no dot spinner: screen readers only follow completed
-        # lines, and the sighted cost of a line every 10 s is nil
-        print(f"Starting the AI ({model['label']}) ... this takes a moment on a slow disk", flush=True)
-        start = time.monotonic()
-        deadline = start + args.wait
-        last_note = start
-        while time.monotonic() < deadline and not runner._server_ready(url):
-            time.sleep(2)
-            now = time.monotonic()
-            if now - last_note >= 10:
-                last_note = now
-                print(f"  still starting ({int(now - start)} s)", flush=True)
-        if not runner._server_ready(url):
-            print(f"error: the server did not come up within {args.wait} s "
-                  f"(see {os.path.join(state_dir, 'serve.log')})", file=sys.stderr)
-            return 1
-        started_here = True
+        with serverstate.start_lock():
+            if not runner._server_ready(url):     # another command may have just started it
+                model = _start_chat_server(args, hw, url)
+                if model is None:
+                    return 1
+                started_here = True
+    expected = model or runner._catalog_entry(args.model or "")
+    if expected is None and running and running.get("port") == args.port:
+        expected = runner._catalog_entry(running.get("model") or "")
+    problem = runner.endpoint_problem(url, args.port, expected["file"] if expected else None)
+    if problem:
+        print(f"error: {problem}", file=sys.stderr)
+        return 1
     if started_here:
         # Only this invocation knows what timeout it started the server with
         # (0 means keep running, as for `ai-2 serve`).
@@ -789,7 +823,7 @@ def cmd_gopher(args) -> int:
 
 def cmd_transcribe(args) -> int:
     """`ai-2 transcribe FILE`: speech to text with whisper.cpp, into FILE.txt."""
-    from . import speech
+    from . import speech, workflows
     hw = detect()
     runtime_dir = speech.find_runtime()
     if runtime_dir is None:
@@ -799,7 +833,7 @@ def cmd_transcribe(args) -> int:
     if not os.path.isfile(args.file):
         print(f"error: no such file: {args.file}", file=sys.stderr)
         return 1
-    model = speech.speech_model(args.model)
+    model = speech.speech_model(args.model or workflows.speech_model_id(hw))
     if model is None:
         print(f"error: unknown speech model '{args.model}' (tiny, base or small)", file=sys.stderr)
         return 1
@@ -1285,9 +1319,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="speak the answers aloud through speech-dispatcher (with --terminal)")
     p_chat.add_argument("--stream", action="store_true",
                         help="terminal chat prints token by token instead of whole sentences (also AI2_CHAT_STREAM=1)")
-    p_chat.add_argument("--remote", action="store_true",
+    p_chat_where = p_chat.add_mutually_exclusive_group()
+    p_chat_where.add_argument("--remote", action="store_true",
                         help="talk to the remote AI set with 'ai-2 remote set' instead of this computer's own")
-    p_chat.add_argument("--local", action="store_true",
+    p_chat_where.add_argument("--local", action="store_true",
                         help="this computer's own AI even when the remote is the default")
     p_chat.set_defaults(func=cmd_chat)
 
@@ -1323,7 +1358,7 @@ def main(argv: list[str] | None = None) -> int:
     p_tr = sub.add_parser("transcribe", help="speech to text: a recording, a voice note or a video's audio into FILE.txt (whisper.cpp)")
     p_tr.add_argument("file")
     p_tr.add_argument("-l", "--lang", default="auto", help="language code (es, en, de, ...); default: detected")
-    p_tr.add_argument("-m", "--model", help="tiny, base or small (default: base; slower is better)")
+    p_tr.add_argument("-m", "--model", help="tiny, base or small (default: tiny on the Tiny tier, otherwise base; slower is better)")
     p_tr.add_argument("-o", "--output", help="text file to write (default: FILE.txt next to the input)")
     p_tr.set_defaults(func=cmd_transcribe)
 

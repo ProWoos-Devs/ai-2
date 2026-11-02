@@ -93,26 +93,91 @@ def _server_ready(url: str, timeout: float = 2.0) -> bool:
         return False
 
 
+def _server_model_file(url: str, timeout: float = 5.0) -> str | None:
+    """The file name of the model this endpoint has loaded, or None if it cannot
+    say. llama-server gives the path in /v1/models without an API key, and
+    answers at once even in the middle of a long batch, when /slots times out
+    (measured on b10398, 2026-11-02)."""
+    import json
+    import urllib.request
+    try:
+        with urllib.request.urlopen(url.rstrip("/") + "/v1/models", timeout=timeout) as r:
+            data = json.loads(r.read(200000).decode("utf-8", "replace"))
+        model_id = data["data"][0]["id"]
+    except Exception:
+        return None
+    return os.path.basename(model_id) if isinstance(model_id, str) and model_id else None
+
+
+def _port_owners(port: int, proc_net: str = "/proc/net") -> set[int]:
+    """The accounts listening on this port. Empty when the kernel's tables cannot
+    be read, which rules nobody out."""
+    owners = set()
+    for table in ("tcp", "tcp6"):
+        try:
+            with open(os.path.join(proc_net, table)) as fh:
+                rows = fh.readlines()[1:]
+        except OSError:
+            continue
+        for row in rows:
+            cols = row.split()
+            if len(cols) > 7 and cols[3] == "0A" and int(cols[1].rsplit(":", 1)[1], 16) == port:
+                owners.add(int(cols[7]))
+    return owners
+
+
+def endpoint_problem(url: str, port: int, expected_file: str | None = None) -> str | None:
+    """Why this healthy endpoint must not be used, or None. A healthy answer says
+    nothing about who is answering: on a computer several people share, the port
+    can be another account's, and what is sent there is theirs to read. And an
+    index embedded with the wrong model is wrong without any error."""
+    others = _port_owners(port) - {os.getuid()}
+    if others:
+        return (f"port {port} belongs to another account on this computer, so AI-2 will not send "
+                "anything there. That server has to stop first.")
+    running_file = _server_model_file(url)
+    if running_file is None:
+        return (f"something answers on port {port} but does not say which model it runs, so AI-2 "
+                "will not use it. Stop that program first.")
+    if expected_file and running_file != expected_file:
+        return (f"the server on port {port} is running {running_file}, not {expected_file}. "
+                "Stop it first:  ai-2 stop  (if AI-2 started it)")
+    return None
+
+
 def _ensure_server(hw, model: dict, port: int, record: str, wait: int = 180,
                    idle_timeout: int | None = None) -> str | None:
     """The base URL of a running `ai-2 serve` for `model` on `port`: start it
     detached when nothing answers there (the same way `ai-2 chat` does), wait
-    until it reports ready. None, with the reason printed, when it cannot."""
-    import subprocess
-    import time
+    until it reports ready. An endpoint that answers is used only once it has
+    shown it runs this model, under this account (endpoint_problem). None, with
+    the reason printed, when it cannot."""
     url = f"http://127.0.0.1:{port}/"
     running = serverstate.read_server(record)
-    # a server that answers is only this one if it runs this model: an index
-    # embedded with the wrong model is wrong without any error
-    if _server_ready(url) and not (running and running.get("model") and running["model"] != model["id"]):
-        return url
     if running and running.get("model") and running["model"] != model["id"]:
         print(f"error: a server is already running with {running['model']}, not {model['id']}. "
               f"Stop it first:  ai-2 stop", file=sys.stderr)
         return None
+    if not _server_ready(url):
+        with serverstate.start_lock(record):
+            if not _server_ready(url) and not _start_server(hw, model, port, record, url, wait, idle_timeout):
+                return None
+    problem = endpoint_problem(url, port, model["file"])
+    if problem:
+        print(f"error: {problem}", file=sys.stderr)
+        return None
+    return url
+
+
+def _start_server(hw, model: dict, port: int, record: str, url: str, wait: int,
+                  idle_timeout: int | None) -> bool:
+    """Start `ai-2 serve` detached and wait until it reports ready. False, with
+    the reason printed, when it cannot."""
+    import subprocess
+    import time
     if runtime.find_runtime(hw.cpu_variant) is None or runtime.find_model_file(model["file"]) is None:
         print("AI-2 is not set up on this computer yet. Run:  ai-2 wizard", file=sys.stderr)
-        return None
+        return False
     state_dir = serverstate.state_dir()
     os.makedirs(state_dir, exist_ok=True)
     log = open(serverstate.log_file(record), "ab")
@@ -132,5 +197,5 @@ def _ensure_server(hw, model: dict, port: int, record: str, wait: int = 180,
     if not _server_ready(url):
         print(f"error: the server did not come up within {wait} s (see {serverstate.log_file(record)})",
               file=sys.stderr)
-        return None
-    return url
+        return False
+    return True

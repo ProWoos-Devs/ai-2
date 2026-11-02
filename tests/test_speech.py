@@ -111,3 +111,24 @@ def test_cmd_transcribe_end_to_end(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv(speech.RUNTIME_ENV, str(tmp_path / "nowhere"))
     assert cli.main(["transcribe", str(wav)]) == 1
     assert "sudo pacman -S ai2-whisper-cpp" in capsys.readouterr().err
+
+
+def test_transcribe_with_no_model_follows_the_tier(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    from ai2.detect import Hardware
+    rt = tmp_path / "rt"; rt.mkdir()
+    _fake_bin(rt, "whisper-cli", "#!/bin/sh\nwhile [ $# -gt 0 ]; do case $1 in -of) of=$2; shift;; esac; shift; done\n"
+                                 "echo 'texto' > \"$of.txt\"\n")
+    monkeypatch.setenv(speech.RUNTIME_ENV, str(rt))
+    models = tmp_path / "models"; models.mkdir()
+    monkeypatch.setenv("AI2_MODEL_DIR", str(models))
+    monkeypatch.setattr(cli, "detect", lambda: Hardware(cpu_model="t", logical_cores=2, flags=set(), ram_mib=1900, ram_nominal_gib=2))
+    pulled = []
+    def fake_pull(model, force=False):
+        pulled.append(model["id"]); (models / model["file"]).write_bytes(b"m"); return 0
+    monkeypatch.setattr(runner, "_pull_model", fake_pull)
+    wav = tmp_path / "note.wav"; _wav16k(wav)
+    assert cli.main(["transcribe", str(wav)]) == 0
+    assert pulled == ["tiny"]                                   # the Tiny tier, with no --model
+    assert cli.main(["transcribe", str(wav), "--model", "small"]) == 0
+    assert pulled == ["tiny", "small"]                          # naming one still wins

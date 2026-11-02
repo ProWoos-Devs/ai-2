@@ -159,8 +159,18 @@ def test_chat_remote_needs_a_config_and_notes_one_when_not_used(home, capsys, mo
     assert "ai-2 remote set" in capsys.readouterr().err
     remote.save("http://10.0.0.5:8080", default=False)
     monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: True)
+    monkeypatch.setattr(runner, "endpoint_problem", lambda url, port, expected_file=None: None)
     from ai2 import serverstate
     serverstate.write_server(os.getpid(), "gemma3-270m", "/x/m.gguf", 8080, "127.0.0.1")
     assert cli.main(["chat", "--no-browser"]) == 0
     assert "a remote AI is configured, http://10.0.0.5:8080" in capsys.readouterr().out
     serverstate.clear_server()
+
+
+def test_chat_refuses_local_and_remote_together(capsys, monkeypatch):
+    # contradictory flags must not resolve to sending messages off the computer
+    monkeypatch.setattr(cli, "_chat_remote", lambda args, cfg: pytest.fail("must not reach the remote"))
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["chat", "--local", "--remote"])
+    assert exc.value.code == 2
+    assert "not allowed with" in capsys.readouterr().err

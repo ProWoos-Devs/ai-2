@@ -5,8 +5,11 @@
 # the ai2-whisper-cpp package, one for every CPU (ai-2 transcribe names it
 # when it is missing); ffmpeg from the Artix repositories converts the audio.
 #
-# The speech model per tier is what ai-2 transcribe downloads by default:
-# base (about 388 MB in use) everywhere but the Tiny tier, which gets tiny.
+# engine: speech makes the evaluator use whisper's own catalog and check the
+# engine itself: no chat model and no AI Score take part in this workflow.
+# The speech model per tier is what `workflow install` downloads and what
+# ai-2 transcribe takes with no --model: base (about 388 MB in use) everywhere
+# but the Tiny tier, which gets tiny.
 # No star minimum, on purpose (review of this PR, 2026-09-15): the `voice`
 # star comes from the chat model's generation speed and measures nothing
 # about whisper, so a machine whose chat is slow must not be told speech is
@@ -17,6 +20,7 @@ description: Turn a recording or a video's audio into text, offline
 requests: [voice]
 minimum: {}
 remote: false
+engine: speech
 tiers:
   tiny:
     packages: [ffmpeg]
@@ -25,6 +29,9 @@ tiers:
     packages: [ffmpeg]
     speech_model: base
   standard:
+    packages: [ffmpeg]
+    speech_model: base
+  creator:
     packages: [ffmpeg]
     speech_model: base
 usage:

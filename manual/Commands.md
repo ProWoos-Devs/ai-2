@@ -64,7 +64,7 @@ A knowledge pack is how the slow part moves to a fast computer (the [[Knowledge 
 
 | Command | What it does |
 |---|---|
-| `ai-2 transcribe FILE` | Turns a recording, a voice note or a video's audio into FILE.txt with whisper.cpp, offline. Anything that is not a 16 kHz mono WAV is converted with `ffmpeg` first. `--lang es` names the language (detected otherwise), `--model tiny`, `base` (default) or `small` picks the speech model, downloaded on first use, `-o` sets the output file. Needs the `ai2-whisper-cpp` package, one for every CPU. File transcription only, slow on an old computer: the engine works in 30-second windows, and the tiny model on the 2011 reference laptop took about 13 seconds per window. |
+| `ai-2 transcribe FILE` | Turns a recording, a voice note or a video's audio into FILE.txt with whisper.cpp, offline. Anything that is not a 16 kHz mono WAV is converted with `ffmpeg` first. `--lang es` names the language (detected otherwise), `--model tiny`, `base` or `small` picks the speech model (default: `tiny` on the Tiny tier, otherwise `base`), downloaded on first use, `-o` sets the output file. Needs the `ai2-whisper-cpp` package, one for every CPU; `ai-2 workflow install speech` downloads the speech model and prints the package line, with no AI Score and no chat model. File transcription only, slow on an old computer: the engine works in 30-second windows, and the tiny model on the 2011 reference laptop took about 13 seconds per window. |
 
 ## Software and updates
 

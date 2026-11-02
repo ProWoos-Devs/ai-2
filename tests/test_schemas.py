@@ -31,7 +31,7 @@ CATALOG_OPTIONAL = {"benchmark", "sampling", "spec_type_measured",
                     "kind", "dims", "ctx", "prefix_document", "prefix_query", "multilingual"}
 SAMPLING_KEYS = {"temp", "top_k", "top_p", "min_p", "repeat_penalty"}
 PROFILE_REQUIRED = {"id", "description", "requests", "minimum", "remote", "tiers"}
-PROFILE_KEYS = PROFILE_REQUIRED | {"usage"}
+PROFILE_KEYS = PROFILE_REQUIRED | {"usage", "engine"}
 PROFILE_TIER_KEYS = {"packages", "models", "llama_server", "speech_model"}
 
 

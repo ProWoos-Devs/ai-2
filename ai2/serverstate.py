@@ -6,9 +6,11 @@ dir: the chat server (the default record, "server") and the embedding server
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import signal
+import sys
 
 CHAT = "server"
 EMBED = "embed"
@@ -31,9 +33,29 @@ def log_file(name: str = CHAT) -> str:
 def write_server(pid: int, model_id: str, model_path: str, port: int, host: str,
                  name: str = CHAT) -> None:
     os.makedirs(state_dir(), exist_ok=True)
-    with open(server_file(name), "w") as fh:
+    # replaced in one step, so a reader never meets half a record
+    tmp = f"{server_file(name)}.{os.getpid()}.tmp"
+    with open(tmp, "w") as fh:
         json.dump({"pid": pid, "model": model_id, "model_path": model_path,
                    "port": port, "host": host}, fh)
+    os.replace(tmp, server_file(name))
+
+
+@contextlib.contextmanager
+def start_lock(name: str = CHAT):
+    """Only one command at a time starts this server: two starting together
+    would load the model twice and fight over the port. The second waits, then
+    finds the server up. The kernel drops the lock if the holder dies, and a
+    started server does not inherit it (Python's files are not inheritable)."""
+    import fcntl
+    os.makedirs(state_dir(), exist_ok=True)
+    with open(os.path.join(state_dir(), f"{name}.lock"), "w") as fh:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("Another AI-2 command is starting the AI, waiting for it ...", file=sys.stderr, flush=True)
+            fcntl.flock(fh, fcntl.LOCK_EX)
+        yield
 
 
 def clear_server(name: str = CHAT) -> None:

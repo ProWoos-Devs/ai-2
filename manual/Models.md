@@ -38,6 +38,8 @@ Both Apache 2.0, first-party repositories, anonymous downloads. all-MiniLM-L6-v2
 
 If a larger model fits in RAM but would be too slow, or nothing clears the speed floor, AI-2 recommends remote inference for the heavy work instead of pretending, and says why. Local where possible, remote by explicit choice.
 
+AI-2 starts a chat model by itself only if this computer can hold it. When nothing on disk fits with that headroom, it takes the smallest model on disk if that still leaves the system about 800 MiB, and otherwise it starts none and says what to do: a smaller model, or `--model` to try one anyway, which is your call.
+
 The recommendation never blocks you: if you decline its download, `ai-2 chat` and `ai-2 serve` simply use the best model already on disk.
 
 ## The starter model

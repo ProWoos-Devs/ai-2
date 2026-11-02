@@ -216,7 +216,8 @@ def test_answer_model_prefers_the_biggest_usable_over_the_starter():
     assert doc.choose_answer_model(present, 7800, fast)["id"] == "smollm3-3b"
     assert doc.choose_answer_model(present, 3800, fast)["id"] == "qwen2.5-0.5b"   # the 3B does not fit 4 GB
     assert doc.choose_answer_model(present, 7800, None)["id"] == "smollm3-3b"     # no score: largest that fits
-    assert doc.choose_answer_model([by_id["smollm3-3b"]], 2000, score)["id"] == "smollm3-3b"  # only one, even if it does not fit
+    assert doc.choose_answer_model([by_id["smollm3-3b"]], 2000, score) is None    # nothing starts above what the machine can hold
+    assert doc.choose_answer_model([by_id["gemma3-270m"], by_id["qwen2.5-7b"]], 1800, score)["id"] == "gemma3-270m"   # the smallest, tight
     assert doc.choose_answer_model([], 7800, score) is None
 
 
@@ -541,6 +542,7 @@ def test_a_running_server_with_another_model_is_not_reused(monkeypatch, capsys):
     assert runner._ensure_server(None, model, 8081, serverstate.EMBED, wait=1) is None
     assert "already running with nomic-embed-text-v1.5" in capsys.readouterr().err
     monkeypatch.setattr(serverstate, "read_server", lambda name: {"pid": 1, "model": "nomic-embed-text-v2-moe"})
+    monkeypatch.setattr(runner, "endpoint_problem", lambda url, port, expected_file=None: None)
     assert runner._ensure_server(None, model, 8081, serverstate.EMBED, wait=1) == "http://127.0.0.1:8081/"
 
 
@@ -910,7 +912,7 @@ def ask(tmp_path, monkeypatch):
     from ai2 import chatterm, cli, models, sysinfo
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     by_id = {m["id"]: m for m in models.load_catalog()}
-    world = {"remote": None, "model": by_id["qwen2.5-0.5b"], "prefill": 5.0, "sent": [], "chat_servers": []}
+    world = {"remote": None, "model": by_id["qwen2.5-0.5b"], "prefill": 5.0, "sent": [], "chat_servers": [], "ram": 8000}
 
     def fake_ensure(hw, model, port, record, **kw):
         if record == serverstate.EMBED:
@@ -922,7 +924,7 @@ def ask(tmp_path, monkeypatch):
         world["sent"].append({"base": base, "text": " ".join(m["content"] for m in messages)})
         yield "An answer."
 
-    monkeypatch.setattr(knowledgecli, "detect", lambda: type("HW", (), {"ram_mib": 8000, "cpu_variant": "avx2"})())
+    monkeypatch.setattr(knowledgecli, "detect", lambda: type("HW", (), {"ram_mib": world["ram"], "cpu_variant": "avx2"})())
     monkeypatch.setattr(knowledgecli.remote, "load", lambda: world["remote"])
     monkeypatch.setattr(knowledgecli, "load_score", lambda: None)
     monkeypatch.setattr(knowledgecli, "installed_models",
@@ -1021,3 +1023,17 @@ def test_doc_ask_with_nothing_indexed_says_so(ask, capsys, tmp_path, monkeypatch
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty"))
     assert ask["run"]() == 1
     assert "No documents indexed yet" in capsys.readouterr().err and ask["sent"] == []
+
+
+def test_doc_ask_will_not_start_a_model_too_big_for_this_ram(ask, capsys):
+    ask["model"], ask["ram"] = ask["by_id"]["qwen2.5-7b"], 2048
+    assert ask["run"]() == 1
+    err = capsys.readouterr().err
+    assert "need more memory than its 2048 MiB" in err and "ai-2 model pull gemma3-270m" in err
+    assert ask["chat_servers"] == [] and ask["sent"] == []
+
+
+def test_doc_ask_too_big_with_a_remote_names_it_and_sends_nothing(ask, capsys):
+    ask["model"], ask["ram"], ask["remote"] = ask["by_id"]["qwen2.5-7b"], 2048, _nondefault()
+    assert ask["run"]() == 1
+    assert "--remote" in capsys.readouterr().err and ask["sent"] == []

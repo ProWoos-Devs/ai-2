@@ -21,7 +21,7 @@ import textwrap
 from . import branding, remote, runner, serverstate
 from .detect import detect
 from .i18n import tr
-from .models import is_starter, load_catalog
+from .models import is_starter, load_catalog, no_fit_message
 from . import runtime
 from .runtime import installed_models
 from .state import load_score
@@ -967,6 +967,7 @@ def _doc_ask(args, docmod) -> int:
     if hits is None:
         return 1
     score = load_score()
+    too_big = None
     if args.model:
         chat_model = runner._catalog_entry(args.model)
         if chat_model is None or chat_model.get("kind", "chat") != "chat":
@@ -979,6 +980,7 @@ def _doc_ask(args, docmod) -> int:
     else:
         present = [m["catalog"] for m in installed_models(load_catalog()) if m["id"]]
         chat_model = docmod.choose_answer_model(present, hw.ram_mib, score)
+        too_big = no_fit_message(present, load_catalog(), hw.ram_mib)
     messages = docmod.build_messages(question, hits)
     n_tokens = sum(docmod.estimate_tokens(m["content"]) for m in messages)
     est = docmod.prefill_seconds(n_tokens, score, chat_model)
@@ -997,7 +999,9 @@ def _doc_ask(args, docmod) -> int:
         base = cfg["url"]
     else:
         if chat_model is None:
-            if send_hint:
+            if too_big:
+                print(f"error: {too_big}" + (f"\n  {send_hint}" if send_hint else ""), file=sys.stderr)
+            elif send_hint:
                 print(f"error: no chat model on this computer yet (ai-2 wizard). {send_hint}", file=sys.stderr)
             else:
                 print("error: no chat model on this computer yet (ai-2 wizard), and no remote AI (ai-2 remote set).",

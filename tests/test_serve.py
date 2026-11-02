@@ -224,3 +224,73 @@ def test_stop_server_escalates_to_sigkill(tmp_path, monkeypatch):
     finally:
         if stubborn.poll() is None:
             stubborn.kill()
+
+
+# --- automatic model choice stays within RAM ----------------------------------
+
+def _peaks():
+    from ai2.models import load_catalog
+    return {m["id"]: m for m in load_catalog()}
+
+
+def test_fit_for_ram_full_headroom_then_smallest_above_the_floor_then_nothing():
+    from ai2.models import fit_for_ram
+    by = _peaks()
+    gemma, qwen05, seven = by["gemma3-270m"], by["qwen2.5-0.5b"], by["qwen2.5-7b"]
+    assert fit_for_ram([gemma, qwen05, seven], 8000) == [gemma, qwen05, seven]
+    assert fit_for_ram([gemma, seven], 1850) == [gemma]         # exactly the full headroom
+    assert fit_for_ram([qwen05, gemma, seven], 1800) == [gemma]  # tight: only the smallest, never the largest
+    assert fit_for_ram([qwen05, seven], 2048) == [qwen05]       # 900 MiB leaves more than the floor
+    assert fit_for_ram([gemma], 1450) == [gemma] and fit_for_ram([gemma], 1449) == []
+    assert fit_for_ram([seven], 2048) == []                     # the review's case: 6800 MiB on 2048
+    assert fit_for_ram([], 2048) == []
+    assert fit_for_ram([gemma, seven], None) == [gemma, seven]  # unknown RAM rules nothing out
+    assert fit_for_ram([gemma, seven], 0) == [gemma, seven]
+
+
+def test_best_present_model_never_takes_the_oversized_one():
+    from ai2.models import best_present_model, load_catalog
+    only = lambda *names: (lambda f: f in names)
+    by = _peaks()
+    cat = load_catalog()
+    assert best_present_model(cat, 2048, find=only(by["qwen2.5-7b"]["file"])) is None
+    picked = best_present_model(cat, 1800, find=only(by["qwen2.5-7b"]["file"], by["gemma3-270m"]["file"]))
+    assert picked["id"] == "gemma3-270m"
+    assert best_present_model(cat, 2048, find=only()) is None
+
+
+def test_no_fit_message_only_when_models_exist_and_none_may_start():
+    from ai2.models import load_catalog, no_fit_message
+    by = _peaks()
+    cat = load_catalog()
+    assert no_fit_message([], cat, 2048) is None
+    assert no_fit_message([by["gemma3-270m"]], cat, 2048) is None
+    msg = no_fit_message([by["qwen2.5-7b"]], cat, 2048)
+    assert "2048 MiB" in msg and "ai-2 model pull gemma3-270m" in msg and "--model qwen2.5-7b" in msg and "ai-2 doc search" in msg
+    assert "model pull" not in no_fit_message([by["qwen2.5-7b"]], cat, 1000)    # nothing in the catalog would fit either
+
+
+def _only_seven_on_disk(monkeypatch, tmp_path):
+    from ai2 import cli, models, runtime as rt
+    seven = _peaks()["qwen2.5-7b"]
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setattr(cli, "detect", lambda: type("HW", (), {"ram_mib": 2048, "cpu_variant": "avx2", "logical_cores": 2})())
+    monkeypatch.setattr(cli, "_load_score", lambda: None)
+    monkeypatch.setattr(cli, "installed_models", lambda cat: [{"id": seven["id"], "catalog": seven}])
+    monkeypatch.setattr(rt, "find_model_file", lambda f: "/x/" + f if f == seven["file"] else None)
+    monkeypatch.setattr(rt, "find_runtime", lambda variant: "/x/runtime")
+    return cli
+
+
+def test_chat_and_serve_refuse_to_start_the_oversized_model(monkeypatch, tmp_path, capsys):
+    import subprocess
+    cli = _only_seven_on_disk(monkeypatch, tmp_path)
+    monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: (_ for _ in ()).throw(AssertionError("must not start")))
+    monkeypatch.setattr(cli.remote, "load", lambda: None)
+    monkeypatch.setattr(cli.runner, "_server_ready", lambda url: False)
+    assert cli.main(["chat"]) == 1
+    err = capsys.readouterr().err
+    assert "need more memory than its 2048 MiB" in err and "not set up" not in err
+    assert cli.main(["serve"]) == 1
+    assert "need more memory than its 2048 MiB" in capsys.readouterr().err

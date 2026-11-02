@@ -23,6 +23,14 @@ USABLE_TG_TPS = 1.5
 # RAM we keep free for the OS/desktop rather than the model, in MiB.
 RAM_HEADROOM_MIB = 1200
 
+# The least a model must leave the system when nothing fits with the headroom
+# above, and only for the smallest model on disk. 789 MB is the idle session
+# measured on RMM-PC (2026-08-14). Without this floor a real 2 GB machine could
+# refuse the model the image ships: Gemma 270M peaks at 650 MiB, so with the full
+# headroom it needs 1850 MiB reported, and a smaller figure is a machine AI-2
+# exists for. Not yet measured on a 2 GB machine.
+RAM_SYSTEM_FLOOR_MIB = 800
+
 
 def benchmark_model(catalog: list[dict] | None = None) -> dict:
     """The catalog's fixed benchmark workload (flagged `benchmark: true`). The
@@ -32,16 +40,46 @@ def benchmark_model(catalog: list[dict] | None = None) -> dict:
     return next((m for m in catalog if m.get("benchmark")), min(catalog, key=lambda m: m["params_b"]))
 
 
+def fit_for_ram(models: list[dict], ram_mib: int | None) -> list[dict]:
+    """The models AI-2 may start by itself on this RAM: those that fit with the
+    full headroom; when none does, only the smallest, if it leaves the system its
+    floor; otherwise none. Unknown RAM (None or 0) cannot rule anything out. A
+    model the person names with --model is their decision and does not pass here."""
+    if not ram_mib:
+        return list(models)
+    budget = max(0, ram_mib - RAM_HEADROOM_MIB)
+    fits = [m for m in models if m["ram_peak_mb"] <= budget]
+    if fits or not models:
+        return fits
+    smallest = min(models, key=lambda m: m["ram_peak_mb"])
+    return [smallest] if smallest["ram_peak_mb"] <= ram_mib - RAM_SYSTEM_FLOOR_MIB else []
+
+
+def no_fit_message(present: list[dict], catalog: list[dict], ram_mib: int | None) -> str | None:
+    """What to say when models are on disk and none may start by itself; None
+    when that is not the situation (nothing on disk, or one fits)."""
+    if not present or fit_for_ram(present, ram_mib):
+        return None
+    smallest = min(present, key=lambda m: m["ram_peak_mb"])
+    lines = [f"The chat models on this computer need more memory than its {ram_mib} MiB, "
+             "so AI-2 will not start one by itself."]
+    smaller = fit_for_ram(catalog, ram_mib)
+    if smaller:
+        best = max(smaller, key=lambda m: m["params_b"])
+        lines.append(f"  A smaller one:        ai-2 model pull {best['id']}")
+    lines.append(f"  To try one anyway:    add --model {smallest['id']}, and expect heavy swapping")
+    lines.append("  Knowledge Packs need no chat model:  ai-2 doc search")
+    return "\n".join(lines)
+
+
 def best_present_model(catalog: list[dict], ram_mib: int | None = None,
                        find=None) -> dict | None:
-    """The largest catalog model already on disk that fits RAM, for a
-    ready-to-chat fallback before there is an AI Score."""
+    """The largest catalog model already on disk that may start on this RAM
+    (fit_for_ram), for a ready-to-chat fallback before there is an AI Score. None
+    when nothing is on disk or nothing may start."""
     from .runtime import find_model_file
     find = find or find_model_file
-    have = [m for m in catalog if find(m["file"])]
-    if ram_mib is not None:
-        budget = max(0, ram_mib - RAM_HEADROOM_MIB)
-        have = [m for m in have if m["ram_peak_mb"] <= budget] or have
+    have = fit_for_ram([m for m in catalog if find(m["file"])], ram_mib)
     return max(have, key=lambda m: m["params_b"]) if have else None
 
 

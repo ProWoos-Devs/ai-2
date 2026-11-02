@@ -17,6 +17,7 @@ tiers:
     llama_server: {ctx: 2048}
   standard:
     llama_server: {ctx: 2048}
+  creator: {}   # nothing to narrow; the tier's own context applies
 usage:
   - "ai-2 chat --terminal   then type:  Translate to Spanish: <your text>"
   - "Short texts translate best on a small model; paste one paragraph at a time."

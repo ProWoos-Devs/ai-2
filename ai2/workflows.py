@@ -17,10 +17,12 @@ import subprocess
 
 import yaml
 
+from . import speech
 from .benchmark import STAR_LABELS
 from .tiers import assign, load_tiers, resolve_config
 
 GRANT_OK = ("full", "basic")
+SPEECH_ENGINE = "speech"    # a profile's `engine`: whisper.cpp and its own catalog, no chat model
 
 
 def load_profiles() -> list[dict]:
@@ -44,6 +46,15 @@ def config_tier_id(hw, tiers=None) -> str:
     while tier.config_from:
         tier = tiers[tier.config_from]
     return tier.id
+
+
+def speech_model_id(hw, tiers=None) -> str | None:
+    """The speech model this computer's tier uses, which `ai-2 transcribe` takes
+    when no --model is named. None means the speech catalog's default."""
+    tiers = tiers or load_tiers()
+    profile = next((p for p in load_profiles() if p.get("engine") == SPEECH_ENGINE), None)
+    block = (profile or {}).get("tiers", {}).get(config_tier_id(hw, tiers)) or {}
+    return block.get("speech_model")
 
 
 def installed_packages(names: list[str], run=subprocess.run) -> dict[str, bool | None]:
@@ -71,18 +82,26 @@ def evaluate(profile: dict, hw, score: dict | None, recommended: dict | None,
     denied = [c for c in profile["requests"] if granted.get(c) not in GRANT_OK]
     short = {c: (stars.get(c, 0), need) for c, need in profile.get("minimum", {}).items()
              if score is not None and stars.get(c, 0) < need}
-    models = [by_id[m["id"]] for m in block.get("models", []) if m["id"] in by_id]
-    if not models and recommended is not None and not denied:
-        models = [recommended]   # the model the AI Score recommends
+    is_speech = profile.get("engine") == SPEECH_ENGINE
+    if is_speech:
+        models = [speech.speech_model(block.get("speech_model"))]   # its own catalog, never a chat model
+    else:
+        models = [by_id[m["id"]] for m in block.get("models", []) if m["id"] in by_id]
+        if not models and recommended is not None and not denied:
+            models = [recommended]   # the model the AI Score recommends
     model_state = {m["id"]: find_model_file(m["file"]) is not None for m in models}
     packages = list(block.get("packages", []))
     pkg_state = installed_packages(packages, run=run)
+    if is_speech:
+        # asked of the engine itself: it may be installed outside pacman (AI2_WHISPER_DIR)
+        packages.insert(0, speech.RUNTIME_PACKAGE)
+        pkg_state = {speech.RUNTIME_PACKAGE: speech.find_runtime() is not None, **pkg_state}
     missing_models = [m for m in models if not model_state[m["id"]]]
     missing_pkgs = [p for p, ok in pkg_state.items() if ok is False]
 
     if denied:
         verdict, why = "unavailable", f"this tier ({tier_id}) does not provide " + ", ".join(STAR_LABELS.get(c, c) for c in denied)
-    elif score is None:
+    elif score is None and profile.get("minimum"):
         verdict, why = "unknown", "no AI Score yet (ai-2 benchmark)"
     elif short:
         needs = ", ".join(f"{STAR_LABELS.get(c, c)} {have}/{need} stars" for c, (have, need) in short.items())
@@ -103,7 +122,7 @@ def evaluate(profile: dict, hw, score: dict | None, recommended: dict | None,
             "denied": denied, "short": short, "models": models, "model_state": model_state,
             "packages": packages, "pkg_state": pkg_state, "missing_models": missing_models,
             "missing_pkgs": missing_pkgs, "ctx": (block.get("llama_server") or {}).get("ctx"),
-            "speech_model": block.get("speech_model")}
+            "speech_model": models[0]["id"] if is_speech else None}
 
 
 VERDICT_WORDS = {"ready": "ready", "missing": "needs setup", "remote": "via remote AI",
@@ -123,10 +142,11 @@ def render_list(results: list[dict]) -> str:
 
 def render_info(r: dict) -> str:
     p = r["profile"]
-    lines = [f"{p['id']}: {p['description']}", f"  Tier here:   {r['tier']}",
-             f"  Needs:       " + ", ".join(f"{STAR_LABELS.get(c, c)} >= {n} star{'s' if n != 1 else ''}"
-                                             for c, n in p.get("minimum", {}).items()),
-             f"  Verdict:     {VERDICT_WORDS[r['verdict']]}" + (f", {r['why']}" if r["why"] else "")]
+    lines = [f"{p['id']}: {p['description']}", f"  Tier here:   {r['tier']}"]
+    if p.get("minimum"):
+        lines.append("  Needs:       " + ", ".join(f"{STAR_LABELS.get(c, c)} >= {n} star{'s' if n != 1 else ''}"
+                                                   for c, n in p["minimum"].items()))
+    lines.append(f"  Verdict:     {VERDICT_WORDS[r['verdict']]}" + (f", {r['why']}" if r["why"] else ""))
     if r["models"]:
         lines.append("  Models:      " + ", ".join(f"{m['label']} ({'present' if r['model_state'][m['id']] else 'to download, ' + str(m['file_mb']) + ' MB'})" for m in r["models"]))
     if r["packages"]:
@@ -136,8 +156,6 @@ def render_info(r: dict) -> str:
         lines.append("  Packages:    " + ", ".join(f"{pkg} ({state(pkg)})" for pkg in r["packages"]))
     if r["ctx"]:
         lines.append(f"  Context:     {r['ctx']} tokens on this tier")
-    if r.get("speech_model"):
-        lines.append(f"  Speech model: whisper {r['speech_model']} (ai-2 transcribe downloads it on first use)")
     if p.get("remote"):
         lines.append("  Remote:      can use a remote AI when you ask for it or make it the default (ai-2 remote)")
     if p.get("usage"):

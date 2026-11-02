@@ -4,7 +4,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: "17 5 * * 1"   # weekly: the catalog URL/size/hash check below
+    - cron: "17 5 * * 1"   # weekly: the catalog check below
 jobs:
   unit:
     runs-on: ubuntu-latest
@@ -70,9 +70,10 @@ jobs:
       - name: Coverage
         if: always()
         run: python tools/translations.py coverage --template "$RUNNER_TEMP/template.ts" --markdown >> "$GITHUB_STEP_SUMMARY"
-  # The packs' URLs, sizes and hashes, against the real files: weekly, and
-  # whenever the packaged copy of the catalog changes (that is the commit that
-  # can get them wrong).
+  # Every catalog against the real files, weekly and whenever a catalog or this
+  # test changes: Knowledge Packs are downloaded and hashed; models, too large
+  # to fetch here, are compared by size and by the hash Hugging Face reports.
+  # Paths are relative to this repository, the public export of www/ai-2.
   catalog:
     if: github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -91,7 +92,7 @@ jobs:
         run: |
           base="$BASE"
           git cat-file -e "$base^{commit}" 2>/dev/null || base=$(git rev-parse HEAD^ 2>/dev/null || true)
-          if [ -z "$base" ] || git diff --name-only "$base" HEAD | grep -q 'www/ai-2/ai2/data/packs.yml'; then
+          if [ -z "$base" ] || git diff --name-only "$base" HEAD | grep -qxE 'ai2/data/(models|speech-models|packs)\.yml|tests/test_catalog_urls\.py'; then
             echo "run=yes" >> "$GITHUB_OUTPUT"
           else
             echo "run=no" >> "$GITHUB_OUTPUT"

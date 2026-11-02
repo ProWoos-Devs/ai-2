@@ -25,6 +25,9 @@ tiers:
     packages: [tesseract, tesseract-data-eng, tesseract-data-spa, tesseract-data-deu, poppler, img2pdf]
     models: [{id: nomic-embed-text-v2-moe}]
     llama_server: {ctx: 2048}
+  creator:     # also Studio and Workstation, which take their config from Creator
+    packages: [tesseract, tesseract-data-eng, tesseract-data-spa, tesseract-data-deu, poppler, img2pdf]
+    models: [{id: nomic-embed-text-v2-moe}]
 usage:
   - "ai-2 doc index file.pdf             read a PDF, text file, DOCX or scan (OCR, --lang spa) into the index"
   - "ai-2 doc ask \"your question\"        the closest parts of your documents go to the AI with the question"
