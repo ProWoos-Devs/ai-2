@@ -6,6 +6,18 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ### Added
 - **Install for someone else.** The live desktop has a second installer entry for the computer that is for another person. It runs the same offline install without the Users page, and the first boot asks the owner for a name, a login name, a password and the computer's name, in the installer's language, then restarts into the ordinary login screen and first-login setup (`ai-2 owner-setup`, in `ai2/owner.py`). The account is made the way the installer makes it: the same groups, sudo through wheel, root's password the same as the owner's. Until the owner answers, the login manager logs a temporary account into that question by itself; it has no password, a sudo rule for that one command and nothing else, and is removed with the answer. From Omarchy, whose installer can be left without personal details for the owner to fill in at first boot.
 
+## [0.22.0] - 2026-11-02
+### Added
+- **Chat with the AI over Gopher, on this computer.** `ai-2 gopher` offers a chat item on its first menu, in any Gopher client on the same computer. The answer arrives line by line as the model writes it, each answer ends with an item to ask the next question, and the conversation is kept while the server runs. It uses the same model and instructions as `ai-2 chat`, and a chat answer does not hold up Knowledge Packs searches. Closing the connection stops the model, even while it is still silently reading the question, and if the model fails partway the client is told and can ask again. Gopher has no passwords or encryption, so a request from another machine is refused even with `--host 0.0.0.0`.
+- **First Aid is in the Knowledge Packs catalog.** `ai-2 knowledge browse` lists it and `ai-2 knowledge install first-aid` installs it: what to do in eleven medical emergencies, written from the IFRC 2025 guidelines and not reviewed by a clinician. It does not come with AI-2, and neither will other new packs. The three that do are there to show what a pack does.
+
+### Changed
+- **A chat question nobody waits for any more stops sooner.** The model looks for a cancelled question only between batches of what it reads, and the default batch held the whole prompt. Chat servers now read 32 tokens at a time: on a 2011 laptop the model stopped 6 seconds after the connection closed instead of 47, and the first word came 1.6 seconds later (57.4 seconds, not 55.8). Embedding servers keep their own batch.
+- **`ai-2 gopher` now uses port 7071 by default, not 7070.** The Gopher app keeps its saved-page companion on 7070, so the two could not run together. If other machines read your Knowledge Packs over Gopher, their address becomes `gopher://that-computer:7071/`, or run `ai-2 gopher --port 7070` to keep the old one. Nothing changes if you already choose your own port.
+
+### Fixed
+- **Everyday Reference revision 3 has no telephone calling codes.** Revision 2 had a wrong one, so they are gone, and no Knowledge Pack will carry telephone numbers. `ai-2 knowledge available` offers the new revision as an update. The pack is now MIT licensed, like the rest of the project; the facts still come from Wikidata.
+
 ## [0.21.0] - 2026-11-02
 ### Changed
 - **The terminal chat says it is reading your question.** The model is silent until it has read everything, which took 54 seconds on a 2011 laptop and looked exactly like a hang. A line now appears as soon as you press Enter.

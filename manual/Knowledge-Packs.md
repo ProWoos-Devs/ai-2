@@ -56,9 +56,11 @@ Which of these are already on your computer depends on how it got AI-2.
 |---|---|---|
 | `ai2-help` | AI-2's own documentation, so a machine with no working network can still answer "how do I get the WiFi working?" | 337 KB |
 | `linux-essentials` | Twenty everyday tasks on a Linux machine, written for AI-2 (which runs runit, so `systemctl` does not exist here) | 125 KB |
-| `everyday` | 196 countries with their capitals, currencies, official languages, country codes and calling codes, from Wikidata | 579 KB |
+| `everyday` | 196 countries with their capitals, currencies, official languages and country codes, from Wikidata | 578 KB |
 
 All three are English and share one embedding model, so installing a second and third pack costs only the pack.
+
+These three are there to show what a pack does. Every other pack comes from the community catalog: `ai-2 knowledge browse` lists them, including First Aid, and installs the ones you pick.
 
 ## Reading them from another machine
 
@@ -68,7 +70,7 @@ The computer holding the packs can answer for the others. On it:
 ai-2 gopher --host 0.0.0.0
 ```
 
-On any other machine, open `gopher://that-computer:7070/` in a text browser. AI-2 ships **w3m**, which speaks Gopher; lynx does too, and clients exist for phones. Nothing of AI-2 is needed on the asking side.
+On any other machine, open `gopher://that-computer:7071/` in a text browser. AI-2 ships **w3m**, which speaks Gopher; lynx does too, and clients exist for phones. Nothing of AI-2 is needed on the asking side.
 
 The menu offers, for each pack, a search item and a list of its documents. Type a question into the search item and the answer comes back as the passages themselves, each naming the document and page it came from, with the pack's license and attribution underneath.
 

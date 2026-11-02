@@ -5,6 +5,8 @@ import http.server
 import json
 import threading
 
+import pytest
+
 from ai2 import chatterm
 
 
@@ -119,3 +121,78 @@ def test_repl_opens_every_conversation_with_the_system_message():
     assert [m["role"] for m in seen[0]] == ["system", "user"]
     assert seen[0][0]["content"] == "You are the assistant of AI-2."
     assert [m["role"] for m in seen[1]] == ["system", "user"]   # /new keeps the persona
+
+
+def _model_server(behave):
+    """A socket that takes one request and then does what `behave(conn)` says."""
+    import socket
+    import threading
+    listener = socket.create_server(("127.0.0.1", 0))
+
+    def run():
+        conn, _ = listener.accept()
+        conn.settimeout(5)
+        conn.recv(65536)
+        behave(conn)
+        conn.close()
+    threading.Thread(target=run, daemon=True).start()
+    return listener, f"http://127.0.0.1:{listener.getsockname()[1]}/"
+
+
+def test_local_reply_streams_like_stream_reply():
+    def behave(conn):
+        chunk = 'data: {"choices":[{"delta":{"content":"hola"}}]}\n\ndata: [DONE]\n\n'.encode()
+        conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n" + chunk)
+    listener, url = _model_server(behave)
+    with listener:
+        assert "".join(chatterm.LocalReply(url, [])) == "hola"
+
+
+def test_local_reply_cancel_ends_a_silent_model_and_tells_it():
+    import threading
+    told = threading.Event()
+    begun = threading.Event()
+
+    def behave(conn):
+        begun.set()
+        while conn.recv(4096):           # the rest of the request, then the drop
+            pass
+        told.set()                       # the connection dropped: this is how the model learns
+    listener, url = _model_server(behave)
+    reply = chatterm.LocalReply(url, [])
+    outcome = []
+
+    def read():
+        try:
+            list(reply)
+        except OSError as exc:
+            outcome.append(exc)
+    reader = threading.Thread(target=read, daemon=True)
+    with listener:
+        reader.start()
+        assert begun.wait(5)
+        reply.cancel()
+        reader.join(5)
+        assert not reader.is_alive(), "cancel did not end the wait"
+        assert isinstance(outcome[0], ConnectionAbortedError)
+        assert told.wait(5)
+
+
+def test_local_reply_reports_a_model_error_as_oserror():
+    def behave(conn):
+        conn.sendall(b"HTTP/1.1 500 Oops\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+    listener, url = _model_server(behave)
+    with listener, pytest.raises(OSError):
+        list(chatterm.LocalReply(url, []))
+
+
+def test_local_reply_says_so_when_the_model_dies_partway():
+    def behave(conn):
+        chunk = 'data: {"choices":[{"delta":{"content":"hola"}}]}\n\n'.encode()
+        conn.sendall(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n" + chunk)
+    listener, url = _model_server(behave)
+    got = []
+    with listener, pytest.raises(OSError):
+        for piece in chatterm.LocalReply(url, []):
+            got.append(piece)
+    assert got == ["hola"]

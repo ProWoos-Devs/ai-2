@@ -468,6 +468,9 @@ def cmd_model_verify(args) -> int:
     return rc
 
 
+CHAT_BATCH = 32   # prompt tokens the chat model reads before it checks for a cancelled question
+
+
 def cmd_serve(args) -> int:
     hw = detect()
     runtime_dir = runtime.find_runtime(hw.cpu_variant)
@@ -549,7 +552,12 @@ def cmd_serve(args) -> int:
         sampling = sampling_args(model)
         if sampling:
             print("Sampling as the model card recommends: " + " ".join(sampling))
-        extra = sampling + persona.ui_config_args(persona.system_prompt(model["label"]))
+        # The model looks for a cancelled question only between batches, and the
+        # default batch holds a whole prompt, so a question nobody waits for any
+        # more kept both cores of the 2011 laptop for 47 s. With 32 it stopped in
+        # 6 s, and the first word came 1.6 s later (57.4 s, not 55.8 s).
+        extra = ["-b", str(CHAT_BATCH), "-ub", str(CHAT_BATCH)]
+        extra += sampling + persona.ui_config_args(persona.system_prompt(model["label"]))
     return serve(runtime_dir, path, threads, ctx=ctx, host=args.host,
                  port=args.port, idle_timeout_s=idle, api_key=api_key, model_id=model["id"],
                  extra_args=extra, record=record)
@@ -768,11 +776,23 @@ def cmd_gopher(args) -> int:
     from . import gopher
     hw = detect()
     names = docmod.list_collections()
-    if not names:
+    if not names and args.host not in gopher.LOOPBACK:
         print("Nothing is indexed on this computer yet. Install a pack with:  "
               "ai-2 knowledge install ai2-help", file=sys.stderr)
         return 1
     servers = {}
+
+    def chat_reply(history):
+        """The same model and system prompt as `ai-2 chat`, started on first use."""
+        from .chatterm import LocalReply
+        model = _usable_model(hw)
+        if model is None:
+            raise RuntimeError(_no_fit_message(hw) or "No chat model on this computer yet. Run:  ai-2 wizard")
+        url = runner._ensure_server(hw, model, 8080, serverstate.CHAT)
+        if url is None:
+            raise RuntimeError("The AI could not start. See:  ai-2 doctor")
+        system = {"role": "system", "content": persona.system_prompt(model["label"])}
+        return LocalReply(url, [system] + history)
 
     def embed_query(model_id, text):
         """The question's vector, starting the embedding server on first use.
@@ -795,7 +815,8 @@ def cmd_gopher(args) -> int:
         advertise = args.host if args.host not in ("0.0.0.0", "::") else socket.gethostname()
     try:
         server = gopher.serve(embed_query, host=args.host, port=args.port,
-                              everything=args.all, advertise=advertise, workers=args.workers)
+                              everything=args.all, advertise=advertise, workers=args.workers,
+                              chat_reply=chat_reply)
     except OSError as exc:
         print(f"error: cannot listen on {args.host}:{args.port} ({exc})", file=sys.stderr)
         return 1
@@ -809,6 +830,7 @@ def cmd_gopher(args) -> int:
               "Anything on this network can read them. Your own documents are not served; --all would add them.")
     else:
         print("Only this computer can reach it (--host 0.0.0.0 shares it with the network).")
+    print("Chat with the AI is on the first menu, for this computer only.")
     print(f"{args.workers} question at a time; the rest wait." if args.workers == 1
           else f"Up to {args.workers} questions at a time; the rest wait.")
     print("Stop with Ctrl-C.")

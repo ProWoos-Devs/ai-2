@@ -7,7 +7,10 @@ still exits by itself when idle."""
 
 from __future__ import annotations
 
+import http.client
 import json
+import socket
+import urllib.parse
 import urllib.request
 
 from .i18n import tr
@@ -57,6 +60,70 @@ def stream_reply(url: str, messages: list[dict], headers: dict | None = None,
             piece = delta_text(payload)
             if piece:
                 yield piece
+
+
+class LocalReply:
+    """`stream_reply` for the model on this computer, with a way out while the
+    model is silent: `cancel()`, from another thread, ends the wait at once and
+    drops the connection, which tells the model to stop. urllib offers no socket
+    until the model has started to answer, and that can be minutes."""
+
+    def __init__(self, url: str, messages: list[dict]):
+        self.url = urllib.parse.urlsplit(url)
+        self.messages = messages
+        self.cancelled = False
+        self.conn: http.client.HTTPConnection | None = None
+        self.sock: socket.socket | None = None
+
+    def __iter__(self):
+        body = json.dumps({"messages": self.messages, "stream": True}).encode()
+        self.conn = http.client.HTTPConnection(self.url.hostname, self.url.port, timeout=READ_TIMEOUT_S)
+        try:
+            self.conn.connect()
+            self.sock = self.conn.sock
+            self._check()
+            self.conn.request("POST", "/v1/chat/completions", body=body,
+                              headers={"Content-Type": "application/json"})
+            resp = self.conn.getresponse()
+            if resp.status != 200:
+                raise OSError(f"the AI answered with an error ({resp.status})")
+            last = b""
+
+            def lines():
+                nonlocal last
+                for last in resp:
+                    yield last
+            for payload in sse_events(lines()):
+                piece = delta_text(payload)
+                if piece:
+                    yield piece
+            self._check()
+            if b"[DONE]" not in last:     # a model that dies only looks like the end of the text
+                raise OSError("the AI stopped before it finished")
+        except http.client.HTTPException as exc:
+            self._check()
+            raise OSError(f"the AI stopped answering ({exc})") from exc
+        except OSError:
+            self._check()
+            raise
+        finally:
+            self.close()
+
+    def _check(self) -> None:
+        if self.cancelled:
+            raise ConnectionAbortedError("cancelled")
+
+    def cancel(self) -> None:
+        self.cancelled = True
+        if self.sock is not None:
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+    def close(self) -> None:
+        if self.conn is not None:
+            self.conn.close()
 
 
 SENTENCE_ENDS = ".!?…"

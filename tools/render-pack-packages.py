@@ -19,8 +19,9 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CATALOG = ROOT / "ai2/data/packs.yml"
-# The packs that come with AI-2 (Rafael, 2026-09-20: all three). A pack not
-# listed here is still installable by name; it just does not ship.
+# The packs that come with AI-2, as a demonstration (Rafael, 2026-11-02: these
+# three are enough, the ISO takes no more). Every other pack is installable by
+# name from the community catalog; it just does not ship.
 SHIPPED = ("ai2-help", "everyday", "linux-essentials")
 
 TEMPLATE = """# Maintainer: Rafael Minuesa <rafael.minuesa@gmail.com>

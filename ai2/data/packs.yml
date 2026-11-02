@@ -31,21 +31,40 @@ packs:
   contact: ProWoos-Devs
 - id: everyday
   title: Everyday Reference
-  description: 196 countries with their capitals, currencies, official languages, country codes and calling codes, from Wikidata
-  version: '2026-09-18'
+  description: 196 countries with their capitals, currencies, official languages and country codes, from Wikidata
+  version: '2026-11-02'
+  revision: 3
+  languages:
+  - en
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa. MIT licensed, like the rest of the project. Facts from Wikidata (https://www.wikidata.org),
+    which places its structured data in the public domain under CC0.
+  embedder: nomic-embed-text-v1.5
+  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-02-2/everyday.ai2pack
+  size_bytes: 591875
+  sha256: 978cb8ae0672a547f9cf58d373142368126c79ae76a00f4d13a4540780f22e84
+  documents: 196
+  parts: 196
+  built_with: ai-2 0.21.0
+  contact: ProWoos-Devs
+- id: first-aid
+  title: First Aid
+  description: What to do in eleven medical emergencies with no training and possibly no help coming, written from IFRC 2025,
+    not reviewed by a clinician
+  version: '2026-11-02'
   revision: 2
   languages:
   - en
-  license: CC0-1.0
-  attribution: Facts from Wikidata (https://www.wikidata.org), CC0. No attribution is required; this line records where the
-    facts come from.
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa, in its own wording, from the IFRC International First Aid, Resuscitation
+    and Education Guidelines 2025. IFRC did not write or endorse it. MIT licensed, like the rest of the project.
   embedder: nomic-embed-text-v1.5
-  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-09-18/everyday.ai2pack
-  size_bytes: 593743
-  sha256: 27de9338dbc7dca4b7e7de581704d9386d6fa8742a26af839f435bcd15d50337
-  documents: 196
-  parts: 196
-  built_with: ai-2 0.16.0
+  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-02-2/first-aid.ai2pack
+  size_bytes: 393198
+  sha256: 4c3eafd1d34a43d66b373c43d155f28533668b936e3ebeec3c793a647c475ac7
+  documents: 12
+  parts: 123
+  built_with: ai-2 0.21.0
   contact: ProWoos-Devs
 - id: linux-essentials
   title: Linux Essentials

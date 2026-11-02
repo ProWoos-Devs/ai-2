@@ -5,15 +5,15 @@
 # byte-for-byte the pack `ai-2 knowledge install everyday` would fetch.
 
 pkgname=ai2-everyday
-pkgver=2026.09.18
-pkgrel=2
+pkgver=2026.11.02
+pkgrel=3
 pkgdesc="Everyday Reference Knowledge Pack for AI-2 (196 parts, en)"
 arch=('any')
 url="https://github.com/ProWoos-Devs/ai2-knowledge"
-license=('CC0-1.0')
+license=('MIT')
 depends=('ai-2')
-source=("ai2-everyday-$pkgver.ai2pack::https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-09-18/everyday.ai2pack")
-sha256sums=('27de9338dbc7dca4b7e7de581704d9386d6fa8742a26af839f435bcd15d50337')
+source=("ai2-everyday-$pkgver.ai2pack::https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-02-2/everyday.ai2pack")
+sha256sums=('978cb8ae0672a547f9cf58d373142368126c79ae76a00f4d13a4540780f22e84')
 noextract=("ai2-everyday-$pkgver.ai2pack")
 
 package() {
@@ -23,7 +23,7 @@ package() {
   bsdtar -xf "$srcdir/ai2-everyday-$pkgver.ai2pack" -C "$dest" manifest.yml index.sqlite
   chmod 644 "$dest/manifest.yml" "$dest/index.sqlite"
   # the record `ai-2 knowledge list` reads to say where a pack came from
-  printf '%s\n' "from: AI-2 itself" "id: everyday" "version: 2026-09-18" \
-      "sha256: 27de9338dbc7dca4b7e7de581704d9386d6fa8742a26af839f435bcd15d50337" > "$dest/origin.yml"
+  printf '%s\n' "from: AI-2 itself" "id: everyday" "version: 2026-11-02" \
+      "sha256: 978cb8ae0672a547f9cf58d373142368126c79ae76a00f4d13a4540780f22e84" > "$dest/origin.yml"
   chmod 644 "$dest/origin.yml"
 }
