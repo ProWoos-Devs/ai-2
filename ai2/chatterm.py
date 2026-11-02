@@ -133,6 +133,10 @@ def repl(url: str, stream=stream_reply, ask=input, say=print,
             continue
         messages.append({"role": "user", "content": line})
         parts: list[str] = []
+        # the model says nothing until it has read everything: 54 s on the 2011
+        # laptop, which looks exactly like a hang (RMM-PC, 2026-11-02). On the
+        # screen only, so spoken chat does not repeat it every turn.
+        say(tr("Reading your question. On a slow computer this can take a minute or more."))
 
         def collected():
             for piece in stream(url, messages):

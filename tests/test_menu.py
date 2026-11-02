@@ -45,8 +45,9 @@ def test_about_ai2_opens_the_submenu():
               for child in sub.find("Layout")]
     # Knowledge Packs, where packs are chosen, installed and updated, sits right under
     # Search Knowledge, where they are asked (2026-09-19)
-    assert layout == [("Filename", "ai2-about.desktop"), ("Filename", "ai2-search.desktop"),
-                      ("Filename", "ai2-packs.desktop"), ("Merge", "all")]
+    assert layout[:3] == [("Filename", "ai2-about.desktop"), ("Filename", "ai2-search.desktop"),
+                          ("Filename", "ai2-packs.desktop")]
+    assert layout[-1] == ("Merge", "all"), "without it a new entry would not appear"
 
 
 def _layout(element):
@@ -104,3 +105,14 @@ def test_the_package_installs_the_menu_where_garcon_reads_it():
     pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text(encoding="utf-8")
     assert "/etc/xdg/menus/applications-merged/ai2.menu" in pkgbuild
     assert "/usr/share/desktop-directories/ai2.directory" in pkgbuild
+
+
+def test_every_visible_entry_has_a_fixed_place_in_the_submenu():
+    """Anything left to Merge sorts by its translated name, so the menu order
+    changed with the language (Rafael, on RMM-PC in Spanish, 2026-11-02)."""
+    root = ET.parse(DESKTOP / "ai2.menu").getroot()
+    sub = next(m for m in root.findall("Menu") if m.find("Name").text == "AI-2")
+    listed = [c.text.strip().removesuffix(".desktop") for c in sub.find("Layout") if c.tag == "Filename"]
+    assert listed == ["ai2-about", "ai2-search", "ai2-packs", "ai2-chat", "ai2-chat-terminal",
+                      "ai2-guide", "ai2-software-updates"]
+    assert sorted(listed) == sorted(ENTRIES)

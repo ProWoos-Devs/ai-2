@@ -202,3 +202,24 @@ def test_reader_probe_continues_past_a_failing_candidate(monkeypatch):
         return SimpleNamespace(returncode=0 if cmd[-1] == "pulseaudio" else 1)
     monkeypatch.setattr(a11y.subprocess, "run", run2)
     assert a11y.audio_server_running() is True
+
+
+def test_terminal_chat_says_it_is_reading_before_the_first_word():
+    from ai2 import chatterm
+    events = []
+    answers = iter(["hola"])
+
+    def ask(prompt=""):
+        try:
+            return next(answers)
+        except StopIteration:
+            raise EOFError
+
+    def stream(url, messages):
+        events.append("model asked")
+        yield "Hola."
+    spoken = []
+    chatterm.repl("http://x/", stream=stream, ask=ask, say=lambda t="", **kw: events.append(t), speak=spoken.append)
+    reading = next(i for i, e in enumerate(events) if "question" in e.lower() or "pregunta" in e.lower() or "Frage" in e)
+    assert reading < events.index("model asked")
+    assert not any("question" in t.lower() for t in spoken)     # on the screen only

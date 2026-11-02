@@ -912,7 +912,7 @@ def ask(tmp_path, monkeypatch):
     from ai2 import chatterm, cli, models, sysinfo
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     by_id = {m["id"]: m for m in models.load_catalog()}
-    world = {"remote": None, "model": by_id["qwen2.5-0.5b"], "prefill": 5.0, "sent": [], "chat_servers": [], "ram": 8000}
+    world = {"remote": None, "model": by_id["qwen2.5-0.5b"], "prefill": 5.0, "sent": [], "chat_servers": [], "ram": 8000, "reply": ["An answer."]}
 
     def fake_ensure(hw, model, port, record, **kw):
         if record == serverstate.EMBED:
@@ -922,7 +922,7 @@ def ask(tmp_path, monkeypatch):
 
     def fake_stream(base, messages, **kw):
         world["sent"].append({"base": base, "text": " ".join(m["content"] for m in messages)})
-        yield "An answer."
+        yield from world["reply"]
 
     monkeypatch.setattr(knowledgecli, "detect", lambda: type("HW", (), {"ram_mib": world["ram"], "cpu_variant": "avx2"})())
     monkeypatch.setattr(knowledgecli.remote, "load", lambda: world["remote"])
@@ -1037,3 +1037,28 @@ def test_doc_ask_too_big_with_a_remote_names_it_and_sends_nothing(ask, capsys):
     ask["model"], ask["ram"], ask["remote"] = ask["by_id"]["qwen2.5-7b"], 2048, _nondefault()
     assert ask["run"]() == 1
     assert "--remote" in capsys.readouterr().err and ask["sent"] == []
+
+
+@pytest.mark.parametrize("flags", [(), ("--stream",)])
+@pytest.mark.parametrize("reply", [[], ["", "  ", "\n"]])
+def test_doc_ask_with_an_empty_reply_says_so_and_shows_the_passages(ask, capsys, flags, reply):
+    """Gemma 270M ends its reply at once on this prompt. An empty answer with exit
+    0 read as if the command had worked, on the machines that pick that model."""
+    ask["reply"], ask["model"] = reply, ask["by_id"]["gemma3-270m"]
+    assert ask["run"](*flags) == 0
+    out = capsys.readouterr().out
+    assert "Gemma 3 270M Instruct gave no answer" in out
+    assert "villa de Madrid" in out and "c.txt" in out        # the document's own words, with where they come from
+
+
+def test_doc_ask_empty_reply_from_a_remote_names_the_remote(ask, capsys):
+    ask["remote"], ask["reply"] = _nondefault(), []
+    assert ask["run"]("--remote") == 0
+    out = capsys.readouterr().out
+    assert "The remote AI gave no answer" in out and "villa de Madrid" in out
+
+
+def test_doc_ask_with_an_answer_does_not_add_passages(ask, capsys):
+    assert ask["run"]() == 0
+    out = capsys.readouterr().out
+    assert "gave no answer" not in out and "An answer." in out

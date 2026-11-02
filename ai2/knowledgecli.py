@@ -1025,17 +1025,29 @@ def _doc_ask(args, docmod) -> int:
             return 1
         stream = functools.partial(stream_reply, temperature=docmod.ANSWER_TEMPERATURE)
     print()
+    answered = False
     try:
         if args.stream:
             for piece in stream(base, messages):
+                answered = answered or bool(piece.strip())
                 print(piece, end="", flush=True)
             print()
         else:
             for sentence in sentences(stream(base, messages)):
+                answered = True
                 print(sentence)
     except OSError as exc:
         print(f"error: the AI server went away ({exc}); run the command again", file=sys.stderr)
         return 1
+    if not answered:
+        # Gemma 270M ends its reply at once on this prompt (RMM-PC, 2026-11-02),
+        # and it is what a 2 GB machine picks. The passages were found anyway,
+        # and they are the document's own words, so show them.
+        import shutil
+        who = "The remote AI" if use_remote else chat_model["label"]
+        print(f"{who} gave no answer to this. These are the closest passages in your documents, word for word:")
+        _doc_show_hits(hits, max(40, min(100, shutil.get_terminal_size((80, 24)).columns) - 4))
+        return 0
     print("\nSources: " + "; ".join(f"[{i}] {h['cite']}" + (f" {h['url']}" if h.get("url") else "")
                                    for i, h in enumerate(hits, 1)))
     for line in _pack_terms(hits):
