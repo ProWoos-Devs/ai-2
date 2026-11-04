@@ -7,15 +7,16 @@
 # (git archive of www/ai-2), so a package always maps to a commit.
 
 pkgname=ai-2
-pkgver=0.22.0
+pkgver=0.23.0
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
 url="https://github.com/ProWoos-Devs/ai-2"
 license=('MIT')
-depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pamac' 'sqlite')
+depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pamac' 'sqlite' 'ai-2-gopher>=1.4.0')
 # pamac brings libpamac, whose pamac-checkupdates is the update check since 0.14.1 (pacman-contrib and
 # fakeroot were only there for checkupdates). sqlite: python only suggests it, ai-2 doc needs sqlite3.
+# ai-2-gopher: the app AI-2 Chat opens, on every AI-2 (Rafael, 2026-11-04). 1.4.0 has the conversation buttons.
 checkdepends=('python-pytest')
 optdepends=('pciutils: GPU detection via lspci'
             'poppler: PDF text for ai-2 doc index (pdftotext)'

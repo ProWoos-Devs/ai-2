@@ -129,15 +129,15 @@ you share one you made. Anyone can add a pack:
   https://github.com/ProWoos-Devs/ai2-knowledge
 
 Then talk to the AI: Applications > AI-2 > AI-2 Chat (or  ai-2 chat  in a
-terminal). It starts the local AI and opens the chat page in the browser;
-the AI stops by itself when you have not used it for a while. The address
-bar says "Not Secure" because the page is served by your own computer at
-127.0.0.1; nothing leaves the machine, there is nothing to secure. If the
-page shows an error the first time, reload it.
+terminal). It starts the local AI and opens the chat in the AI-2 Gopher
+app. Type in the box at the bottom and press Enter. The AI stops by itself
+when you have not used it for a while. Conversations are saved on this
+computer, and "Earlier conversations" brings them back. Nothing leaves the
+machine.
 
 On a slow or low-RAM machine, prefer "AI-2 Chat (Terminal)" in the menu
-(or  ai-2 chat --terminal ). It is the same AI without a browser around
-it, so it appears instantly and leaves all the memory to the model.
+(or  ai-2 chat --terminal ). It is the same AI in a terminal, so it appears
+instantly and leaves the most memory to the model. It saves nothing.
 
 The same steps by hand, in a terminal (Applications > Terminal Emulator):
 
@@ -151,7 +151,7 @@ The same steps by hand, in a terminal (Applications > Terminal Emulator):
   ai-2 benchmark       measure real inference speed and compute the AI Score
   ai-2 recommend       the local models that fit this machine's score
   ai-2 model pull      download the recommended model
-  ai-2 chat            start the local AI and open the chat page
+  ai-2 chat            start the local AI and open the chat
   ai-2 chat --terminal the same chat in this terminal, lightest client
   ai-2 stop            stop the local AI and free its memory
   ai-2 doctor          check that everything is in order

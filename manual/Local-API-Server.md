@@ -16,7 +16,7 @@ curl http://127.0.0.1:8080/v1/chat/completions \
   -d '{"messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
-`ai-2 chat` uses this same server, it waits until the server reports ready (not just an open port, `llama-server` answers its health check while still loading a model on a slow disk) and opens the built-in web UI.
+`ai-2 chat` uses this same server, it waits until the server reports ready (not just an open port, `llama-server` answers its health check while still loading a model on a slow disk) and opens the chat. `ai-2 chat --browser` opens the built-in web UI.
 
 ## From other devices
 

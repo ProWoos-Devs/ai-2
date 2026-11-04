@@ -166,7 +166,7 @@ Presentation
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     horizontalAlignment: Text.AlignHCenter
-                    text: qsTr('then: $ ai-2 chat   opens the chat page in the browser')
+                    text: qsTr('then: $ ai-2 chat   opens the chat in its own window')
                     font.family: "monospace"
                     font.pixelSize: 14
                     color: "#FFB454"

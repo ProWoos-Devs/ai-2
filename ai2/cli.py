@@ -468,6 +468,7 @@ def cmd_model_verify(args) -> int:
     return rc
 
 
+CHAT_CACHE_REUSE = 16
 CHAT_BATCH = 32   # prompt tokens the chat model reads before it checks for a cancelled question
 
 
@@ -545,6 +546,7 @@ def cmd_serve(args) -> int:
     warning = serve_preflight(model)
     if warning:
         print(f"warning: {warning}")
+    warm = None
     if embedding:
         # non-causal models refuse an input longer than the physical batch
         extra = ["--embeddings", "-b", str(ctx), "-ub", str(ctx)]
@@ -557,10 +559,23 @@ def cmd_serve(args) -> int:
         # more kept both cores of the 2011 laptop for 47 s. With 32 it stopped in
         # 6 s, and the first word came 1.6 s later (57.4 s, not 55.8 s).
         extra = ["-b", str(CHAT_BATCH), "-ub", str(CHAT_BATCH)]
+        # When the oldest messages of a conversation leave, the rest need not be
+        # read again: 12 to 15 s a question instead of 54 to 63 s (RMM-PC).
+        extra += ["--cache-reuse", str(CHAT_CACHE_REUSE)]
         extra += sampling + persona.ui_config_args(persona.system_prompt(model["label"]))
+        if args.host in gopher.LOCAL_NAMES and not api_key:
+            # Saving and restoring slots is a door into the server, so only on this computer.
+            from . import warmstart
+            directory = warmstart.state_dir()
+            if directory:
+                system = persona.system_prompt(model["label"])
+                name = warmstart.file_name(model["id"], path, system, ctx, CHAT_BATCH,
+                                           os.path.join(runtime_dir, "llama-server"))
+                warm = warmstart.WarmStart(f"http://127.0.0.1:{args.port}", directory, name, system)
+                extra += ["--slot-save-path", directory]
     return serve(runtime_dir, path, threads, ctx=ctx, host=args.host,
                  port=args.port, idle_timeout_s=idle, api_key=api_key, model_id=model["id"],
-                 extra_args=extra, record=record)
+                 extra_args=extra, record=record, warm=warm)
 
 
 def _as_invoking_user() -> str | None:
@@ -629,9 +644,68 @@ def _start_chat_server(args, hw, url: str) -> dict | None:
     return model
 
 
+CHAT_APP = "ai-2-gopher"
+
+
+def _chat_app() -> str | None:
+    """The AI-2 Gopher app, when this computer has it. A package of its own, so
+    a machine without it keeps the browser chat."""
+    import shutil
+    return shutil.which(CHAT_APP)
+
+
+def _wants_chat_app(args) -> bool:
+    """AI-2 Chat is the app (Rafael, 2026-11-02), unless the command asked for
+    something only the other chats do. A screen reader stays on the terminal
+    chat, the tested path, until the app has been tested with Orca."""
+    from . import a11y
+    if (args.terminal or args.browser or args.no_browser or args.model or args.speak
+            or args.port != 8080 or args.idle_timeout is not None):
+        return False
+    if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+        return False
+    return _chat_app() is not None and not a11y.reader_active()
+
+
+def _open_chat_app() -> bool:
+    """Start `ai-2 gopher` if it is not answering, then open the app on the
+    chat page. Started directly: xdg-open on XFCE hands a gopher:// address to
+    the web browser even when the app is the registered handler. The model
+    starts with the first question, and the server stays until `ai-2 stop`. The
+    app stays open by itself, and a second start only points the open window at
+    this address, so nothing here waits for it."""
+    import subprocess
+    import time
+    from . import gopher
+    with serverstate.start_lock(serverstate.GOPHER):
+        if not gopher.offers_chat():
+            print("Starting the chat ...", flush=True)
+            os.makedirs(serverstate.state_dir(), exist_ok=True)
+            with open(serverstate.log_file(serverstate.GOPHER), "ab") as log:
+                server = subprocess.Popen([sys.executable, "-m", "ai2.cli", "gopher", "--for-chat"],
+                                          stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                                          start_new_session=True,
+                                          cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            deadline = time.monotonic() + 60       # a cold start from a slow disk
+            while not gopher.offers_chat():
+                if server.poll() is not None or time.monotonic() > deadline:
+                    print(f"The chat could not start on port {gopher.PORT} "
+                          f"(see {serverstate.log_file(serverstate.GOPHER)}).", file=sys.stderr)
+                    return False
+                time.sleep(0.5)
+    try:
+        subprocess.Popen([CHAT_APP, gopher.chat_url()], stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError as exc:
+        print(f"{CHAT_APP} could not start ({exc}).", file=sys.stderr)
+        return False
+    return True
+
+
 def cmd_chat(args) -> int:
-    """Make sure the local AI server runs (start it on demand, detached) and
-    open the chat page in the browser. The server stops itself when idle."""
+    """Chat with the local AI: in the AI-2 Gopher app when this computer has it,
+    otherwise start the AI server on demand, detached, and open its chat page in
+    the browser. That server stops itself when idle."""
     import os
     import subprocess
     import time
@@ -645,6 +719,10 @@ def cmd_chat(args) -> int:
         return _chat_remote(args, cfg)
     if cfg is not None and not args.local:
         print(f"(a remote AI is configured, {remote.describe(cfg)}; ai-2 chat --remote uses it)")
+    if _wants_chat_app(args):
+        if _open_chat_app():
+            return 0
+        print("Opening the browser chat instead.")
     url = f"http://127.0.0.1:{args.port}/"
     if args.model == PICK_MODEL:
         picked = _pick_model(hw)
@@ -689,9 +767,9 @@ def cmd_chat(args) -> int:
     reader = not args.terminal and not args.no_browser and a11y.reader_active()
     if args.terminal or reader or (not args.no_browser
                                    and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY")):
-        from .chatterm import repl
+        from .chatterm import CHARS_PER_CONTEXT_TOKEN, repl
         if reader:
-            print("A screen reader is running, so chatting right here instead of the browser "
+            print("A screen reader is running, so chatting right here instead of the app "
                   "(ai-2 chat --terminal does this anywhere; add --speak for spoken answers).")
         elif not args.terminal:
             print("No graphical display, so chatting right here (ai-2 chat --terminal does this anywhere).")
@@ -706,11 +784,14 @@ def cmd_chat(args) -> int:
             label = running_model["label"] if running_model else "a small language model"
             return repl(url, streaming=streaming,
                         speak=speaker.speak if speaker else None,
-                        system=persona.system_prompt(label))
+                        system=persona.system_prompt(label),
+                        budget=runtime_defaults(running_id or None)["ctx"] * CHARS_PER_CONTEXT_TOKEN)
         finally:
             if speaker:
                 speaker.close()
     if not args.no_browser:
+        if not args.browser and _chat_app() is None:
+            print(f"For chat without a browser:  sudo pacman -S {CHAT_APP}")
         try:
             subprocess.Popen(["xdg-open", url], stdin=subprocess.DEVNULL,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
@@ -781,16 +862,20 @@ def cmd_gopher(args) -> int:
               "ai-2 knowledge install ai2-help", file=sys.stderr)
         return 1
     servers = {}
+    from .chatstore import Store
+    from .chatterm import CHARS_PER_CONTEXT_TOKEN
+    usable = _usable_model(hw)
+    context = runtime_defaults(usable["id"] if usable else None)["ctx"]
 
     def chat_reply(history):
         """The same model and system prompt as `ai-2 chat`, started on first use."""
         from .chatterm import LocalReply
         model = _usable_model(hw)
         if model is None:
-            raise RuntimeError(_no_fit_message(hw) or "No chat model on this computer yet. Run:  ai-2 wizard")
+            raise RuntimeError(_no_fit_message(hw) or tr("No chat model on this computer yet. Run:  ai-2 wizard"))
         url = runner._ensure_server(hw, model, 8080, serverstate.CHAT)
         if url is None:
-            raise RuntimeError("The AI could not start. See:  ai-2 doctor")
+            raise RuntimeError(tr("The AI could not start. See:  ai-2 doctor"))
         system = {"role": "system", "content": persona.system_prompt(model["label"])}
         return LocalReply(url, [system] + history)
 
@@ -816,7 +901,8 @@ def cmd_gopher(args) -> int:
     try:
         server = gopher.serve(embed_query, host=args.host, port=args.port,
                               everything=args.all, advertise=advertise, workers=args.workers,
-                              chat_reply=chat_reply)
+                              chat_reply=chat_reply, chat_store=Store(),
+                              chat_budget=context * CHARS_PER_CONTEXT_TOKEN)
     except OSError as exc:
         print(f"error: cannot listen on {args.host}:{args.port} ({exc})", file=sys.stderr)
         return 1
@@ -834,12 +920,16 @@ def cmd_gopher(args) -> int:
     print(f"{args.workers} question at a time; the rest wait." if args.workers == 1
           else f"Up to {args.workers} questions at a time; the rest wait.")
     print("Stop with Ctrl-C.")
+    if args.for_chat:              # so that `ai-2 stop` can end it; one you started yourself is yours
+        serverstate.write_server(os.getpid(), "", "", args.port, args.host, name=serverstate.GOPHER)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nStopped.")
     finally:
         server.server_close()
+        if args.for_chat:
+            serverstate.clear_server(serverstate.GOPHER)
     return 0
 
 
@@ -1047,11 +1137,13 @@ def cmd_report(args) -> int:
 def cmd_stop(args) -> int:
     """Stop the on-demand servers started by serve/chat/doc and free their RAM."""
     stopped = 0
-    for name, what in ((serverstate.CHAT, "the AI"), (serverstate.EMBED, "the document index server")):
+    for name, what in ((serverstate.GOPHER, "the chat menu"), (serverstate.CHAT, "the AI"),
+                       (serverstate.EMBED, "the document index server")):
         running = serverstate.read_server(name)
         if not running:
             continue
-        print(f"Stopping {what} ({running.get('model') or running.get('model_path')}, pid {running['pid']}) ...")
+        detail = running.get("model") or running.get("model_path") or f"port {running.get('port')}"
+        print(f"Stopping {what} ({detail}, pid {running['pid']}) ...")
         serverstate.stop_server(name=name)
         stopped += 1
     if not stopped:
@@ -1327,15 +1419,16 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--insecure", action="store_true", help="allow a non-localhost --host without an API key")
     p_serve.set_defaults(func=cmd_serve)
 
-    p_chat = sub.add_parser("chat", help="start the local AI (if needed) and chat: browser page by default, --terminal for the lightest client")
+    p_chat = sub.add_parser("chat", help="chat with the local AI: in the AI-2 Gopher app when installed, otherwise the browser page; --terminal for the lightest client")
     p_chat.add_argument("--terminal", action="store_true",
-                        help="chat in this terminal instead of the browser (fastest, minimal memory, works over SSH)")
+                        help="chat in this terminal instead of the app (fastest, minimal memory, works over SSH)")
     p_chat.add_argument("-m", "--model", nargs="?", const=PICK_MODEL,
                          help="catalog id (default: the recommended model); with no value, choose from a list")
     p_chat.add_argument("--port", type=int, default=8080)
     p_chat.add_argument("--idle-timeout", type=int, default=None,
                         help="stop the AI after this many idle seconds (default: the tier's, else 600; a chat page left open does not count as use)")
     p_chat.add_argument("--wait", type=int, default=180, help="seconds to wait for the server to come up")
+    p_chat.add_argument("--browser", action="store_true", help="the browser chat page even when the AI-2 Gopher app is installed")
     p_chat.add_argument("--no-browser", action="store_true", help="do not open the browser, just print the address")
     p_chat.add_argument("--speak", action="store_true",
                         help="speak the answers aloud through speech-dispatcher (with --terminal)")
@@ -1465,6 +1558,7 @@ def main(argv: list[str] | None = None) -> int:
                       help=f"how many questions to answer at once (default {gopher.WORKERS}; a search "
                            "costs seconds of a core on an old machine, so more is rarely better)")
     p_go.add_argument("--wait", type=int, default=180, help="seconds to wait for the embedding server")
+    p_go.add_argument("--for-chat", action="store_true", help=argparse.SUPPRESS)   # started by `ai-2 chat`
     p_go.set_defaults(func=cmd_gopher)
 
     p_docs.set_defaults(func=cmd_doc)

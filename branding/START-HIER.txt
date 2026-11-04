@@ -146,12 +146,11 @@ du ein eigenes. Jeder kann ein Paket hinzufügen:
   https://github.com/ProWoos-Devs/ai2-knowledge
 
 Dann rede mit der KI: Anwendungen > AI-2 Chat (oder  ai-2 chat  in einem
-Terminal). Es startet die lokale KI und öffnet die Chat-Seite im Browser;
-die KI hält von selbst an, wenn du sie eine Weile nicht benutzt hast. Die
-Adressleiste sagt "Nicht sicher", weil die Seite von deinem eigenen
-Computer unter 127.0.0.1 kommt; nichts verlässt die Maschine, es gibt
-nichts zu sichern. Zeigt die Seite beim ersten Mal einen Fehler, lade sie
-neu.
+Terminal). Es startet die lokale KI und öffnet den Chat in der App AI-2
+Gopher. Schreib in das Feld unten und drücke die Eingabetaste. Die KI hält
+von selbst an, wenn du sie eine Weile nicht benutzt hast. Gespräche werden
+auf diesem Computer gespeichert, und "Frühere Gespräche" holt sie zurück.
+Nichts verlässt die Maschine.
 
 Auf einer langsamen Maschine oder mit wenig RAM nimm besser "AI-2 Chat
 (Terminal)" im Menü (oder  ai-2 chat --terminal ). Es ist dieselbe KI ohne
@@ -172,7 +171,7 @@ Dieselben Schritte von Hand, in einem Terminal (Anwendungen > Terminal):
                        den AI Score
   ai-2 recommend       die lokalen Modelle, die zum Ergebnis passen
   ai-2 model pull      lädt das empfohlene Modell herunter
-  ai-2 chat            startet die lokale KI und öffnet die Chat-Seite
+  ai-2 chat            startet die lokale KI und öffnet den Chat
   ai-2 chat --terminal derselbe Chat in diesem Terminal, der leichteste Client
   ai-2 stop            hält die lokale KI an und gibt ihren Speicher frei
   ai-2 doctor          prüft, ob alles in Ordnung ist

@@ -50,8 +50,8 @@ skanuje maszynę, dostraja ją, instaluje silnik SI,
 pobiera pierwszy model i mierzy twój AI Score.</translation>
     </message>
     <message>
-        <source>then: $ ai-2 chat   opens the chat page in the browser</source>
-        <translation>potem: $ ai-2 chat   otwiera stronę czatu w przeglądarce</translation>
+        <source>then: $ ai-2 chat   opens the chat in its own window</source>
+        <translation>potem: $ ai-2 chat   otwiera czat we własnym oknie</translation>
     </message>
     <message>
         <source>Chat right away, offline</source>

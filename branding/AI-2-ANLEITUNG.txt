@@ -107,7 +107,7 @@ MIT DER KI REDEN
 
 Alles, was AI-2 dem Menü hinzufügt, steht an einer Stelle, Anwendungen > AI-2.
 
-  Anwendungen > AI-2 > AI-2 Chat             die Chatseite im Browser
+  Anwendungen > AI-2 > AI-2 Chat             der Chat in der App AI-2 Gopher
   Anwendungen > AI-2 > AI-2 Chat (Terminal)  dieselbe KI in einem Terminal
 
 Auf einer langsamen Maschine oder mit wenig Speicher nimm besser die
@@ -116,17 +116,17 @@ Sie ist auch die, die über SSH und mit einem Screenreader funktioniert.
 
 Im Terminal:
 
-  ai-2 chat              die KI starten und die Chatseite öffnen
+  ai-2 chat              die KI starten und den Chat öffnen
   ai-2 chat --terminal   direkt dort chatten, am leichtesten
   ai-2 stop              die KI jetzt beenden und ihren Speicher freigeben
 
 Die KI startet, wenn du sie anforderst. Auf einer kleinen Maschine (Stufen
 Tiny und Light) beendet sie sich nach einer Weile ohne Nutzung von selbst,
 sie frisst also keinen Speicher im Hintergrund; ab der Stufe Standard bleibt
-sie geladen, bis  ai-2 stop  kommt. Die
-Browserseite sagt "Nicht sicher", weil dieser Computer sie selbst unter
-127.0.0.1 ausliefert. Nichts verlässt die Maschine, es gibt also nichts zu
-sichern.
+sie geladen, bis  ai-2 stop  kommt. Nichts verlässt die Maschine.
+
+Die App speichert jedes Gespräch auf diesem Computer. "Frühere Gespräche"
+zeigt sie zum Weiterführen oder Löschen. Der Terminal-Chat speichert nichts.
 
 
 FALLS ETWAS NICHT EINGERICHTET IST
@@ -245,8 +245,7 @@ BARRIEREFREIHEIT
                              Kürzel Super+Alt+S ein
 
 Mit laufendem Screenreader öffnet `ai-2 chat` den Terminal-Chat statt der
-Browserseite, denn diese Seite gehört der KI-Engine und liegt nicht in
-unserer Hand. Damit Antworten vorgelesen werden:
+App, die damit noch nicht getestet ist. Damit Antworten vorgelesen werden:
 
   ai-2 chat --terminal --speak
 

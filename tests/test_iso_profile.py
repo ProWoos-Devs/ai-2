@@ -190,3 +190,13 @@ def test_the_installer_slide_names_the_packs_the_image_ships():
         for lang in ("es", "de"):
             ts = (ISO / f"live-overlay/usr/share/calamares/branding/ai2/lang/calamares-ai2_{lang}.ts").read_text()
             assert title in ts, f"{lang}: the slide translation does not name {title}"
+
+
+def test_the_chat_app_is_on_the_image_and_required():
+    """AI-2 Chat opens the app, on every AI-2 (Rafael, 2026-11-04), so the image
+    carries it and an update of ai-2 brings it."""
+    prof = yaml.safe_load((ISO / "profile.yaml").read_text())
+    assert "ai-2-gopher" in prof["rootfs"]["packages"]
+    pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text()
+    assert "'ai-2-gopher>=1.4.0'" in pkgbuild.split("checkdepends=")[0]
+    assert "'ai-2-gopher:" not in pkgbuild

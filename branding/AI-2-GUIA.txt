@@ -109,7 +109,7 @@ HABLAR CON LA IA
 
 Todo lo que AI-2 añade al menú está en un solo sitio, Aplicaciones > AI-2.
 
-  Aplicaciones > AI-2 > AI-2 Chat             el chat en el navegador
+  Aplicaciones > AI-2 > AI-2 Chat             el chat en AI-2 Gopher
   Aplicaciones > AI-2 > AI-2 Chat (terminal)  la misma IA en una terminal
 
 En una máquina lenta o con poca memoria, usa mejor la versión de terminal.
@@ -118,16 +118,18 @@ funciona por SSH y con un lector de pantalla.
 
 En una terminal:
 
-  ai-2 chat              arranca la IA y abre la página de chat
+  ai-2 chat              arranca la IA y abre el chat
   ai-2 chat --terminal   chatea ahí mismo, lo más ligero
   ai-2 stop              para la IA ahora y libera su memoria
 
 La IA arranca cuando la pides. En una máquina pequeña (niveles Tiny y Light)
 se para sola tras un rato sin uso, así que no se queda comiendo memoria de
 fondo; en el nivel Standard y superiores sigue cargada hasta  ai-2 stop.
-La página del navegador dice "No es seguro" porque la sirve este mismo
-ordenador en 127.0.0.1. Nada sale de la máquina, así que no hay nada que
-proteger.
+Nada sale de la máquina.
+
+La aplicación guarda cada conversación en este ordenador. "Conversaciones
+anteriores" las muestra para seguirlas o borrarlas. El chat de terminal no
+guarda nada.
 
 
 SI ALGO NO ESTÁ CONFIGURADO
@@ -243,8 +245,8 @@ ACCESIBILIDAD
                              Super+Alt+S
 
 Con un lector de pantalla en marcha, `ai-2 chat` abre el chat de terminal en
-lugar de la página del navegador, porque esa página es del motor de IA y no
-está en nuestra mano arreglarla. Para que lea las respuestas en voz alta:
+lugar de la aplicación, que no se ha probado con uno. Para que lea las
+respuestas en voz alta:
 
   ai-2 chat --terminal --speak
 

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=AI-2 Gopher
+Comment=Read Gopher menus and text documents
+Comment[es]=Lee menús y documentos de texto de Gopher
+Comment[de]=Gopher-Menüs und Textdokumente lesen
+Exec=/usr/bin/ai-2-gopher %u
+Icon=ai2
+Terminal=false
+Categories=Network;
+MimeType=x-scheme-handler/gopher;
+StartupWMClass=org.gopherclient.gopher_flutter_client

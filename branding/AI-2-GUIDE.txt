@@ -103,7 +103,7 @@ TALK TO THE AI
 
 Everything AI-2 adds to the menu sits in one place, Applications > AI-2.
 
-  Applications > AI-2 > AI-2 Chat             the chat page in the browser
+  Applications > AI-2 > AI-2 Chat             the chat in the AI-2 Gopher app
   Applications > AI-2 > AI-2 Chat (Terminal)  the same AI in a terminal
 
 On a slow machine or with little memory, prefer the terminal one. It appears
@@ -112,16 +112,17 @@ over SSH and with a screen reader.
 
 In a terminal:
 
-  ai-2 chat              start the AI and open the chat page
+  ai-2 chat              start the AI and open the chat
   ai-2 chat --terminal   chat right there, lightest option
   ai-2 stop              stop the AI now and free its memory
 
 The AI starts when you ask for it. On a small machine (Tiny and Light tiers)
 it stops by itself after a while without use, so it is not eating memory in
 the background; on the Standard tier and above it stays loaded until
-ai-2 stop. The browser page says
-"Not Secure" because it is served by this computer at 127.0.0.1. Nothing
-leaves the machine, so there is nothing to secure.
+ai-2 stop. Nothing leaves the machine.
+
+The app saves each conversation on this computer. "Earlier conversations"
+lists them to carry on or delete. The terminal chat saves nothing.
 
 
 IF SOMETHING IS NOT SET UP
@@ -236,8 +237,7 @@ ACCESSIBILITY
                              shortcut
 
 With a screen reader running, `ai-2 chat` opens the terminal chat instead of
-the browser page, because that page is the AI engine's own and not ours to
-fix. For answers read out loud:
+the app, which has not been tested with one. For answers read out loud:
 
   ai-2 chat --terminal --speak
 

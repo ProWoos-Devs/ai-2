@@ -1,0 +1,46 @@
+# Maintainer: Rafael Minuesa <rafael.minuesa@gmail.com>
+# The AI-2 Gopher app, repackaged and not rebuilt. The source is the Linux file
+# of the app's own GitHub release, pinned by checksum, because that is the file
+# that was tested. A new app version means a new release there and a new
+# checksum here.
+#
+# Flat in /usr/lib/ai-2-gopher: the app finds data/ and lib/ beside its real
+# path, and the companion beside itself. /usr/bin/ai-2-gopher is a symlink to it.
+#
+# The desktop entry keeps the app's old ID on purpose. It is the window's
+# application ID and names the folder holding a person's bookmarks and history.
+#
+# Browser connections stay per person, because the extension is a person's
+# choice: /usr/lib/ai-2-gopher/gopher_reader_companion --install-browser-hosts
+
+pkgname=ai-2-gopher
+pkgver=1.4.0
+_build=7
+pkgrel=1
+pkgdesc="AI-2 Gopher, a Gopher browser for the desktop and the app AI-2 chats in"
+arch=('x86_64')
+url="https://github.com/rafael-minuesa/AI-2-gopher"
+license=('MIT')
+depends=('at-spi2-core' 'cairo' 'fontconfig' 'gcc-libs' 'gdk-pixbuf2' 'glib2' 'glibc'
+         'gtk3' 'harfbuzz' 'libepoxy' 'pango')
+# Never strip: the companion is a Dart executable with its program appended to
+# the file, and libapp.so holds the compiled app. Both are shipped as tested.
+options=('!strip' '!debug')
+_name="$pkgname-$pkgver+$_build-linux-x86_64"
+source=("$_name.tar.gz::$url/releases/download/v$pkgver/$pkgname-$pkgver%2B$_build-linux-x86_64.tar.gz"
+        'org.gopherclient.gopher_flutter_client.desktop')
+sha256sums=('30d7f3939c2d828c89de4b717e80e37372c68984e52584bc2d4d8523c421f241'
+            'SKIP')
+
+package() {
+  cd "$_name"
+  [ "$(cat VERSION)" = "$pkgver+$_build" ]
+
+  install -d "$pkgdir/usr/lib/$pkgname" "$pkgdir/usr/bin"
+  cp -a bundle/. "$pkgdir/usr/lib/$pkgname/"
+  ln -s "/usr/lib/$pkgname/$pkgname" "$pkgdir/usr/bin/$pkgname"
+
+  install -Dm644 "$srcdir/org.gopherclient.gopher_flutter_client.desktop" \
+    "$pkgdir/usr/share/applications/org.gopherclient.gopher_flutter_client.desktop"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

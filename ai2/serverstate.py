@@ -1,8 +1,9 @@
 """Where the on-demand servers record themselves (pid, model, port), so `ai-2
 chat` can tell which model is loaded, `ai-2 stop` can free the RAM, and `ai-2
 doctor` can report it. One small JSON file per server per user in the state
-dir: the chat server (the default record, "server") and the embedding server
-`ai-2 doc` starts (EMBED), which loads a different model on another port."""
+dir: the chat server (the default record, "server"), the embedding server
+`ai-2 doc` starts (EMBED), which loads a different model on another port, and
+the Gopher server AI-2 Chat starts for the app (GOPHER), which loads no model."""
 
 from __future__ import annotations
 
@@ -14,7 +15,8 @@ import sys
 
 CHAT = "server"
 EMBED = "embed"
-LOG_NAMES = {CHAT: "serve.log", EMBED: "embed.log"}
+GOPHER = "gopher"
+LOG_NAMES = {CHAT: "serve.log", EMBED: "embed.log", GOPHER: "gopher.log"}
 
 
 def state_dir() -> str:

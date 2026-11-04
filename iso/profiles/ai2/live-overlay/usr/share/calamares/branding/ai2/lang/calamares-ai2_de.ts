@@ -50,8 +50,8 @@ er untersucht die Maschine, stimmt sie ab, installiert den KI-Motor,
 lädt ein erstes Modell und misst deinen AI Score.</translation>
     </message>
     <message>
-        <source>then: $ ai-2 chat   opens the chat page in the browser</source>
-        <translation>danach: $ ai-2 chat   öffnet die Chat-Seite im Browser</translation>
+        <source>then: $ ai-2 chat   opens the chat in its own window</source>
+        <translation>danach: $ ai-2 chat   öffnet den Chat im eigenen Fenster</translation>
     </message>
     <message>
         <source>Chat right away, offline</source>

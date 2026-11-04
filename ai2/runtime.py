@@ -359,7 +359,7 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
           host: str = "127.0.0.1", port: int = 8080,
           idle_timeout_s: int | None = 600, api_key: str | None = None,
           startup_grace_s: int = 900, model_id: str = "",
-          extra_args: list[str] | None = None, record: str = "server") -> int:
+          extra_args: list[str] | None = None, record: str = "server", warm=None) -> int:
     """Run llama-server in the foreground and stop it after idle_timeout_s
     seconds without any request in flight (the tier's `service: on-demand`
     semantics). Returns the server's exit code.
@@ -394,6 +394,8 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
         cmd += ["--api-key", api_key]
     cmd += list(extra_args or [])
     proc = subprocess.Popen(cmd, env=env)
+    if warm is not None:
+        warm.start()
     # `ai-2 stop` sends SIGTERM to THIS wrapper process. Python's default
     # SIGTERM action kills it without running except/finally, which orphaned
     # llama-server with all its RAM (found on the 2011 laptop 2026-08-23).

@@ -10,12 +10,41 @@ from __future__ import annotations
 import http.client
 import json
 import socket
+import urllib.error
 import urllib.parse
 import urllib.request
 
 from .i18n import tr
 
 READ_TIMEOUT_S = 600   # between stream chunks; worst measured machines do ~0.5 tok/s
+CHARS_PER_CONTEXT_TOKEN = 2   # room for the instructions and the answer, at about 3 characters a token
+
+
+class ContextFull(OSError):
+    """The model refused the conversation: more than it can hold."""
+
+
+def fit_start(messages: list[dict], start: int, budget: int | None) -> int:
+    """Where the model's part of a conversation begins. Only when it has outgrown
+    `budget` characters does that move, and then well past the minimum, so most
+    questions keep what the model has already read. The newest message always
+    stays, and the part sent begins with a question."""
+    if not budget:
+        return start
+    total = sum(len(m["content"]) for m in messages[start:])
+    if total <= budget:
+        return start
+    last = len(messages) - 1
+    while start < last and (total > budget // 2 or messages[start]["role"] != "user"):
+        total -= len(messages[start]["content"])
+        start += 1
+    return start
+
+
+def _refusal(status: int, text: str) -> OSError:
+    if status == 400 and "exceed_context_size" in text:
+        return ContextFull("more than the model can hold")
+    return OSError(f"the AI answered with an error ({status})")
 
 
 def sse_events(fp):
@@ -55,7 +84,11 @@ def stream_reply(url: str, messages: list[dict], headers: dict | None = None,
     body = json.dumps(payload).encode()
     req = urllib.request.Request(url.rstrip("/") + "/v1/chat/completions", data=body,
                                  headers=dict(headers or {"Content-Type": "application/json"}))
-    with urllib.request.urlopen(req, timeout=READ_TIMEOUT_S) as resp:
+    try:
+        resp = urllib.request.urlopen(req, timeout=READ_TIMEOUT_S)
+    except urllib.error.HTTPError as exc:
+        raise _refusal(exc.code, exc.read().decode("utf-8", "replace")) from exc
+    with resp:
         for payload in sse_events(resp):
             piece = delta_text(payload)
             if piece:
@@ -86,7 +119,7 @@ class LocalReply:
                               headers={"Content-Type": "application/json"})
             resp = self.conn.getresponse()
             if resp.status != 200:
-                raise OSError(f"the AI answered with an error ({resp.status})")
+                raise _refusal(resp.status, resp.read().decode("utf-8", "replace"))
             last = b""
 
             def lines():
@@ -169,12 +202,14 @@ def sentences(pieces):
 
 
 def repl(url: str, stream=stream_reply, ask=input, say=print,
-         streaming: bool = False, speak=None, system: str | None = None) -> int:
+         streaming: bool = False, speak=None, system: str | None = None,
+         budget: int | None = None) -> int:
     """Chat until Ctrl-C/Ctrl-D. Ctrl-C during an answer only stops that
     answer. Sentence-per-line output is the default (readable by screen
     readers, locally and over SSH); `streaming=True` restores token-by-token
     output. `speak` is a callable given each output line (spoken chat).
     `system` is sent as the system message that opens every conversation.
+    `budget` is how many characters of conversation fit the model, see fit_start.
     `stream`, `ask`, `say` and `speak` are injectable for tests."""
     def out(text: str) -> None:
         say(text)
@@ -199,18 +234,20 @@ def repl(url: str, stream=stream_reply, ask=input, say=print,
             out(tr("New conversation."))
             continue
         messages.append({"role": "user", "content": line})
+        keep = 1 if system else 0
+        del messages[keep:fit_start(messages, keep, budget)]
         parts: list[str] = []
         # the model says nothing until it has read everything: 54 s on the 2011
         # laptop, which looks exactly like a hang (RMM-PC, 2026-11-02). On the
         # screen only, so spoken chat does not repeat it every turn.
-        say(tr("Reading your question. On a slow computer this can take a minute or more."))
+        say(tr("Processing ..."))
 
         def collected():
             for piece in stream(url, messages):
                 parts.append(piece)
                 yield piece
 
-        try:
+        def write_answer():
             if streaming:
                 for piece in collected():
                     say(piece, end="", flush=True)
@@ -218,8 +255,17 @@ def repl(url: str, stream=stream_reply, ask=input, say=print,
             else:
                 for sentence in sentences(collected()):
                     out(sentence)
+
+        try:
+            try:
+                write_answer()
+            except ContextFull:
+                del messages[keep:-1]      # all but this question, once
+                write_answer()
         except KeyboardInterrupt:
             say("")
+        except ContextFull:
+            out(tr("This is too long for this model. Try a shorter question."))
         except OSError as exc:
             out(tr("The server went away ({exc}). It may have stopped after idling; run  ai-2 chat --terminal  again.")
                 .format(exc=exc))

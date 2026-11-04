@@ -1,11 +1,13 @@
 """`ai-2 gopher`: the protocol itself, spoken over a real socket."""
 import socket
+import socketserver
+import threading
 import time
 
 import pytest
 import yaml
 
-from ai2 import doc, gopher
+from ai2 import chatstore, doc, gopher
 
 
 def vec(text):
@@ -217,11 +219,11 @@ def test_search_and_document_name_the_source_url_and_licence(library, tmp_path):
     try:
         out = talk(server, "/search/everyday\twhat is the capital of Spain?")
         assert "i    source: https://example.org/spain\t" in out
-        assert "From the pack Everyday Reference (CC0-1.0), version 2026-09-16." in out
+        assert "From the Knowledge Pack Everyday Reference (CC0-1.0), version" in out
         assert "Facts from Wikidata." in out
         page = talk(server, "/doc/everyday/spain.txt")
         assert "Source: https://example.org/spain" in page
-        assert "From the pack Everyday Reference (CC0-1.0), version 2026-09-16." in page
+        assert "From the Knowledge Pack Everyday Reference (CC0-1.0), version" in page
         assert "Facts from Wikidata." in page
     finally:
         server.shutdown()
@@ -285,7 +287,7 @@ def test_chat_answer_ends_with_the_next_question_and_keeps_the_conversation(libr
     server = chat_server(reply)
     try:
         first = talk(server, "/chat\tquien eres")
-        assert "i> quien eres" in first and "Reading your question" in first
+        assert "i> quien eres" in first and "Processing" in first
         assert "iHola, soy la IA." in first and "iSegunda linea." in first and first.endswith(".\r\n")
         next_item, new_item = items(first)
         assert next_item[1].startswith("/chat/") and new_item[1] == "/chat"
@@ -293,6 +295,197 @@ def test_chat_answer_ends_with_the_next_question_and_keeps_the_conversation(libr
         assert [m["content"] for m in seen[1]] == ["quien eres", "Hola, soy la IA.\nSegunda linea.", "y ahora"]
         talk(server, "/chat\totra cosa")
         assert [m["content"] for m in seen[2]] == ["otra cosa"]      # a new conversation
+    finally:
+        server.shutdown()
+
+
+def test_the_page_holds_the_whole_conversation(library):
+    answers = iter(["First answer.", "Second answer."])
+    server = chat_server(lambda h: iter([next(answers)]))
+    try:
+        first = talk(server, "/chat\tone")
+        key = items(first)[0][1]
+        second = talk(server, f"{key}\ttwo")
+        order = [second.index(t) for t in ("i> one", "iFirst answer.", "i> two", "iSecond answer.")]
+        assert order == sorted(order)
+        # how the last answer started is not part of the conversation, so a client can drop it
+        assert second.count("Processing") == 1
+        assert f"Processing ...\t{gopher.CHAT_STATUS}\t" in second
+        page = talk(server, key)
+        assert "i> two" in page and "iSecond answer." in page and "Processing" not in page
+    finally:
+        server.shutdown()
+
+
+def test_the_chat_page_opens_empty_without_asking_the_model(library):
+    server = chat_server(lambda h: pytest.fail("the model must not be asked"))
+    try:
+        page = talk(server, "/chat")
+        assert "Type your question" in page and page.endswith(".\r\n")
+        assert [i[1] for i in items(page)] == ["/chat"]
+        assert talk(server, "/chat/nobody") == page       # a conversation the server no longer has
+        assert not server.menus.chat.sessions
+    finally:
+        server.shutdown()
+
+
+def test_a_cancelled_question_stays_off_the_page():
+    def reply(history):
+        yield "An answer.\n"
+    chat = gopher.Chat(reply)
+
+    def leaves(text):
+        if "An answer" in text:
+            raise BrokenPipeError
+    with pytest.raises(OSError):
+        chat.answer("", "first", leaves, 7070)
+    key = next(iter(chat.sessions))
+    sent = []
+    chat.answer(key, "second", sent.append, 7070)
+    assert "first" not in "".join(sent)
+
+
+def test_a_conversation_page_has_a_limit():
+    chat = gopher.Chat(lambda h: iter(["Yes."]))
+    sent = []
+    chat.answer("", "0", sent.append, 7070)
+    key = next(iter(chat.sessions))
+    for n in range(1, gopher.CHAT_SHOWN + 3):
+        chat.answer(key, str(n), sent.append, 7070)
+    page = chat.page(key, 7070)
+    assert page.count("iYes.") == gopher.CHAT_SHOWN and "i> 0\t" not in page
+
+
+def test_the_model_gets_the_recent_part_only_when_it_outgrows_the_budget():
+    seen = []
+
+    def reply(history):
+        seen.append([m["content"] for m in history])
+        return iter(["b" * 40])
+    chat = gopher.Chat(reply, budget=200)
+    sent = []
+    chat.answer("", "a" * 40, sent.append, 7070)
+    key = next(iter(chat.sessions))
+    for n in range(4):
+        chat.answer(key, "a" * 40, sent.append, 7070)
+    assert [len(s) for s in seen] == [1, 3, 5, 1, 3]       # a large cut, then it stays put again
+    assert all(s[0].startswith("a") for s in seen)         # it opens with a question
+    assert len(chat.sessions[key]) == 10                   # the page keeps everything
+
+
+def test_a_conversation_too_long_for_the_model_is_retried_with_the_question_alone():
+    seen = []
+
+    def reply(history):
+        seen.append(len(history))
+        if len(history) > 1:
+            raise gopher.ContextFull("more than the model can hold")
+        return iter(["Fine."])
+    chat = gopher.Chat(reply)
+    sent = []
+    chat.answer("", "one", sent.append, 7070)
+    key = next(iter(chat.sessions))
+    chat.answer(key, "two", sent.append, 7070)
+    assert seen == [1, 3, 1] and "iFine." in "".join(sent)
+
+
+def test_a_question_too_long_by_itself_says_so_and_stays_usable():
+    def reply(history):
+        raise gopher.ContextFull("more than the model can hold")
+    chat = gopher.Chat(reply)
+    sent = []
+    chat.answer("", "far too long", sent.append, 7070)
+    page = "".join(sent)
+    assert "too long for this model" in page and "gave no answer" not in page and page.endswith(".\r\n")
+    assert chat.lane.acquire(blocking=False)
+
+
+def saved_chat(tmp_path, answer="An answer."):
+    store = chatstore.Store(str(tmp_path / "chats"))
+    return gopher.Chat(lambda h: iter([answer]), store), store
+
+
+def test_a_conversation_survives_the_server(tmp_path):
+    chat, store = saved_chat(tmp_path)
+    sent = []
+    chat.answer("", "Me llamo Ana", sent.append, 7070)
+    key = next(iter(chat.sessions))
+    again = gopher.Chat(lambda h: iter(["Otra."]), store)
+    page = again.page(key, 7070)
+    assert "i> Me llamo Ana" in page and "iAn answer." in page and f"/chat/{key}" in page
+    sent = []
+    again.answer(key, "Y ahora", sent.append, 7070)
+    assert [m["content"] for m in store.load(key)] == ["Me llamo Ana", "An answer.", "Y ahora", "Otra."]
+
+
+def test_a_reopened_conversation_gives_the_model_the_recent_part(tmp_path):
+    chat, store = saved_chat(tmp_path, "b" * 100)
+    sent = []
+    chat.answer("", "a" * 100, sent.append, 7070)
+    key = next(iter(chat.sessions))
+    for _ in range(9):
+        chat.answer(key, "a" * 100, sent.append, 7070)
+    seen = []
+    again = gopher.Chat(lambda h: seen.append(len(h)) or iter(["c"]), store, budget=1000)
+    again.answer(key, "next", sent.append, 7070)
+    assert 1 < seen[0] < 10
+
+
+def test_a_question_that_was_not_answered_is_not_saved(tmp_path):
+    store = chatstore.Store(str(tmp_path / "chats"))
+    chat = gopher.Chat(lambda h: iter([]), store)
+    chat.answer("", "hello", [].append, 7070)
+    assert store.keys() == []
+
+
+def test_earlier_conversations_is_a_menu_that_reopens_them(tmp_path):
+    chat, store = saved_chat(tmp_path)
+    sent = []
+    chat.answer("", "Primera pregunta", sent.append, 7070)
+    key = next(iter(chat.sessions))
+    assert f"1Earlier conversations\t{gopher.CHATS_SELECTOR}\t" in "".join(sent)
+    menu = chat.conversations(7070)
+    assert f"Primera pregunta\t/chat/{key}\t127.0.0.1\t7070" in menu
+    assert menu.endswith(".\r\n")
+
+
+def test_nothing_is_deleted_without_saying_yes(tmp_path):
+    chat, store = saved_chat(tmp_path)
+    sent = []
+    chat.answer("", "one", sent.append, 7070)
+    key = next(iter(chat.sessions))
+    page = chat.forget(key, False, 7070)
+    assert store.keys() == [key] and f"/chats/forget/{key}/yes" in page
+    page = chat.forget(key, True, 7070)
+    assert store.keys() == [] and key not in chat.sessions and "No saved conversations" in page
+    chat.answer("", "two", sent.append, 7070)
+    chat.answer("", "three", sent.append, 7070)
+    assert "/chats/forget/all/yes" in chat.forget("all", False, 7070) and len(store.keys()) == 2
+    chat.forget("all", True, 7070)
+    assert store.keys() == [] and not chat.sessions
+
+
+def test_a_conversation_name_cannot_reach_outside_its_folder(tmp_path):
+    chat, store = saved_chat(tmp_path)
+    secret = tmp_path / "secret.json"
+    secret.write_text('{"messages": []}')
+    assert store.load("../secret") is None and store.delete("../secret") is False and secret.exists()
+    assert "Type your question" in chat.page("../secret", 7070)
+
+
+def test_conversations_answer_only_this_computer(library):
+    server = chat_server(lambda h: iter(["hi"]))
+    try:
+        sent = []
+
+        class Fake:
+            wfile = type("W", (), {"write": staticmethod(sent.append)})()
+            connection = None
+            server = None
+        Fake.server = server
+        gopher.Handler._chat(Fake(), "/chats", "", local=False)
+        assert sent[0].startswith(b"3Chat answers only on the computer")
+        assert gopher.is_chat("/chats") and gopher.is_chat("/chats/forget/all/yes")
     finally:
         server.shutdown()
 
@@ -312,7 +505,7 @@ def test_chat_lines_arrive_before_the_answer_is_finished(library):
         with socket.create_connection((host, port), timeout=5) as s:
             s.sendall(b"/chat\thello\r\n")
             got = b""
-            while b"Reading your question" not in got or b"xxxx" not in got:
+            while b"Processing" not in got or b"xxxx" not in got:
                 got += s.recv(4096)
             assert b"the end." not in got
             release.set()
@@ -336,7 +529,7 @@ def test_a_chat_answer_does_not_hold_up_knowledge_packs(library):
     try:
         s = socket.create_connection((host, port), timeout=5)
         s.sendall(b"/chat\thello\r\n")
-        while b"Reading" not in s.recv(4096):
+        while b"Processing" not in s.recv(4096):
             pass
         assert talk(server, "/list/everyday").startswith("iEveryday Reference")
     finally:
@@ -358,7 +551,7 @@ def test_a_second_chat_says_busy_instead_of_hanging(library, monkeypatch):
     try:
         s = socket.create_connection((host, port), timeout=5)
         s.sendall(b"/chat\tfirst\r\n")
-        while b"Reading" not in s.recv(4096):
+        while b"Processing" not in s.recv(4096):
             pass
         assert "still answering" in talk(server, "/chat\tsecond")
     finally:
@@ -476,7 +669,7 @@ def test_a_client_that_leaves_during_the_silence_cancels_the_model(library):
         s = socket.create_connection((host, port), timeout=5)
         s.sendall(b"/chat\thello\r\n")
         got = b""
-        while b"Reading your question" not in got:
+        while b"Processing" not in got:
             got += s.recv(4096)
         s.close()
         assert cancelled.wait(5), "the model kept reading for nobody"
@@ -509,3 +702,23 @@ def test_a_client_that_stays_is_not_cancelled_and_a_model_failure_is_told(librar
         assert seen[-1] == ["second"]
     finally:
         server.shutdown()
+
+
+def test_offers_chat_reads_the_menu_not_the_open_port():
+    """A port that merely answers must not pass for the chat server."""
+    class Other(socketserver.StreamRequestHandler):
+        def handle(self):
+            self.rfile.readline()
+            self.wfile.write(b"iSomething else\t\t\t0\r\n.\r\n")
+    other = socketserver.TCPServer(("127.0.0.1", 0), Other)
+    threading.Thread(target=other.serve_forever, daemon=True).start()
+    try:
+        assert gopher.offers_chat(other.server_address[1]) is False
+    finally:
+        other.shutdown()
+        other.server_close()
+    closed = socket.socket()
+    closed.bind(("127.0.0.1", 0))
+    port = closed.getsockname()[1]
+    closed.close()
+    assert gopher.offers_chat(port, timeout=1) is False

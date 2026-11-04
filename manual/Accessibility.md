@@ -2,7 +2,7 @@ AI-2 aims to be usable without sight, with the local AI itself as part of the an
 
 ## What works today
 
-**Chat with a screen reader.** `ai-2 chat --terminal` prints whole sentences, one per line, which screen readers follow naturally, locally in a terminal or over SSH with the reader on your own computer. When Orca is running, the AI-2 Chat menu entry opens the terminal chat automatically instead of the browser page.
+**Chat with a screen reader.** `ai-2 chat --terminal` prints whole sentences, one per line, which screen readers follow naturally, locally in a terminal or over SSH with the reader on your own computer. When Orca is running, the AI-2 Chat menu entry opens the terminal chat automatically instead of the AI-2 Gopher app, which has not been tested with Orca.
 
 **Spoken chat.** `ai-2 chat --terminal --speak` speaks each answer aloud through speech-dispatcher, in English, Spanish or German following your system language. Fast token streaming for sighted users who prefer it: `--stream`.
 
@@ -16,7 +16,7 @@ AI-2 aims to be usable without sight, with the local AI itself as part of the an
 
 **Installation currently requires sighted assistance.** The graphical installer runs as root, which makes it invisible to Orca (an upstream limitation), and the ISO does not yet ship a screen reader for the live session. A sighted person is needed once, for the install itself; after first boot, `ai-2 accessibility setup` makes the installed system yours. We say this plainly rather than promise otherwise.
 
-**The browser chat page is not ours.** It is llama-server's built-in UI; use the terminal chat instead, or Firefox if you prefer a browser with a stronger screen-reader record than the shipped Epiphany.
+**The browser chat page (`ai-2 chat --browser`) is not ours.** It is llama-server's built-in UI; use the terminal chat instead, or Firefox if you prefer a browser with a stronger screen-reader record than the shipped Epiphany.
 
 **The smallest machines get the basics only.** On the Tiny tier (2 GB) there is no voice input and the espeak-ng voice; the AI answers in text at reading speed. The wizard tells you what your machine earned, in the same honest register it uses for model quality.
 

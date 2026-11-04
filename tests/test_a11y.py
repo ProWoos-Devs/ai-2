@@ -204,7 +204,7 @@ def test_reader_probe_continues_past_a_failing_candidate(monkeypatch):
     assert a11y.audio_server_running() is True
 
 
-def test_terminal_chat_says_it_is_reading_before_the_first_word():
+def test_terminal_chat_says_it_is_working_before_the_first_word():
     from ai2 import chatterm
     events = []
     answers = iter(["hola"])
@@ -220,6 +220,45 @@ def test_terminal_chat_says_it_is_reading_before_the_first_word():
         yield "Hola."
     spoken = []
     chatterm.repl("http://x/", stream=stream, ask=ask, say=lambda t="", **kw: events.append(t), speak=spoken.append)
-    reading = next(i for i, e in enumerate(events) if "question" in e.lower() or "pregunta" in e.lower() or "Frage" in e)
+    reading = next(i for i, e in enumerate(events) if "..." in e)
     assert reading < events.index("model asked")
-    assert not any("question" in t.lower() for t in spoken)     # on the screen only
+    assert not any("..." in t for t in spoken)                  # on the screen only
+
+
+def test_terminal_chat_drops_its_oldest_messages_when_it_outgrows_the_model():
+    from ai2 import chatterm
+    questions = iter(["a" * 60] * 5)
+
+    def ask(prompt=""):
+        try:
+            return next(questions)
+        except StopIteration:
+            raise EOFError
+    seen = []
+
+    def stream(url, messages):
+        seen.append(len(messages))
+        yield "b" * 60
+    chatterm.repl("http://x/", stream=stream, ask=ask, say=lambda t="", **kw: None, system="s", budget=250)
+    assert seen == [2, 4, 2, 4, 2]
+
+
+def test_terminal_chat_survives_a_conversation_the_model_refuses():
+    from ai2 import chatterm
+    questions = iter(["one", "two", "three"])
+
+    def ask(prompt=""):
+        try:
+            return next(questions)
+        except StopIteration:
+            raise EOFError
+    seen = []
+
+    def stream(url, messages):
+        seen.append(len(messages))
+        if len(messages) > 2 and seen.count(len(messages)) == 1 or messages[-1]["content"] == "three":
+            raise chatterm.ContextFull("full")
+        yield "Fine."
+    said = []
+    assert chatterm.repl("http://x/", stream=stream, ask=ask, say=lambda t="", **kw: said.append(t), system="s") == 0
+    assert any("too long for this model" in t for t in said)

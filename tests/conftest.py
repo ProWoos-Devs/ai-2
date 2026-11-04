@@ -35,6 +35,14 @@ def _no_real_update_checker(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _no_real_chat_app(monkeypatch):
+    """No test may open the developer's own AI-2 Gopher window. A test of that
+    path puts its own fake in place of this."""
+    from ai2 import cli
+    monkeypatch.setattr(cli, "_chat_app", lambda: None)
+
+
+@pytest.fixture(autouse=True)
 def _no_real_crash_log(monkeypatch, tmp_path):
     """The crash record of the machine running the suite is not a test's
     input: the log and the seen-mark point into the tmp dir (absent), so no

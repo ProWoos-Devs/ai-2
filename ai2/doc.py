@@ -522,6 +522,10 @@ def _tokens(text: str) -> list[list]:
     return out
 
 
+_ENDS_SENTENCE = re.compile(r"[.!?…:][\"'”’»)\]]*$")
+FINISH_WORDS = 60
+
+
 def join_paragraphs(parts: list[str], max_overlap: int = 40) -> list[str]:
     """A run of consecutive parts as the paragraphs they came from, each one
     line. Consecutive parts overlap by about twenty words (that is what keeps a
@@ -574,6 +578,35 @@ def parts_around(conn: sqlite3.Connection, doc_name: str, ord_: int, radius: int
     else:
         first, last = max(0, ord_ - radius), min(total - 1, ord_ + radius)
     return [text for o, text in rows if first <= o <= last], first, last, total
+
+
+def finish_sentence(conn: sqlite3.Connection, hit: dict) -> str:
+    """A result's text for a person, ending where its sentence ends. Parts are
+    cut by word count, so one can stop at "Do not try". The rest comes from the
+    next part, here and not in the pack: stored parts are what was embedded, and
+    the model's excerpts stay as they are. A sentence that does not end within
+    FINISH_WORDS, or a part with no next one, stays as stored."""
+    text = hit["text"]
+    words = text.split()
+    if not words or _ENDS_SENTENCE.search(words[-1]):
+        return text
+    row = conn.execute("SELECT chunks.text FROM chunks JOIN docs ON docs.id = chunks.doc_id "
+                       "WHERE docs.name = ? AND chunks.ord = ?", (hit["doc"], hit["ord"] + 1)).fetchone()
+    if row is None:
+        return text
+    new = _tokens(row[0])
+    for n in range(min(40, len(words), len(new)), 0, -1):       # the overlap, see join_paragraphs
+        if words[-n:] == [t[0] for t in new[:n]]:
+            new = new[n:]
+            break
+    added: list[str] = []
+    for word, begins in new[:FINISH_WORDS]:
+        if begins:                  # the paragraph ended with no full stop, a heading or a list line
+            return " ".join([text, *added]) if added else text
+        added.append(word)
+        if _ENDS_SENTENCE.search(word):
+            return " ".join([text, *added])
+    return text
 
 
 def choose_embedder(ram_mib: int, catalog: list[dict] | None = None) -> dict | None:

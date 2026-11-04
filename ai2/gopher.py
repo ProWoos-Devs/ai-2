@@ -15,7 +15,8 @@ document comes back as plain text with its parts joined.
 Chat. The Gopher app is how AI-2's chat is meant to be used (Rafael, 2026-11-02):
 no browser and no separate chat screen. A chat item is a search item whose reply
 is written line by line as the model produces it, so words appear as they come,
-and the conversation is kept here and named in the selector of the next item.
+and the conversation is kept here, saved for this account, and named in the selector
+of the next item.
 It answers only this computer. Gopher has no passwords or encryption, so a peer
 on the network is refused even with --host 0.0.0.0, where it can still read the
 Knowledge Packs.
@@ -30,8 +31,10 @@ import socket
 import socketserver
 import textwrap
 import threading
+import time
 
 from . import doc
+from .chatterm import ContextFull, fit_start
 from .i18n import tr
 
 PORT = 7071                 # 70 needs root; this is the one AI-2 uses by default
@@ -42,9 +45,13 @@ TIMEOUT = 10.0              # a client that opens a socket and says nothing
 WORKERS = 1                 # see Server: one question at a time by default
 BUSY_WAIT = 20.0            # how long a waiting request holds on before saying busy
 CHAT_SELECTOR = "/chat"
+CHATS_SELECTOR = "/chats"
 CHAT_SESSIONS = 8           # conversations kept; the oldest is forgotten first
-CHAT_HISTORY = 8            # messages sent to the model, out of a small context
+CHAT_BUDGET = 4096          # characters of a conversation sent to the model, for a 2048-token context
+CHAT_SHOWN = 100            # exchanges a conversation shows on its page
+CHAT_STATUS = "/chat-status"   # marks a line about this answer, not part of the conversation
 LOOPBACK = ("127.0.0.1", "::1", "::ffff:127.0.0.1")
+LOCAL_NAMES = ("127.0.0.1", "::1", "localhost")
 CRLF = "\r\n"
 
 
@@ -57,6 +64,29 @@ def line(kind: str, display: str, selector: str = "", host: str = "(NULL)", port
 
 def info(display: str = "") -> str:
     return line("i", display)
+
+
+def offers_chat(port: int = PORT, timeout: float = 5.0) -> bool:
+    """Is an AI-2 server with its chat item answering on this computer? A port
+    that is merely open could be anything, so this reads the first menu."""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(CRLF.encode())
+            reply = b""
+            while len(reply) < 65536:
+                piece = sock.recv(4096)
+                if not piece:
+                    break
+                reply += piece
+    except OSError:
+        return False
+    return f"\t{CHAT_SELECTOR}\t".encode() in reply
+
+
+def chat_url(port: int = PORT) -> str:
+    """The chat page, which asks for nothing until a question is typed."""
+    return f"gopher://127.0.0.1:{port}/7{CHAT_SELECTOR}"
 
 
 def error(message: str) -> str:
@@ -154,20 +184,119 @@ class Chat:
     """The conversations, and one answer at a time. `reply(history)` returns an
     iterator of text pieces and raises RuntimeError with a sentence for the
     person when no model can start. The model and its system prompt are the
-    caller's, the same ones `ai-2 chat` uses."""
+    caller's, the same ones `ai-2 chat` uses. `store` keeps finished exchanges on
+    disk, and `budget` is how many characters of a conversation fit the model."""
 
-    def __init__(self, reply):
+    def __init__(self, reply, store=None, budget: int = CHAT_BUDGET):
         self.reply = reply
+        self.store = store
+        self.budget = budget
         self.sessions: collections.OrderedDict[str, list[dict]] = collections.OrderedDict()
+        self.starts: dict[str, int] = {}   # where the model's part of each conversation begins
         self.lane = threading.Lock()
 
-    def _session(self, wanted: str | None) -> tuple[str, list[dict]]:
-        key = wanted if wanted in self.sessions else secrets.token_hex(8)
-        history = self.sessions.setdefault(key, [])
+    def _remember(self, key: str, history: list[dict]) -> list[dict]:
+        self.sessions[key] = history
         self.sessions.move_to_end(key)
-        while len(self.sessions) > CHAT_SESSIONS:
-            self.sessions.popitem(last=False)
-        return key, history
+        while len(self.sessions) > CHAT_SESSIONS:      # out of memory only: the file stays
+            forgotten, _ = self.sessions.popitem(last=False)
+            self.starts.pop(forgotten, None)
+        return history
+
+    def _known(self, wanted: str | None) -> list[dict] | None:
+        if wanted in self.sessions:
+            return self.sessions[wanted]
+        saved = self.store.load(wanted) if self.store and wanted else None
+        if saved is None:
+            return None
+        # Reopened, the model has read none of it: the recent part only, or a
+        # long conversation would take many minutes to answer.
+        self.starts[wanted] = fit_start(saved, 0, self.budget // 2)
+        return self._remember(wanted, saved)
+
+    def _session(self, wanted: str | None) -> tuple[str, list[dict]]:
+        history = self._known(wanted)
+        if history is not None:
+            return wanted, self._remember(wanted, history)
+        key = secrets.token_hex(8)
+        return key, self._remember(key, [])
+
+    @staticmethod
+    def _asked(question: str) -> str:
+        return "".join(info(f"> {text}") for text in textwrap.wrap(question, width=WRAP)) + info()
+
+    def _shown(self, history: list[dict]) -> str:
+        out = []
+        for m in history[-2 * CHAT_SHOWN:]:
+            if m["role"] == "user":
+                out.append(self._asked(m["content"]))
+            else:
+                wrap = LineWrap()
+                out.extend(info(text) for text in wrap.feed(m["content"]) + wrap.tail())
+                out.append(info())
+        return "".join(out)
+
+    def page(self, wanted: str | None, port: int) -> str:
+        """The conversation so far, with nothing asked of the model: what a
+        client shows before a question, and it may be the first thing it asks."""
+        history = self._known(wanted)
+        key = wanted if history else None
+        if not history:
+            return (info(tr("Type your question. Nothing you write leaves this computer.")) + info()
+                    + self._items(None, port) + "." + CRLF)
+        return self._shown(history) + self._items(key, port) + "." + CRLF
+
+    def _items(self, key: str | None, port: int) -> str:
+        if key is None:
+            out = line("7", tr("Chat with the AI"), CHAT_SELECTOR, "127.0.0.1", port)
+        else:
+            out = (line("7", tr("Ask the next question"), f"{CHAT_SELECTOR}/{key}", "127.0.0.1", port)
+                   + line("7", tr("Start a new conversation"), CHAT_SELECTOR, "127.0.0.1", port))
+        if self.store and self.store.keys():
+            out += line("1", tr("Earlier conversations"), CHATS_SELECTOR, "127.0.0.1", port)
+        if self.store and key and key in self.store.keys():
+            out += line("1", tr("Delete this conversation"), f"{CHATS_SELECTOR}/forget/{key}", "127.0.0.1", port)
+        return out
+
+    def conversations(self, port: int, note: str = "") -> str:
+        """The saved conversations, as an ordinary menu."""
+        out = [info(note), info()] if note else []
+        saved = self.store.listing() if self.store else []
+        if saved:
+            out += [info(tr("Earlier conversations")), info()]
+        else:
+            out += [info(tr("No saved conversations.")), info()]
+        for c in saved:
+            when = time.strftime("%Y-%m-%d %H:%M", time.localtime(c["updated"]))
+            first = " ".join(c["first"].split())
+            first = first if len(first) <= 60 else first[:59] + "…"
+            out.append(line("7", f"{when}  {first}", f"{CHAT_SELECTOR}/{c['key']}", "127.0.0.1", port))
+        out.append(info())
+        out.append(line("7", tr("Start a new conversation"), CHAT_SELECTOR, "127.0.0.1", port))
+        if saved:
+            out.append(line("1", tr("Delete all conversations"), f"{CHATS_SELECTOR}/forget/all", "127.0.0.1", port))
+        return "".join(out) + "." + CRLF
+
+    def forget(self, which: str, sure: bool, port: int) -> str:
+        """Asks first: an address must not delete anything by being opened once."""
+        everything = which == "all"
+        if not self.store or (not everything and which not in self.store.keys()):
+            return self.conversations(port)
+        if not sure:
+            question = tr("Delete all conversations?") if everything else tr("Delete this conversation?")
+            return (info(question) + info()
+                    + line("1", tr("Yes, delete"), f"{CHATS_SELECTOR}/forget/{which}/yes", "127.0.0.1", port)
+                    + line("1", tr("No, keep them") if everything else tr("No, keep it"), CHATS_SELECTOR, "127.0.0.1", port) + "." + CRLF)
+        if not self.lane.acquire(timeout=BUSY_WAIT):
+            return error(tr("The AI is still answering another question, try again in a moment"))
+        try:
+            for key in self.store.keys() if everything else [which]:
+                self.store.delete(key)
+                self.sessions.pop(key, None)
+                self.starts.pop(key, None)
+        finally:
+            self.lane.release()
+        return self.conversations(port, tr("Deleted."))
 
     def answer(self, wanted: str | None, question: str, write, port: int,
                watch: ClientWatch | None = None) -> None:
@@ -186,46 +315,55 @@ class Chat:
 
         question = question.strip()
         if not question:
-            out(error(tr("Type a question")))
+            out(self.page(wanted, port))
             return
         if not self.lane.acquire(timeout=BUSY_WAIT):
             out(error(tr("The AI is still answering another question, try again in a moment")))
             return
         try:
             key, history = self._session(wanted)
-            for text in textwrap.wrap(question, width=WRAP):
-                out(info(f"> {text}"))
-            out(info())
+            # the conversation first, in one piece: a client draws each write it gets
+            out(self._shown(history) + self._asked(question))
             # before the model is asked: it says nothing until it has read everything
-            out(info(tr("Reading your question. On a slow computer this can take a minute or more.")))
-            out(info())
+            out(line("i", tr("Processing ..."), CHAT_STATUS))
+            out(line("i", "", CHAT_STATUS))
             history.append({"role": "user", "content": question})
-            del history[:-CHAT_HISTORY]
+            self.starts[key] = fit_start(history, self.starts.get(key, 0), self.budget)
             parts: list[str] = []
             wrap = LineWrap()
             pieces = None
             broke = False
-            try:
-                pieces = self.reply(list(history))
-                if watch is not None:
-                    watch.attach(pieces)
-                for piece in pieces:
-                    parts.append(piece)
-                    for text in wrap.feed(piece):
+            told = False
+            while True:
+                try:
+                    pieces = self.reply(list(history[self.starts[key]:]))
+                    if watch is not None:
+                        watch.attach(pieces)
+                    for piece in pieces:
+                        parts.append(piece)
+                        for text in wrap.feed(piece):
+                            out(info(text))
+                    for text in wrap.tail():
                         out(info(text))
-                for text in wrap.tail():
-                    out(info(text))
-            except RuntimeError as exc:
-                for text in textwrap.wrap(str(exc), width=WRAP):
-                    out(info(text))
-            except OSError:
-                if wrote_to_nobody or (watch is not None and watch.left.is_set()):
-                    history.pop()          # the client left: nobody is waiting for this one
-                    raise
-                broke = True
-            finally:
-                if hasattr(pieces, "close"):
-                    pieces.close()         # a client that left stops the model too
+                except ContextFull:
+                    pieces = None
+                    if self.starts[key] < len(history) - 1:     # all but this question, once
+                        self.starts[key] = len(history) - 1
+                        continue
+                    told = True
+                    out(info(tr("This is too long for this model. Try a shorter question.")))
+                except RuntimeError as exc:
+                    for text in textwrap.wrap(str(exc), width=WRAP):
+                        out(info(text))
+                except OSError:
+                    if wrote_to_nobody or (watch is not None and watch.left.is_set()):
+                        history.pop()          # the client left: nobody is waiting for this one
+                        raise
+                    broke = True
+                finally:
+                    if hasattr(pieces, "close"):
+                        pieces.close()         # a client that left stops the model too
+                break
             if broke:
                 history.pop()              # half an answer must not poison the conversation
                 for text in wrap.tail():
@@ -234,14 +372,14 @@ class Chat:
                 out(info(tr("The AI stopped before it finished. Try asking again.")))
             elif "".join(parts).strip():
                 history.append({"role": "assistant", "content": "".join(parts)})
+                if self.store:
+                    self.store.save(key, history)
             else:
                 history.pop()              # no answer must not poison the conversation
-                if pieces is not None:
+                if pieces is not None and not told:
                     out(info(tr("The AI gave no answer to this. Try asking in other words.")))
             out(info())
-            out(line("7", tr("Ask the next question"), f"{CHAT_SELECTOR}/{key}", "127.0.0.1", port))
-            out(line("7", tr("Start a new conversation"), CHAT_SELECTOR, "127.0.0.1", port))
-            out("." + CRLF)
+            out(self._items(key if history else None, port) + "." + CRLF)
         finally:
             self.lane.release()
 
@@ -284,24 +422,24 @@ class Menus:
 
     def root(self, local: bool = False) -> str:
         from . import __version__
-        out = [info(f"AI-2 {__version__} knowledge, over Gopher"), info()]
+        out = [info(tr("AI-2 {version} knowledge, over Gopher").format(version=__version__)), info()]
         if self.chat is not None and local:
             out.append(line("7", tr("Chat with the AI"), CHAT_SELECTOR, "127.0.0.1", self.port))
             out.append(info())
         collections = self.lib.collections()
         if not collections:
-            out.append(info("Nothing is installed here yet."))
-            out.append(info("On the AI-2 machine:  ai-2 knowledge install ai2-help"))
+            out.append(info(tr("Nothing is installed here yet.")))
+            out.append(info(tr("On the AI-2 machine:  ai-2 knowledge install ai2-help")))
             return "".join(out) + "." + CRLF
         for name, manifest in collections:
             title = self.lib.title(name, manifest)
-            out.append(line("7", f"Ask {title}", f"/search/{name}", self.host, self.port))
-            out.append(line("1", f"What is in {title}", f"/list/{name}", self.host, self.port))
+            out.append(line("7", tr("Ask {title}").format(title=title), f"/search/{name}", self.host, self.port))
+            out.append(line("1", tr("What is in {title}").format(title=title), f"/list/{name}", self.host, self.port))
             if manifest:
                 out.append(info(f"   {manifest.get('version', '')}, {manifest.get('license', '')}"))
             out.append(info())
-        out.append(info("Type a question into a search item. The answer is the text itself,"))
-        out.append(info("from the document that holds it, with its source named."))
+        out.append(info(tr("Type a question into a search item. The answer is the text itself,")))
+        out.append(info(tr("from the document that holds it, with its source named.")))
         return "".join(out) + "." + CRLF
 
     def listing(self, name: str) -> str:
@@ -314,7 +452,7 @@ class Menus:
             out.append(line("0", f"{d['name']}  ({d['words']} words)", f"/doc/{name}/{d['name']}",
                             self.host, self.port))
         out.append(info())
-        out.append(line("7", "Ask this one a question", f"/search/{name}", self.host, self.port))
+        out.append(line("7", tr("Ask this one a question"), f"/search/{name}", self.host, self.port))
         return "".join(out) + "." + CRLF
 
     def document(self, name: str, doc_name: str) -> str:
@@ -340,10 +478,11 @@ class Menus:
         out = [""]
         url = pack.source_url(manifest, doc_name) if doc_name else None
         if url:
-            out += textwrap.wrap(f"Source: {url}", width=WRAP)
-        out += textwrap.wrap(f"From the pack {self.lib.title(name, manifest)} "
-                             f"({manifest.get('license', 'licence not stated')}), "
-                             f"version {manifest.get('version', '')}.", width=WRAP)
+            out += textwrap.wrap(tr("Source: {url}").format(url=url), width=WRAP)
+        out += textwrap.wrap(tr("From the Knowledge Pack {title} ({license}), version {version}.").format(
+            title=self.lib.title(name, manifest),
+            license=manifest.get("license", tr("license not stated")),
+            version=manifest.get("version", "")), width=WRAP)
         if manifest.get("attribution"):
             out += textwrap.wrap(str(manifest["attribution"]), width=WRAP)
         return out
@@ -354,26 +493,27 @@ class Menus:
             return error(f"No knowledge called {name!r} here")
         query = query.strip()
         if not query:
-            return error("Type a question")
+            return error(tr("Type a question"))
         model_id = doc.store_model(conn)
         try:
             vector = self.embed_query(model_id, query)
         except Exception as exc:                       # the embedding server, not the client
-            return error(f"Cannot answer right now ({exc})")
+            return error(tr("Cannot answer right now ({reason})").format(reason=exc))
         hits = doc.search(conn, vector, top=MAX_HITS)
         if not hits:
-            return error("Nothing here matches that")
+            return error(tr("Nothing here matches that"))
         manifest = dict(self.lib.collections()).get(name)
         out = [info(f"{query}"), info()]
         from . import pack
         for i, hit in enumerate(hits, 1):
             out.append(info(f"[{i}] {doc.cite(hit)}"))
-            for wrapped in textwrap.wrap(hit["text"], width=WRAP):
+            for wrapped in textwrap.wrap(doc.finish_sentence(conn, hit), width=WRAP):
                 out.append(info(f"    {wrapped}"))
             url = pack.source_url(manifest, hit["doc"])
             if url:
-                out.append(info(f"    source: {url}"))
-            out.append(line("0", f"    the whole of {hit['doc']}", f"/doc/{name}/{hit['doc']}",
+                out.append(info("    " + tr("source: {url}").format(url=url)))
+            out.append(line("0", "    " + tr("the whole of {document}").format(document=hit["doc"]),
+                            f"/doc/{name}/{hit['doc']}",
                             self.host, self.port))
             out.append(info())
         for wrapped in self.provenance(name, manifest):
@@ -415,7 +555,7 @@ class Handler(socketserver.StreamRequestHandler):
         gate = getattr(self.server, "gate", None)
         held = gate.acquire(timeout=BUSY_WAIT) if gate is not None else True
         if not held:
-            body = error("Busy answering another question, try again in a moment")
+            body = error(tr("Busy answering another question, try again in a moment"))
         else:
             try:
                 body = self.server.menus.respond(request, local)
@@ -440,9 +580,13 @@ class Handler(socketserver.StreamRequestHandler):
             elif not local:
                 send(error("Chat answers only on the computer it runs on"))
             else:
+                port = self.server.menus.port
+                if selector == CHATS_SELECTOR or selector.startswith(CHATS_SELECTOR + "/"):
+                    send(self._conversations(chat, selector, port))
+                    return
                 wanted = selector[len(CHAT_SELECTOR) + 1:] or None
                 watch = ClientWatch(self.connection)
-                chat.answer(wanted, query, send, self.server.menus.port, watch)
+                chat.answer(wanted, query, send, port, watch)
         except OSError:
             pass                           # the client left; nothing more to say to it
         finally:
@@ -450,8 +594,16 @@ class Handler(socketserver.StreamRequestHandler):
                 watch.stop()
 
 
+    @staticmethod
+    def _conversations(chat, selector: str, port: int) -> str:
+        parts = [p for p in selector.split("/") if p]
+        if len(parts) >= 3 and parts[1] == "forget":
+            return chat.forget(parts[2], parts[3:] == ["yes"], port)
+        return chat.conversations(port)
+
+
 def is_chat(selector: str) -> bool:
-    return selector == CHAT_SELECTOR or selector.startswith(CHAT_SELECTOR + "/")
+    return any(selector == s or selector.startswith(s + "/") for s in (CHAT_SELECTOR, CHATS_SELECTOR))
 
 
 class Sequential(socketserver.TCPServer):
@@ -501,14 +653,15 @@ class Threaded(socketserver.ThreadingTCPServer):
 
 
 def serve(embed_query, host: str = "127.0.0.1", port: int = PORT, everything: bool = False,
-          advertise: str | None = None, workers: int = WORKERS, chat_reply=None):
+          advertise: str | None = None, workers: int = WORKERS, chat_reply=None,
+          chat_store=None, chat_budget: int = CHAT_BUDGET):
     """A running Gopher server. `embed_query(model_id, text)` returns the
     vector for a question, which is what turns a search item into an answer;
     `advertise` is the host name put into the menu lines the client follows;
     `workers` is how many questions may be answered at once; `chat_reply` turns
     on the chat item, see Chat."""
     menus = Menus(Library(everything), embed_query, advertise or host, port,
-                  Chat(chat_reply) if chat_reply else None)
+                  Chat(chat_reply, chat_store, chat_budget) if chat_reply else None)
     workers = max(1, int(workers))
     if workers == 1:
         server = Sequential((host, port), Handler)

@@ -1062,3 +1062,35 @@ def test_doc_ask_with_an_answer_does_not_add_passages(ask, capsys):
     assert ask["run"]() == 0
     out = capsys.readouterr().out
     assert "gave no answer" not in out and "An answer." in out
+
+
+def _parts(tmp_path, chunks):
+    conn = doc.open_store(tmp_path / "s.sqlite")
+    doc.add_document(conn, "d.txt", "/d.txt", chunks, [fake_vec(c) for c in chunks], words=50)
+    return conn
+
+
+def test_a_result_is_finished_from_the_next_part_without_repeating_the_overlap(tmp_path):
+    conn = _parts(tmp_path, ["Call for help. Do not try", "help. Do not try to move them. Then wait."])
+    hit = {"text": "Call for help. Do not try", "doc": "d.txt", "ord": 0}
+    assert doc.finish_sentence(conn, hit) == "Call for help. Do not try to move them."
+    assert hit["text"] == "Call for help. Do not try", "the model's excerpt stays as stored"
+
+
+def test_a_finished_or_last_part_stays_as_stored(tmp_path):
+    conn = _parts(tmp_path, ["One. Two.", "Three then four"])
+    assert doc.finish_sentence(conn, {"text": "One. Two.", "doc": "d.txt", "ord": 0}) == "One. Two."
+    assert doc.finish_sentence(conn, {"text": "Three then four", "doc": "d.txt", "ord": 1}) == "Three then four"
+
+
+def test_a_heading_or_list_line_with_no_full_stop_ends_at_its_paragraph(tmp_path):
+    conn = _parts(tmp_path, ["Text. Keep calm", "Keep calm and warm\n\nNext heading here."])
+    assert doc.finish_sentence(conn, {"text": "Text. Keep calm", "doc": "d.txt", "ord": 0}) == "Text. Keep calm and warm"
+    conn = _parts(tmp_path, ["Text. A heading", "A heading\n\nNext paragraph here."])
+    assert doc.finish_sentence(conn, {"text": "Text. A heading", "doc": "d.txt", "ord": 0}) == "Text. A heading"
+
+
+def test_a_sentence_that_runs_on_is_left_alone(tmp_path):
+    long_part = "word " * (doc.FINISH_WORDS + 5) + "end."
+    conn = _parts(tmp_path, ["Start of it", long_part])
+    assert doc.finish_sentence(conn, {"text": "Start of it", "doc": "d.txt", "ord": 0}) == "Start of it"

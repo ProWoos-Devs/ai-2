@@ -52,6 +52,8 @@ rootfs:
     # ../../pacman.conf.d/iso-x86_64.conf; buildiso needs -w)
     - ai2-keyring
     - ai-2
+    # the app AI-2 Chat opens; also a dependency of ai-2, named here to be plain
+    - ai-2-gopher
     # the Knowledge Packs, one package each: they install into
     # /usr/share/ai2/doc/ and can be removed with pacman
     - ai2-help

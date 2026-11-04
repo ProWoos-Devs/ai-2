@@ -563,12 +563,24 @@ def _pack_terms(hits: list[dict]) -> list[str]:
     return out
 
 
+def _finished_text(hit: dict) -> str:
+    """The excerpt ending at the end of its sentence, see doc.finish_sentence."""
+    from . import doc as docmod
+    if not hit.get("collection"):
+        return hit["text"]
+    conn = docmod.open_store(docmod.read_index_path(hit["collection"]))
+    try:
+        return docmod.finish_sentence(conn, hit)
+    finally:
+        conn.close()
+
+
 def _doc_show_hits(hits, width) -> None:
     import textwrap
     from .doc import wrap_paragraphs as docmod_wrap
     for i, h in enumerate(hits, 1):
         print(f"\n[{i}] {h['cite']}" + (f"  {h['url']}" if h.get("url") else ""))
-        print(docmod_wrap(h["text"], width, "    "))
+        print(docmod_wrap(_finished_text(h), width, "    "))
     terms = _pack_terms(hits)
     if terms:
         print()

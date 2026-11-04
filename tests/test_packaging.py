@@ -23,6 +23,17 @@ def test_whisper_package_is_one_package_with_dispatch():
     assert "isa-check.sh ctors" in text and "libggml-cpu-x64.so) bash ../../isa-check.sh baseline" in text
 
 
+def test_the_gopher_app_is_the_tested_file_unstripped():
+    """Stripping cuts the Dart program off the end of the companion, and no
+    build step complains. The checksum is what ties the package to the file
+    that was tested, so it must never be SKIP for that file."""
+    text = (PKG / "ai-2-gopher" / "PKGBUILD").read_text()
+    assert "options=('!strip' '!debug')" in text
+    assert "sha256sums=('" in text and "sha256sums=('SKIP'" not in text
+    entry = (PKG / "ai-2-gopher" / "org.gopherclient.gopher_flutter_client.desktop").read_text()
+    assert "Exec=/usr/bin/ai-2-gopher %u\n" in entry
+
+
 def _etc_refresh_case(tmp_path, etc_motd: bytes | None, also_known: bytes | None = None):
     """Run etc-refresh.sh against a fake root: the script with its absolute
     paths rewritten to tmp_path, so nothing on this machine is touched.

@@ -22,9 +22,13 @@ Open the chat with **Applications > AI-2 Chat**, or in a terminal:
 ai-2 chat
 ```
 
-It starts the local AI and opens the chat page in the browser. The AI stops by itself when you have not used it for a while, or stop it now with `ai-2 stop`.
+It opens the AI-2 Gopher app on the chat page, with no browser. Type your question in the box at the bottom and press Enter. The answer appears line by line, above it, and the conversation stays on the page. On a slow computer the very first answer can take more than a minute. AI-2 then keeps its reading of its own instructions on disk, so later ones start sooner.
 
-The address bar says "Not Secure" because the page is served by your own computer at 127.0.0.1. Nothing leaves the machine, there is nothing to secure. If the page shows an error the first time, reload it.
+Conversations are saved on this computer as you go, in `~/.local/share/ai2/chats/`, and only your account can read them. **Earlier conversations** lists them, and choosing one lets you carry on where you left off. **Delete this conversation** removes it from the disk. A long conversation gets slower, and once it no longer fits the model, the model reads only the most recent part, although the page still shows it all. The terminal chat saves nothing.
+
+The AI stops by itself when you have not used it for a while, or stop it now with `ai-2 stop`.
+
+`ai-2 chat --browser` opens a chat page in the browser instead. Its address bar says "Not Secure" because the page is served by your own computer at 127.0.0.1. Nothing leaves the machine, there is nothing to secure. If the page shows an error the first time, reload it.
 
 On a low-end PC the better way is **Applications > AI-2 Chat (Terminal)**, or:
 

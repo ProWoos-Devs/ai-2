@@ -51,8 +51,8 @@ examina la máquina, la ajusta, instala el motor de IA,
 descarga un primer modelo y mide tu AI Score.</translation>
     </message>
     <message>
-        <source>then: $ ai-2 chat   opens the chat page in the browser</source>
-        <translation>después: $ ai-2 chat   abre la página de chat en el navegador</translation>
+        <source>then: $ ai-2 chat   opens the chat in its own window</source>
+        <translation>después: $ ai-2 chat   abre el chat en su propia ventana</translation>
     </message>
     <message>
         <source>Chat right away, offline</source>

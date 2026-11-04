@@ -3,8 +3,25 @@
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+## [0.23.0] - 2026-11-04
+### Changed
+- **AI-2 Chat opens the AI-2 Gopher app, with no browser.** The menu entry and `ai-2 chat` start `ai-2 gopher` for this computer if it is not running and open the app on its chat page. A screen reader keeps the terminal chat, because the app has not been tested with Orca. `ai-2 chat --browser` opens the browser page anyway, and `ai-2 stop` also ends a Gopher server that AI-2 Chat started.
+- **The Gopher chat keeps the whole conversation on one page.** Every answer also carries the questions and answers before it, up to 100 exchanges, and a chat address with no question shows the conversation without asking the model.
+- **Both chats say "Processing ..." while the model reads the question,** instead of a long sentence.
+- **The model reads as much of a conversation as fits it, in both chats.** It used to read the last 8 messages, however long or short they were. Now the limit is the size of the text, set by the model's context, so short messages are remembered for longer and long ones no longer overflow it. A question too long for the model gets a clear message, and the chat carries on.
+- **A follow-up question past that limit no longer means rereading everything.** The model reuses what it has already read when the oldest messages drop off: on a 2011 laptop 54 to 63 seconds became 11.5 to 15.
+- **The first question after the model has stopped is much faster.** The model's reading of AI-2's own instructions is kept on disk in `~/.cache/ai2/prompt-state/`: on a 2011 laptop the reading before the first word went from 55 seconds to 6, in both chats. The file is made once, in the background, after the first real question and 30 seconds of quiet. It holds no one's words, and a damaged file is removed and made again. Servers open to the network or with an API key do not use it.
+- **The first menu of `ai-2 gopher` follows the computer's language.** So do its searches and documents, apart from the Knowledge Pack text itself. Attribution now says Knowledge Pack in full.
+
 ### Added
+- **The Gopher chat keeps your conversations on this computer and lets you go back to them.** Each one is saved in `~/.local/share/ai2/chats/`, readable only by your account, as soon as an answer finishes. **Earlier conversations** is an ordinary Gopher menu, newest first, with the date and first question of each; choosing one reopens it and you can carry on. **Delete this conversation** and **Delete all conversations** ask first and remove the files. The terminal chat saves nothing.
+- **The AI-2 Gopher app comes with AI-2.** `ai-2` now depends on `ai-2-gopher`, so an update installs it, for everyone on the computer, with the command `ai-2-gopher` and an entry in the application menu. It is the app's own tested 1.4.0 release file, pinned by checksum.
 - **Install for someone else.** The live desktop has a second installer entry for the computer that is for another person. It runs the same offline install without the Users page, and the first boot asks the owner for a name, a login name, a password and the computer's name, in the installer's language, then restarts into the ordinary login screen and first-login setup (`ai-2 owner-setup`, in `ai2/owner.py`). The account is made the way the installer makes it: the same groups, sudo through wheel, root's password the same as the owner's. Until the owner answers, the login manager logs a temporary account into that question by itself; it has no password, a sudo rule for that one command and nothing else, and is removed with the answer. From Omarchy, whose installer can be left without personal details for the owner to fill in at first boot.
+
+### Fixed
+- **A search result no longer stops in the middle of a sentence.** Results are cut by word count, so one could end at "Do not try". The screen now finishes the sentence from the next part, in Search Knowledge, `ai-2 doc search` and `ai-2 gopher`. Installed packs do not change.
+- The German line about more Knowledge Packs said "Knowledge Wissenspakete".
 
 ## [0.22.0] - 2026-11-02
 ### Added
@@ -12,7 +29,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 - **First Aid is in the Knowledge Packs catalog.** `ai-2 knowledge browse` lists it and `ai-2 knowledge install first-aid` installs it: what to do in eleven medical emergencies, written from the IFRC 2025 guidelines and not reviewed by a clinician. It does not come with AI-2, and neither will other new packs. The three that do are there to show what a pack does.
 
 ### Changed
-- **A chat question nobody waits for any more stops sooner.** The model looks for a cancelled question only between batches of what it reads, and the default batch held the whole prompt. Chat servers now read 32 tokens at a time: on a 2011 laptop the model stopped 6 seconds after the connection closed instead of 47, and the first word came 1.6 seconds later (57.4 seconds, not 55.8). Embedding servers keep their own batch.
+- **A chat question nobody waits for any more stops sooner.** The model looks for a cancelled question only between batches of what it reads, and the default batch held the whole prompt. Chat servers now read 32 tokens at a time: on a 2011 laptop the model stopped 2 to 11 seconds after the connection closed, against 47 before, with about 15 as the limit, and the first word came 1.6 seconds later (57.4 seconds, not 55.8). Embedding servers keep their own batch.
 - **`ai-2 gopher` now uses port 7071 by default, not 7070.** The Gopher app keeps its saved-page companion on 7070, so the two could not run together. If other machines read your Knowledge Packs over Gopher, their address becomes `gopher://that-computer:7071/`, or run `ai-2 gopher --port 7070` to keep the old one. Nothing changes if you already choose your own port.
 
 ### Fixed
