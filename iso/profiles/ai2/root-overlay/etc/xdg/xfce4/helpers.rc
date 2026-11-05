@@ -9,6 +9,6 @@
 # No MailReader: the image has no mail program, and naming one that is not
 # installed only made Settings list an application that is not there.
 
-WebBrowser=epiphany
+WebBrowser=firefox-esr
 TerminalEmulator=xfce4-terminal
 FileManager=thunar

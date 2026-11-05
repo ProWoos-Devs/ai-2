@@ -28,7 +28,7 @@ Conversations are saved on this computer as you go, in `~/.local/share/ai2/chats
 
 The AI stops by itself when you have not used it for a while, or stop it now with `ai-2 stop`.
 
-**Applications > AI-2 > AI-2 Chat (Browser)**, or `ai-2 chat --browser`, opens a chat page in the browser instead. It is the slowest and heaviest of the three on an old computer, and it does not use the saved conversations. Its address bar says "Not Secure" because the page is served by your own computer at 127.0.0.1. Nothing leaves the machine, there is nothing to secure. If the page shows an error the first time, reload it.
+**Applications > AI-2 > AI-2 Chat (Browser)**, or `ai-2 chat --browser`, opens a chat page in the browser instead. It is the slowest and heaviest of the three on an old computer, and it does not use the saved conversations. Its address bar says "Not Secure" because the page is served by your own computer at 127.0.0.1. Nothing leaves the machine, there is nothing to secure. It opens in Firefox ESR, the browser AI-2 comes with.
 
 On a low-end PC the better way is **Applications > AI-2 > AI-2 Chat (Terminal)**, or:
 

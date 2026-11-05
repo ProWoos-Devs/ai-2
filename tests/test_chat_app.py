@@ -44,7 +44,7 @@ def test_no_display_stays_in_the_terminal(monkeypatch):
 def test_without_the_app_the_browser_opens_and_it_says_how_to_get_it(monkeypatch, capsys):
     _desktop(monkeypatch, app=None)
     assert cli._wants_chat_app(_args()) is False
-    opened = _record_popen(monkeypatch)
+    opened = _page_args(monkeypatch, None)
     monkeypatch.setattr(cli, "detect", lambda: SimpleNamespace(ram_mib=2048, cpu_variant="avx2"))
     monkeypatch.setattr(cli.remote, "load", lambda: None)
     monkeypatch.setattr(cli.runner, "_server_ready", lambda url: True)
@@ -52,6 +52,23 @@ def test_without_the_app_the_browser_opens_and_it_says_how_to_get_it(monkeypatch
     assert cli.main(["chat"]) == 0
     assert opened == [["xdg-open", "http://127.0.0.1:8080/"]]
     assert "sudo pacman -S ai-2-gopher" in capsys.readouterr().out
+
+
+def _page_args(monkeypatch, browser):
+    monkeypatch.setattr(cli, "_chat_browser", lambda: browser)
+    return _record_popen(monkeypatch)
+
+
+def test_the_page_opens_in_firefox_esr(monkeypatch):
+    opened = _page_args(monkeypatch, "/usr/bin/firefox-esr")
+    cli._open_chat_page("http://127.0.0.1:8080/")
+    assert opened == [["/usr/bin/firefox-esr", "http://127.0.0.1:8080/"]]
+
+
+def test_someone_who_removed_firefox_esr_gets_the_default_browser(monkeypatch):
+    opened = _page_args(monkeypatch, None)
+    cli._open_chat_page("http://127.0.0.1:8080/")
+    assert opened == [["xdg-open", "http://127.0.0.1:8080/"]]
 
 
 def _record_popen(monkeypatch, on_server=None):

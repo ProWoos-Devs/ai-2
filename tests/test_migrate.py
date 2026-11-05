@@ -183,3 +183,42 @@ def test_login_runs_the_migrations_first_and_the_package_ships_them():
     pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text(encoding="utf-8")
     assert 'install -m644 migrations/*.sh "$pkgdir/usr/share/ai2/migrations/"' in pkgbuild
     assert migrate.MIGRATIONS_DIR == "/usr/share/ai2/migrations"
+
+
+def _default_browser(home, tmp_path):
+    """Run the Firefox ESR migration with a fake firefox-esr on the path."""
+    fake = tmp_path / "bin"
+    fake.mkdir(exist_ok=True)
+    (fake / "firefox-esr").write_text("#!/bin/sh\n")
+    (fake / "firefox-esr").chmod(0o755)
+    env = {**os.environ, "PATH": f"{fake}:{os.environ['PATH']}"}
+    script = (SHIPPED / "20261105-01-firefox-esr-default-browser.sh").resolve()
+    return subprocess.run(["bash", "-euo", "pipefail", str(script)], env=env, cwd=home,
+                          capture_output=True, text=True, check=True).stdout
+
+
+def test_firefox_esr_becomes_the_default_on_an_account_that_chose_nothing(home, tmp_path):
+    assert "Firefox ESR" in _default_browser(home, tmp_path)
+    assert (home / ".config/xfce4/helpers.rc").read_text() == "WebBrowser=firefox-esr\n"
+    mime = (home / ".config/mimeapps.list").read_text()
+    assert mime.startswith("[Default Applications]\n")
+    for kind in ("x-scheme-handler/http", "x-scheme-handler/https", "text/html"):
+        assert f"{kind}=firefox-esr.desktop" in mime
+    assert _default_browser(home, tmp_path) == "", "a second run changes nothing and says nothing"
+
+
+def test_a_browser_the_account_chose_stays(home, tmp_path):
+    (home / ".config/xfce4").mkdir(parents=True)
+    (home / ".config/xfce4/helpers.rc").write_text("TerminalEmulator=x\nWebBrowser=epiphany\n")
+    (home / ".config/mimeapps.list").write_text(
+        "[Added Associations]\nimage/png=a.desktop\n\n[Default Applications]\n"
+        "x-scheme-handler/gopher=g.desktop\nx-scheme-handler/http=org.gnome.Epiphany.desktop\n")
+    _default_browser(home, tmp_path)
+    assert "WebBrowser=firefox-esr" not in (home / ".config/xfce4/helpers.rc").read_text()
+    mime = (home / ".config/mimeapps.list").read_text()
+    assert "x-scheme-handler/http=org.gnome.Epiphany.desktop" in mime
+    assert "x-scheme-handler/http=firefox" not in mime
+    assert "x-scheme-handler/gopher=g.desktop" in mime and "image/png=a.desktop" in mime
+    section = mime.split("[Default Applications]\n")[1]
+    assert "text/html=firefox-esr.desktop" in section, "what was not chosen goes in the right section"
+

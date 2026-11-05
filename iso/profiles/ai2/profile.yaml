@@ -25,7 +25,10 @@ rootfs:
   packages:
     # AI-2: nm-applet instead of connman-gtk (see services note above)
     - network-manager-applet
-    - epiphany
+    - firefox-esr
+    - firefox-esr-i18n-es-es
+    - firefox-esr-i18n-de
+    - firefox-esr-i18n-pl
     - gnome-keyring
     - lightdm-gtk-greeter
     - pavucontrol
@@ -36,15 +39,14 @@ rootfs:
     - mousepad
     # AI-2: w3m reads the knowledge packs another AI-2 machine serves with
     # `ai-2 gopher` (Gopher, which it speaks; links does not), and is a usable
-    # text browser for the web on a machine where Epiphany is heavy. 1.8 MB.
+    # text browser for the web on a machine where Firefox is heavy. 1.8 MB.
     - w3m
     - xfce4-notifyd
     - xfce4-pulseaudio-plugin
     - xfce4-screenshooter
     - xfce4-taskmanager
     # AI-2: the graphical package manager (Artix's own package of Manjaro's
-    # Add/Remove Software). Two packages and 4.5 MiB installed, because gtk4
-    # and libadwaita already come with epiphany and the polkit agent
+    # Add/Remove Software). It brings gtk4 and libadwaita, and the polkit agent
     # (polkit-gnome) with xfce4-session. Its update tray is hidden by the
     # ai-2 package's pacman hook; AI-2 does the notifying.
     - pamac

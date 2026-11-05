@@ -200,3 +200,31 @@ def test_the_chat_app_is_on_the_image_and_required():
     pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text()
     assert "'ai-2-gopher>=1.4.0'" in pkgbuild.split("checkdepends=")[0]
     assert "'ai-2-gopher:" not in pkgbuild
+
+
+def test_firefox_esr_is_the_browser_on_the_image_and_in_an_update():
+    """Rafael, 2026-11-05. Xfce needs the helper file, or the default opens nothing."""
+    prof = yaml.safe_load((ISO / "profile.yaml").read_text())
+    assert "firefox-esr" in prof["rootfs"]["packages"]
+    assert "epiphany" not in prof["rootfs"]["packages"]
+    assert "WebBrowser=firefox-esr" in (ISO / "root-overlay/etc/xdg/xfce4/helpers.rc").read_text()
+    pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text()
+    assert "'firefox-esr'" in pkgbuild.split("checkdepends=")[0]
+    assert "branding/xfce-helpers/firefox-esr.desktop" in pkgbuild
+    assert "X-XFCE-Binaries=firefox-esr;" in pathlib.Path("branding/xfce-helpers/firefox-esr.desktop").read_text()
+
+
+def test_firefox_speaks_the_installer_languages_and_reports_nothing():
+    """Firefox ignores a pack in Artix's folder until the policy loads it, so every
+    required pack must be named in both places (found on RMM-PC, 2026-11-05)."""
+    import json
+    pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text()
+    policies = json.loads(pathlib.Path("branding/firefox/policies.json").read_text())["policies"]
+    assert policies["DisableTelemetry"] is True and policies["DisableFirefoxStudies"] is True
+    prof = yaml.safe_load((ISO / "profile.yaml").read_text())["rootfs"]["packages"]
+    for package, locale in (("es-es", "es-ES"), ("de", "de"), ("pl", "pl")):
+        assert f"'firefox-esr-i18n-{package}'" in pkgbuild.split("checkdepends=")[0]
+        assert f"firefox-esr-i18n-{package}" in prof
+        ident = f"langpack-{locale}@firefox.mozilla.org"
+        assert policies["ExtensionSettings"][ident]["install_url"].endswith(f"/{ident}.xpi")
+    assert 'pref("intl.locale.requested", "");' in pathlib.Path("branding/firefox/ai2.js").read_text()

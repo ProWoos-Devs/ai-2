@@ -645,6 +645,7 @@ def _start_chat_server(args, hw, url: str) -> dict | None:
 
 
 CHAT_APP = "ai-2-gopher"
+CHAT_BROWSER = "firefox-esr"
 
 
 def _chat_app() -> str | None:
@@ -652,6 +653,24 @@ def _chat_app() -> str | None:
     a machine without it keeps the browser chat."""
     import shutil
     return shutil.which(CHAT_APP)
+
+
+def _chat_browser() -> str | None:
+    """Firefox ESR, which comes with AI-2 (Rafael, 2026-11-05). On RMM-PC, whose
+    CPU has no SSE4.1, the chat page crashed Epiphany's WebKit on 4 of 11 starts
+    and Firefox ESR on 0 of 8. Someone who removed it gets their default browser."""
+    import shutil
+    return shutil.which(CHAT_BROWSER)
+
+
+def _open_chat_page(url: str) -> None:
+    """Open the chat page in Firefox ESR, or the default browser without it."""
+    import subprocess
+    try:
+        subprocess.Popen([_chat_browser() or "xdg-open", url], stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    except FileNotFoundError:
+        print("Open that address in your browser.")
 
 
 def _wants_chat_app(args) -> bool:
@@ -792,11 +811,7 @@ def cmd_chat(args) -> int:
     if not args.no_browser:
         if not args.browser and _chat_app() is None:
             print(f"For chat without a browser:  sudo pacman -S {CHAT_APP}")
-        try:
-            subprocess.Popen(["xdg-open", url], stdin=subprocess.DEVNULL,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-        except FileNotFoundError:
-            print("Open that address in your browser.")
+        _open_chat_page(url)
     return 0
 
 

@@ -1,0 +1,22 @@
+{
+  "policies": {
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "ExtensionSettings": {
+      "langpack-es-ES@firefox.mozilla.org": {
+        "installation_mode": "force_installed",
+        "install_url": "file:///usr/lib/firefox-esr/extensions/langpack-es-ES@firefox.mozilla.org.xpi"
+      },
+      "langpack-de@firefox.mozilla.org": {
+        "installation_mode": "force_installed",
+        "install_url": "file:///usr/lib/firefox-esr/extensions/langpack-de@firefox.mozilla.org.xpi"
+      },
+      "langpack-pl@firefox.mozilla.org": {
+        "installation_mode": "force_installed",
+        "install_url": "file:///usr/lib/firefox-esr/extensions/langpack-pl@firefox.mozilla.org.xpi"
+      }
+    }
+  }
+}

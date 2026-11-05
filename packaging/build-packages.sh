@@ -83,14 +83,14 @@ for p in "${pkgs[@]}"; do
   # have installed, so -s would stop on "target not found".
   deps=(-s)
   case "$p" in ai2-help|ai2-everyday|ai2-linux-essentials) deps=(--nodeps);; esac
-  # ai-2 needs its own dependencies for check(), but not the app, which its
-  # tests never start and which may not be in [ai2] yet when both go out together.
+  # ai-2 needs its own dependencies for check(), but not the app or the browser,
+  # which its tests never start and which may not be in [ai2] yet when both go out together.
   if [ "$p" = ai-2 ]; then
     # Only what is missing, as -s does: installing one newer package over old
     # package lists is a partial upgrade (python without its expat, 2026-11-04).
     # pacman -T exits 127 when it lists something, which is not a failure here.
     ( . ./PKGBUILD; pacman -T "${depends[@]}" "${checkdepends[@]}" || true ) \
-      | sed '/^ai-2-gopher/d' | xargs -r sudo pacman -S --noconfirm
+      | sed '/^ai-2-gopher/d; /^firefox-esr/d' | xargs -r sudo pacman -S --noconfirm
     deps=(--nodeps)
   fi
   PKGDEST="$OUT" SRCDEST="$SRCDEST" makepkg "${deps[@]}" -f -C --noconfirm

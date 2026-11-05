@@ -4,6 +4,10 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-11-05
+### Changed
+- **Firefox ESR is AI-2's web browser.** An update installs it and makes it the default for each account, unless that account already chose a browser in Settings > Default Applications. Epiphany stays on a computer that has it and can be set back there; a new install no longer carries it (`ai-2 install browser` adds it). AI-2 Chat (Browser) opens in Firefox ESR: on a 2011 laptop with no SSE4.1 the chat page crashed Epiphany's WebKit on 4 of 11 starts and appeared after up to 70 seconds, and in Firefox ESR it crashed on none of 8 and appeared in 12 to 16 seconds. Answers on this page stay slow, because the model does that work. Firefox follows the computer's language, with English, Spanish, German and Polish included; others come from its Settings > Languages. Its telemetry and studies are turned off, and it opens no first-run privacy tab. The update is about an 85 MiB download and 294 MiB on disk.
+
 ## [0.24.0] - 2026-11-05
 ### Changed
 - **Three chat entries in the menu, in this order: AI-2 Chat (Gopher), AI-2 Chat (Terminal) and AI-2 Chat (Browser).** The browser page had no menu entry since 0.23.0. The Terminal entry and the first-login setup no longer call it the fastest, because the measurements only support the lightest.

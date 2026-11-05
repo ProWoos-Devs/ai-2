@@ -35,7 +35,7 @@ More on the catalog and how recommendations work: [[Models]].
 | Command | What it does |
 |---|---|
 | `ai-2 chat` | Chat with the local AI in the AI-2 Gopher app. A screen reader keeps the terminal chat. |
-| `ai-2 chat --browser` | The chat page in the browser instead of the app. |
+| `ai-2 chat --browser` | The chat page in Firefox ESR instead of the app. |
 | `ai-2 chat --terminal` | Chat right in the terminal, no browser around it: the fastest to appear, the lightest next to the model, and it works over SSH. Used automatically when there is no graphical display. `/new` starts a fresh conversation. |
 | `ai-2 serve` | llama-server on demand with the recommended model, an OpenAI-compatible API on `http://127.0.0.1:8080`, exits when idle. See [[Local API Server]]. |
 | `ai-2 stop` | Stop the local AI (and the document index server, and the Gopher server AI-2 Chat started) and free their memory. |
