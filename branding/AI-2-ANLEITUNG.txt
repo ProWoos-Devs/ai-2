@@ -107,8 +107,9 @@ MIT DER KI REDEN
 
 Alles, was AI-2 dem Menü hinzufügt, steht an einer Stelle, Anwendungen > AI-2.
 
-  Anwendungen > AI-2 > AI-2 Chat             der Chat in der App AI-2 Gopher
+  Anwendungen > AI-2 > AI-2 Chat (Gopher)    der Chat in der App AI-2 Gopher
   Anwendungen > AI-2 > AI-2 Chat (Terminal)  dieselbe KI in einem Terminal
+  Anwendungen > AI-2 > AI-2 Chat (Browser)   im Browser, am schwersten
 
 Auf einer langsamen Maschine oder mit wenig Speicher nimm besser die
 Terminal-Variante. Sie ist sofort da und lässt der KI den ganzen Speicher.

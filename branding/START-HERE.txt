@@ -128,8 +128,8 @@ you share one you made. Anyone can add a pack:
 
   https://github.com/ProWoos-Devs/ai2-knowledge
 
-Then talk to the AI: Applications > AI-2 > AI-2 Chat (or  ai-2 chat  in a
-terminal). It starts the local AI and opens the chat in the AI-2 Gopher
+Then talk to the AI: Applications > AI-2 > AI-2 Chat (Gopher) (or  ai-2 chat
+in a terminal). It starts the local AI and opens the chat in the AI-2 Gopher
 app. Type in the box at the bottom and press Enter. The AI stops by itself
 when you have not used it for a while. Conversations are saved on this
 computer, and "Earlier conversations" brings them back. Nothing leaves the

@@ -14,8 +14,8 @@
 # choice: /usr/lib/ai-2-gopher/gopher_reader_companion --install-browser-hosts
 
 pkgname=ai-2-gopher
-pkgver=1.4.0
-_build=7
+pkgver=1.5.0
+_build=8
 pkgrel=1
 pkgdesc="AI-2 Gopher, a Gopher browser for the desktop and the app AI-2 chats in"
 arch=('x86_64')
@@ -29,7 +29,7 @@ options=('!strip' '!debug')
 _name="$pkgname-$pkgver+$_build-linux-x86_64"
 source=("$_name.tar.gz::$url/releases/download/v$pkgver/$pkgname-$pkgver%2B$_build-linux-x86_64.tar.gz"
         'org.gopherclient.gopher_flutter_client.desktop')
-sha256sums=('30d7f3939c2d828c89de4b717e80e37372c68984e52584bc2d4d8523c421f241'
+sha256sums=('cadffecaa060553c0f669a5e04eecba33cb5dd6b4a0dfa9b858431ec509cd8cd'
             'SKIP')
 
 package() {

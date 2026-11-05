@@ -103,8 +103,9 @@ TALK TO THE AI
 
 Everything AI-2 adds to the menu sits in one place, Applications > AI-2.
 
-  Applications > AI-2 > AI-2 Chat             the chat in the AI-2 Gopher app
+  Applications > AI-2 > AI-2 Chat (Gopher)    the chat in the AI-2 Gopher app
   Applications > AI-2 > AI-2 Chat (Terminal)  the same AI in a terminal
+  Applications > AI-2 > AI-2 Chat (Browser)   in the browser, the heaviest
 
 On a slow machine or with little memory, prefer the terminal one. It appears
 instantly and leaves all the memory to the AI. It is also the one that works

@@ -4,6 +4,11 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-05
+### Changed
+- **Three chat entries in the menu, in this order: AI-2 Chat (Gopher), AI-2 Chat (Terminal) and AI-2 Chat (Browser).** The browser page had no menu entry since 0.23.0. The Terminal entry and the first-login setup no longer call it the fastest, because the measurements only support the lightest.
+- **AI-2 Gopher 1.5.0.** The app gains A- and A+ for the text size, Find on the page, and Export, which saves the page or the conversation as a text file in Downloads. A page saved from the browser opens on its article, with Article, Full page, Links and Original as buttons, as in the browser extension's reader. It is the app's own tested release file, pinned by checksum.
+
 ## [0.23.0] - 2026-11-04
 ### Changed
 - **AI-2 Chat opens the AI-2 Gopher app, with no browser.** The menu entry and `ai-2 chat` start `ai-2 gopher` for this computer if it is not running and open the app on its chat page. A screen reader keeps the terminal chat, because the app has not been tested with Orca. `ai-2 chat --browser` opens the browser page anyway, and `ai-2 stop` also ends a Gopher server that AI-2 Chat started.

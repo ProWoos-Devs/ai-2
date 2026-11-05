@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=AI-2 Chat (Browser)
+Name[es]=AI-2 Chat (navegador)
+Name[de]=AI-2 Chat (Browser)
+GenericName=Local AI assistant
+GenericName[es]=Asistente de IA local
+GenericName[de]=Lokaler KI-Assistent
+Comment=Chat in a web browser: the slowest on old PCs, without the saved conversations
+Comment[es]=Chat en el navegador: lo más lento en PC antiguos, sin las conversaciones guardadas
+Comment[de]=Chat im Browser: auf alten PCs am langsamsten, ohne die gespeicherten Gespräche
+Exec=ai-2 chat --browser
+Icon=ai2
+Terminal=true
+Categories=X-AI2;
+Keywords=AI;chat;assistant;LLM;browser;

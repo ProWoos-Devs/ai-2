@@ -138,11 +138,11 @@ donde compartes el que hayas creado. Cualquiera puede añadir uno:
 
   https://github.com/ProWoos-Devs/ai2-knowledge
 
-Después, habla con la IA: Aplicaciones > AI-2 Chat (o  ai-2 chat  en una
-terminal). Arranca la IA local y abre el chat en la aplicación AI-2 Gopher.
-Escribe en el cuadro de abajo y pulsa Intro. La IA se detiene sola cuando
-llevas un rato sin usarla. Las conversaciones se guardan en este ordenador,
-y "Conversaciones anteriores" las recupera. Nada sale de la máquina.
+Después, habla con la IA: Aplicaciones > AI-2 Chat (Gopher) (o  ai-2 chat
+en una terminal). Arranca la IA local y abre el chat en la aplicación AI-2
+Gopher. Escribe en el cuadro de abajo y pulsa Intro. La IA se detiene sola
+cuando llevas un rato sin usarla. Las conversaciones se guardan en este
+ordenador, y "Conversaciones anteriores" las recupera. Nada sale de la máquina.
 
 En una máquina lenta o con poca RAM, usa mejor "AI-2 Chat (terminal)" en
 el menú (o  ai-2 chat --terminal ). Es la misma IA sin un navegador

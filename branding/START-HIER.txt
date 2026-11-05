@@ -145,9 +145,9 @@ du ein eigenes. Jeder kann ein Paket hinzufügen:
 
   https://github.com/ProWoos-Devs/ai2-knowledge
 
-Dann rede mit der KI: Anwendungen > AI-2 Chat (oder  ai-2 chat  in einem
-Terminal). Es startet die lokale KI und öffnet den Chat in der App AI-2
-Gopher. Schreib in das Feld unten und drücke die Eingabetaste. Die KI hält
+Dann rede mit der KI: Anwendungen > AI-2 Chat (Gopher) (oder  ai-2 chat
+in einem Terminal). Es startet die lokale KI und öffnet den Chat in der App
+AI-2 Gopher. Schreib in das Feld unten und drücke die Eingabetaste. Die KI hält
 von selbst an, wenn du sie eine Weile nicht benutzt hast. Gespräche werden
 auf diesem Computer gespeichert, und "Frühere Gespräche" holt sie zurück.
 Nichts verlässt die Maschine.

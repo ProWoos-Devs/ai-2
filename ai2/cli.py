@@ -1421,7 +1421,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p_chat = sub.add_parser("chat", help="chat with the local AI: in the AI-2 Gopher app when installed, otherwise the browser page; --terminal for the lightest client")
     p_chat.add_argument("--terminal", action="store_true",
-                        help="chat in this terminal instead of the app (fastest, minimal memory, works over SSH)")
+                        help="chat in this terminal instead of the app (minimal memory, works over SSH)")
     p_chat.add_argument("-m", "--model", nargs="?", const=PICK_MODEL,
                          help="catalog id (default: the recommended model); with no value, choose from a list")
     p_chat.add_argument("--port", type=int, default=8080)

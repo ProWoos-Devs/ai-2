@@ -1,15 +1,15 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=AI-2 Chat
+Name=AI-2 Chat (Gopher)
 GenericName=Local AI assistant
 GenericName[es]=Asistente de IA local
 GenericName[de]=Lokaler KI-Assistent
-Comment=Talk to the AI (starts it if needed)
-Comment[es]=Habla con la IA (la arranca si hace falta)
-Comment[de]=Rede mit der KI (startet sie bei Bedarf)
+Comment=Chat in the AI-2 Gopher app, with your conversations saved
+Comment[es]=Chat en la aplicación AI-2 Gopher, con tus conversaciones guardadas
+Comment[de]=Chat in der App AI-2 Gopher, deine Gespräche werden gespeichert
 Exec=ai-2 chat
 Icon=ai2
 Terminal=true
 Categories=X-AI2;
-Keywords=AI;chat;assistant;LLM;
+Keywords=AI;chat;assistant;LLM;gopher;

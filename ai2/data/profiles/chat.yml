@@ -15,5 +15,5 @@ tiers:
     llama_server: {ctx: 2048}
   creator: {}   # nothing to narrow; the tier's own context applies
 usage:
-  - "ai-2 chat              the chat page in the browser (Applications > AI-2 > AI-2 Chat)"
+  - "ai-2 chat              the chat in the AI-2 Gopher app (Applications > AI-2 > AI-2 Chat (Gopher))"
   - "ai-2 chat --terminal   the same AI in a terminal, lightest"

@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 import pytest
 
 DESKTOP = pathlib.Path("branding/desktop")
-ENTRIES = ["ai2-chat", "ai2-chat-terminal", "ai2-guide", "ai2-software-updates", "ai2-about", "ai2-search",
+ENTRIES = ["ai2-chat", "ai2-chat-terminal", "ai2-chat-browser", "ai2-guide", "ai2-software-updates", "ai2-about", "ai2-search",
            "ai2-packs"]
 CATEGORY = "X-AI2"
 
@@ -113,6 +113,17 @@ def test_every_visible_entry_has_a_fixed_place_in_the_submenu():
     root = ET.parse(DESKTOP / "ai2.menu").getroot()
     sub = next(m for m in root.findall("Menu") if m.find("Name").text == "AI-2")
     listed = [c.text.strip().removesuffix(".desktop") for c in sub.find("Layout") if c.tag == "Filename"]
-    assert listed == ["ai2-about", "ai2-search", "ai2-packs", "ai2-chat", "ai2-chat-terminal",
+    assert listed == ["ai2-about", "ai2-search", "ai2-packs", "ai2-chat", "ai2-chat-terminal", "ai2-chat-browser",
                       "ai2-guide", "ai2-software-updates"]
     assert sorted(listed) == sorted(ENTRIES)
+
+
+def test_each_chat_entry_says_where_it_opens_and_runs_that_chat():
+    """Three entries, Gopher, Terminal, Browser (Rafael, 2026-11-04). The app is
+    `ai-2 chat` with no flag, so a screen reader still gets the terminal."""
+    wanted = {"ai2-chat": ("AI-2 Chat (Gopher)", "ai-2 chat"),
+              "ai2-chat-terminal": ("AI-2 Chat (Terminal)", "ai-2 chat --terminal"),
+              "ai2-chat-browser": ("AI-2 Chat (Browser)", "ai-2 chat --browser")}
+    for name, (label, command) in wanted.items():
+        entry = _entry(name)
+        assert (entry["Name"], entry["Exec"]) == (label, command)

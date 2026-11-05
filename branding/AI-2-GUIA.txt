@@ -109,8 +109,9 @@ HABLAR CON LA IA
 
 Todo lo que AI-2 añade al menú está en un solo sitio, Aplicaciones > AI-2.
 
-  Aplicaciones > AI-2 > AI-2 Chat             el chat en AI-2 Gopher
+  Aplicaciones > AI-2 > AI-2 Chat (Gopher)    el chat en AI-2 Gopher
   Aplicaciones > AI-2 > AI-2 Chat (terminal)  la misma IA en una terminal
+  Aplicaciones > AI-2 > AI-2 Chat (navegador) en el navegador, lo más pesado
 
 En una máquina lenta o con poca memoria, usa mejor la versión de terminal.
 Aparece al instante y deja toda la memoria para la IA. Es también la que

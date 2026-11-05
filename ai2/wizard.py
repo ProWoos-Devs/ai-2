@@ -375,15 +375,15 @@ class Wizard:
         tiers = load_tiers()
         config = resolve_config(assign(hw, tiers), tiers)
         if (config.get("runtime") or {}).get("service") == "on-demand":
-            self.say(tr("  To talk to the AI:   ai-2 chat --terminal   (recommended on this machine: fastest, lightest)\n"
-                        "  In its own window:   ai-2 chat              (or the 'AI-2 Chat' entry in the menu)\n"
+            self.say(tr("  To talk to the AI:   ai-2 chat --terminal   (recommended on this machine: the lightest)\n"
+                        "  In its own window:   ai-2 chat              (or the 'AI-2 Chat (Gopher)' entry in the menu)\n"
                         "  For programs (API):  ai-2 serve             OpenAI-compatible, http://127.0.0.1:8080/\n"
                         "  This setup again:    ai-2 wizard\n"
                         "  More programs:       ai-2 install           (or 'Add/Remove Software' in the menu)\n"
                         "  Update everything:   ai-2 update            (or 'Software Updates' in the menu)\n"
                         "  The guide:           ai-2 guide             (or 'AI-2 Guide' in the menu)"))
         else:
-            self.say(tr("  To talk to the AI:   ai-2 chat              (its own window; or the 'AI-2 Chat' entry in the menu)\n"
+            self.say(tr("  To talk to the AI:   ai-2 chat              (its own window; or the 'AI-2 Chat (Gopher)' entry in the menu)\n"
                         "  In the terminal:     ai-2 chat --terminal   (lightest, works over SSH)\n"
                         "  For programs (API):  ai-2 serve             OpenAI-compatible, http://127.0.0.1:8080/\n"
                         "  This setup again:    ai-2 wizard\n"

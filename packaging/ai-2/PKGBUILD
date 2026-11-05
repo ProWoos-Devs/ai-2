@@ -7,7 +7,7 @@
 # (git archive of www/ai-2), so a package always maps to a commit.
 
 pkgname=ai-2
-pkgver=0.23.0
+pkgver=0.24.0
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
@@ -53,6 +53,7 @@ package() {
   install -Dm644 branding/desktop/ai2-setup.desktop "$pkgdir/etc/xdg/autostart/ai2-setup.desktop"
   install -Dm644 branding/desktop/ai2-chat.desktop "$pkgdir/usr/share/applications/ai2-chat.desktop"
   install -Dm644 branding/desktop/ai2-chat-terminal.desktop "$pkgdir/usr/share/applications/ai2-chat-terminal.desktop"
+  install -Dm644 branding/desktop/ai2-chat-browser.desktop "$pkgdir/usr/share/applications/ai2-chat-browser.desktop"
   install -Dm644 branding/desktop/ai2-guide.desktop "$pkgdir/usr/share/applications/ai2-guide.desktop"
   # hidden by TryExec when pamac is not installed
   install -Dm644 branding/desktop/ai2-software-updates.desktop "$pkgdir/usr/share/applications/ai2-software-updates.desktop"
