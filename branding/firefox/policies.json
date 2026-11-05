@@ -4,6 +4,10 @@
     "DisableFirefoxStudies": true,
     "OverrideFirstRunPage": "",
     "OverridePostUpdatePage": "",
+    "FirefoxHome": {
+      "SponsoredTopSites": false,
+      "SponsoredStories": false
+    },
     "ExtensionSettings": {
       "langpack-es-ES@firefox.mozilla.org": {
         "installation_mode": "force_installed",

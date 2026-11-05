@@ -221,6 +221,7 @@ def test_firefox_speaks_the_installer_languages_and_reports_nothing():
     pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text()
     policies = json.loads(pathlib.Path("branding/firefox/policies.json").read_text())["policies"]
     assert policies["DisableTelemetry"] is True and policies["DisableFirefoxStudies"] is True
+    assert policies["FirefoxHome"] == {"SponsoredTopSites": False, "SponsoredStories": False}
     prof = yaml.safe_load((ISO / "profile.yaml").read_text())["rootfs"]["packages"]
     for package, locale in (("es-es", "es-ES"), ("de", "de"), ("pl", "pl")):
         assert f"'firefox-esr-i18n-{package}'" in pkgbuild.split("checkdepends=")[0]
