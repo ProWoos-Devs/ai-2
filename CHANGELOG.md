@@ -4,6 +4,10 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-06
+### Added
+- **Firefox comes with Gopher Reader, the >_ button on its toolbar.** It turns the page you are on into plain text with numbered links, and **Open in Gopher app** saves that copy into the AI-2 Gopher app, where it can be read after Firefox is closed and without the internet. It is the extension as published on addons.mozilla.org (1.1.1), installed once into each Firefox profile, and Remove in Firefox's Add-ons keeps it removed. The connection to the app works for every account with no setup (AI-2 Gopher 1.5.0-2).
+
 ## [0.25.2] - 2026-11-06
 ### Changed
 - **The START HERE guide, in English, Spanish and German, is up to date with the installer and the menu.** It now lists all four choices on the installer's disk page, including "Replace a partition", under the names the installer shows in each language, and describes AI-2 Chat (Browser) next to the Gopher and Terminal entries. The Spanish and German guides no longer call the terminal chat "the same AI without a browser", which stopped being the difference in 0.23.0, and give the full menu path for the chat and the guide.

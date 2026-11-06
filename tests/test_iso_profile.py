@@ -198,7 +198,7 @@ def test_the_chat_app_is_on_the_image_and_required():
     prof = yaml.safe_load((ISO / "profile.yaml").read_text())
     assert "ai-2-gopher" in prof["rootfs"]["packages"]
     pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text()
-    assert "'ai-2-gopher>=1.4.0'" in pkgbuild.split("checkdepends=")[0]
+    assert "'ai-2-gopher>=1.5.0-2'" in pkgbuild.split("checkdepends=")[0]
     assert "'ai-2-gopher:" not in pkgbuild
 
 
@@ -229,6 +229,26 @@ def test_firefox_speaks_the_installer_languages_and_reports_nothing():
         ident = f"langpack-{locale}@firefox.mozilla.org"
         assert policies["ExtensionSettings"][ident]["install_url"].endswith(f"/{ident}.xpi")
     assert 'pref("intl.locale.requested", "");' in pathlib.Path("branding/firefox/ai2.js").read_text()
+
+
+def test_gopher_reader_is_a_removable_toolbar_extension():
+    """Rafael, 2026-11-06: "add it as a removable install". Tested in QEMU:
+    Extensions.Install puts it in each profile once and Remove sticks, while
+    ExtensionSettings force_installed or normal_installed would forbid removing it;
+    default_area puts the button on the toolbar instead of the Extensions menu.
+    The file and the browser connection come from ai-2-gopher."""
+    import json
+    ident = "gopher-reader@rafael-minuesa.github.io"
+    xpi = "/usr/lib/ai-2-gopher/gopher-reader.xpi"
+    policies = json.loads(pathlib.Path("branding/firefox/policies.json").read_text())["policies"]
+    assert policies["Extensions"] == {"Install": [xpi]}
+    assert policies["ExtensionSettings"][ident] == {"installation_mode": "allowed", "default_area": "navbar"}
+    gopher = pathlib.Path("packaging/ai-2-gopher/PKGBUILD").read_text()
+    assert f'"$pkgdir{xpi.replace("ai-2-gopher", "$pkgname")}"' in gopher
+    assert "/usr/lib/mozilla/native-messaging-hosts/org.gopherclient.reader.json" in gopher
+    host = json.loads(pathlib.Path("packaging/ai-2-gopher/org.gopherclient.reader.json").read_text())
+    assert host["name"] == "org.gopherclient.reader" and host["allowed_extensions"] == [ident]
+    assert host["path"] == "/usr/lib/ai-2-gopher/gopher_reader_companion"
 
 
 def test_start_here_names_every_installer_choice_and_chat_entry():

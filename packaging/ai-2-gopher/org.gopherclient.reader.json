@@ -1,0 +1,7 @@
+{
+  "name": "org.gopherclient.reader",
+  "description": "Gopher Reader local library",
+  "path": "/usr/lib/ai-2-gopher/gopher_reader_companion",
+  "type": "stdio",
+  "allowed_extensions": ["gopher-reader@rafael-minuesa.github.io"]
+}

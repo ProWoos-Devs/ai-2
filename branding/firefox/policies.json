@@ -20,7 +20,16 @@
       "langpack-pl@firefox.mozilla.org": {
         "installation_mode": "force_installed",
         "install_url": "file:///usr/lib/firefox-esr/extensions/langpack-pl@firefox.mozilla.org.xpi"
+      },
+      "gopher-reader@rafael-minuesa.github.io": {
+        "installation_mode": "allowed",
+        "default_area": "navbar"
       }
+    },
+    "Extensions": {
+      "Install": [
+        "/usr/lib/ai-2-gopher/gopher-reader.xpi"
+      ]
     }
   }
 }

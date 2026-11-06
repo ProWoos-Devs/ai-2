@@ -52,6 +52,12 @@ ai-2 chat            # start the local AI and open the chat page
 
 The full list is on [[Commands]]. Every command has `--help`, and `AI-2` works as a synonym for `ai-2` everywhere.
 
+## Read a web page as text
+
+Firefox comes with **Gopher Reader**, the **>_** button on its toolbar (or Alt+Shift+0). It turns the page you are on into plain text with numbered links, on the article alone or the full page. **Open in Gopher app** saves that copy and opens it in the AI-2 Gopher app, so you can close Firefox, which is the heaviest program on an old computer, and keep reading. Saved pages stay in the app's **Saved web pages** without the internet. Nothing is sent anywhere; the copy is made from the page already loaded.
+
+You can remove it in Firefox under Menu > Add-ons and themes > Extensions, and it does not come back.
+
 ## Staying up to date
 
 AI-2, the AI engine and the model catalog all update the normal Artix/Arch way, from AI-2's signed package repository that is already configured. One command, or Applications > AI-2 > Software Updates:

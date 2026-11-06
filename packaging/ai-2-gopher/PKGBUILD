@@ -10,13 +10,18 @@
 # The desktop entry keeps the app's old ID on purpose. It is the window's
 # application ID and names the folder holding a person's bookmarks and history.
 #
-# Browser connections stay per person, because the extension is a person's
-# choice: /usr/lib/ai-2-gopher/gopher_reader_companion --install-browser-hosts
+# Gopher Reader comes with it for Firefox (Rafael, 2026-11-06, "add it as a
+# removable install"): the extension file as Mozilla signed it on
+# addons.mozilla.org, pinned by checksum, which ai-2's Firefox policy installs
+# from /usr/lib/ai-2-gopher/gopher-reader.xpi into each profile once, where
+# Remove in Add-ons sticks. The browser connection is system-wide in Firefox's
+# folder, so "Open in Gopher app" works for every account with no step of its
+# own.
 
 pkgname=ai-2-gopher
 pkgver=1.5.0
 _build=8
-pkgrel=1
+pkgrel=2
 pkgdesc="AI-2 Gopher, a Gopher browser for the desktop and the app AI-2 chats in"
 arch=('x86_64')
 url="https://github.com/rafael-minuesa/AI-2-gopher"
@@ -27,9 +32,15 @@ depends=('at-spi2-core' 'cairo' 'fontconfig' 'gcc-libs' 'gdk-pixbuf2' 'glib2' 'g
 # the file, and libapp.so holds the compiled app. Both are shipped as tested.
 options=('!strip' '!debug')
 _name="$pkgname-$pkgver+$_build-linux-x86_64"
+_reader=1.1.1
 source=("$_name.tar.gz::$url/releases/download/v$pkgver/$pkgname-$pkgver%2B$_build-linux-x86_64.tar.gz"
-        'org.gopherclient.gopher_flutter_client.desktop')
+        'org.gopherclient.gopher_flutter_client.desktop'
+        "gopher_reader-$_reader.xpi::https://addons.mozilla.org/firefox/downloads/file/5156726/gopher_reader-$_reader.xpi"
+        'org.gopherclient.reader.json')
+noextract=("gopher_reader-$_reader.xpi")
 sha256sums=('cadffecaa060553c0f669a5e04eecba33cb5dd6b4a0dfa9b858431ec509cd8cd'
+            'SKIP'
+            'e487de031d256f37519361b827f335df282b3f645b512ebc8a9ad6733212a2a8'
             'SKIP')
 
 package() {
@@ -43,4 +54,8 @@ package() {
   install -Dm644 "$srcdir/org.gopherclient.gopher_flutter_client.desktop" \
     "$pkgdir/usr/share/applications/org.gopherclient.gopher_flutter_client.desktop"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+  install -Dm644 "$srcdir/gopher_reader-$_reader.xpi" "$pkgdir/usr/lib/$pkgname/gopher-reader.xpi"
+  install -Dm644 "$srcdir/org.gopherclient.reader.json" \
+    "$pkgdir/usr/lib/mozilla/native-messaging-hosts/org.gopherclient.reader.json"
 }
