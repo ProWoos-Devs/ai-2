@@ -29,6 +29,9 @@ packs:
   parts: 107
   built_with: ai-2 0.16.0
   contact: ProWoos-Devs
+  categories:
+  - 01.04.04
+  audience: general
 - id: everyday
   title: Everyday Reference
   description: 196 countries with their capitals, currencies, official languages and country codes, from Wikidata
@@ -47,6 +50,10 @@ packs:
   parts: 196
   built_with: ai-2 0.21.0
   contact: ProWoos-Devs
+  categories:
+  - '15.01'
+  - '01.02'
+  audience: general
 - id: first-aid
   title: First Aid
   description: What to do in eleven medical emergencies with no training and possibly no help coming, written from IFRC 2025,
@@ -66,6 +73,9 @@ packs:
   parts: 123
   built_with: ai-2 0.21.0
   contact: ProWoos-Devs
+  categories:
+  - '13.12'
+  audience: general
 - id: linux-essentials
   title: Linux Essentials
   description: Twenty everyday tasks on a Linux machine, written for AI-2 (runit, not systemd)
@@ -83,3 +93,6 @@ packs:
   parts: 40
   built_with: ai-2 0.16.0
   contact: ProWoos-Devs
+  categories:
+  - 01.04.04
+  audience: general

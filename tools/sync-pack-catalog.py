@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Refresh ai2/data/packs.yml from the community catalog.
+"""Refresh ai2/data/packs.yml from the community catalog, and
+ai2/data/pack-categories.yml from the categories file beside it.
 
 The ai-2 package carries a copy of the community catalog, and a pack is
 installed by name only from that copy, because the signature on the package is
@@ -25,6 +26,16 @@ import yaml
 
 SOURCE = "https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/catalog/community.yml"
 TARGET = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ai2", "data", "packs.yml")
+# The categories, audiences and age ranges the entries' codes refer to. Copied
+# with the catalog so the list a release shows can name what it lists.
+CATEGORIES_SOURCE = SOURCE.rsplit("/", 1)[0] + "/categories.yml"
+CATEGORIES_TARGET = os.path.join(os.path.dirname(TARGET), "pack-categories.yml")
+CATEGORIES_HEADER = """# The categories, audiences and age ranges of Knowledge Packs, a copy of
+# https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/catalog/categories.yml
+# The entries in packs.yml name their categories by these codes.
+#
+# Do not edit by hand. tools/sync-pack-catalog.py writes it before a release.
+"""
 HEADER = """# Knowledge Packs AI-2 can install by name (`ai-2 knowledge install ID`).
 #
 # This is a copy of the AI-2 community catalog, which lists every pack, the
@@ -40,20 +51,49 @@ HEADER = """# Knowledge Packs AI-2 can install by name (`ai-2 knowledge install 
 """
 
 
+def read(where: str) -> str:
+    if where.startswith("https://"):
+        with urllib.request.urlopen(where, timeout=30) as r:
+            return r.read().decode("utf-8")
+    return open(where, encoding="utf-8").read()
+
+
+def categories(where: str, check: bool) -> int:
+    """Copy (or with --check compare) the categories file."""
+    data = yaml.safe_load(read(where)) or {}
+    if data.get("version") != 1 or not data.get("categories"):
+        print(f"error: {where} is not a version 1 categories file")
+        return 1
+    body = yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=120)
+    if check:
+        here = open(CATEGORIES_TARGET, encoding="utf-8").read() if os.path.isfile(CATEGORIES_TARGET) else ""
+        if here == CATEGORIES_HEADER + body:
+            print(f"{CATEGORIES_TARGET} is the categories file as it stands")
+            return 0
+        print(f"{CATEGORIES_TARGET} is not the categories file as it stands; run: python3 tools/sync-pack-catalog.py")
+        return 1
+    open(CATEGORIES_TARGET, "w", encoding="utf-8").write(CATEGORIES_HEADER + body)
+    print(f"{CATEGORIES_TARGET}: {len(data['categories'])} categories")
+    return 0
+
+
 def main() -> int:
     check = "--check" in sys.argv[1:]
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    if args:
-        text = open(args[0], encoding="utf-8").read()
-    else:
-        try:
-            with urllib.request.urlopen(SOURCE, timeout=30) as r:
-                text = r.read().decode("utf-8")
-        except OSError as exc:
-            if check:
-                print(f"could not read the catalog ({exc}); not checked")
-                return 2
-            raise
+    source = args[0] if args else SOURCE
+    cats_source = os.path.join(os.path.dirname(args[0]), "categories.yml") if args else CATEGORIES_SOURCE
+    try:
+        text = read(source)
+        rc = categories(cats_source, check)
+    except OSError as exc:
+        if check:
+            print(f"could not read the catalog ({exc}); not checked")
+            return 2
+        raise
+    return max(rc, packs_step(text, check))
+
+
+def packs_step(text: str, check: bool) -> int:
     data = yaml.safe_load(text) or {}
     packs = data.get("packs") or []
     if data.get("version") != 1 or not packs:

@@ -144,8 +144,16 @@ def cmd_knowledge(args) -> int:
                 print(f"The community catalog, to get packs and to share one you made:  {packmod.CATALOG_URL}")
                 return 0
             installed = {m.get("id"): m for _, m in packmod.installed_packs()}
+            from . import packbrowse
+            cats = packmod.load_categories()
+            entries = packbrowse.ordered(entries, cats["categories"])
+            grouped = bool(cats["categories"]) and any(packbrowse.main_code(e) for e in entries)
             print("Knowledge packs (ai-2 knowledge install ID):")
+            last = None
             for e in entries:
+                if grouped and packbrowse.heading(e, cats["categories"]) != last:
+                    last = packbrowse.heading(e, cats["categories"])
+                    print(f"\n{last}")
                 here = installed.get(e["id"])
                 if here is None:
                     state = ""
@@ -159,6 +167,8 @@ def cmd_knowledge(args) -> int:
                       f"{e.get('license')}{by}){state}")
                 if e.get("description"):
                     print(f"  {'':<22} {e['description']}")
+                if grouped and packbrowse.classified(e, cats):
+                    print(f"  {'':<22} {packbrowse.classified(e, cats)}")
             # One catalog, the community's, with the project's own packs in it.
             # What is fetched by name is the copy of it inside the signed
             # package; a pack added to the catalog since is installed from its

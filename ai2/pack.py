@@ -419,6 +419,26 @@ def load_catalog() -> list[dict]:
     return list((data or {}).get("packs") or [])
 
 
+def load_categories(lang: str | None = None) -> dict:
+    """The names behind the codes in the catalog entries, from the copy of
+    the categories file that ships beside the catalog: {"categories": {code:
+    name}, "ages": {id: name}}, in `lang` where the file has that language and
+    in English otherwise. Empty when the copy is missing (an ai-2 built before
+    categories existed), so the list simply shows no headings."""
+    from .i18n import _lang
+    lang = lang or _lang()
+    try:
+        text = importlib.resources.files("ai2").joinpath("data/pack-categories.yml").read_text()
+        data = yaml.safe_load(text) or {}
+    except (OSError, yaml.YAMLError):
+        return {"categories": {}, "ages": {}}
+
+    def names(rows, key):
+        return {str(r[key]): str(r.get(lang) or r.get("en") or r[key])
+                for r in rows or [] if isinstance(r, dict) and r.get(key) is not None}
+    return {"categories": names(data.get("categories"), "code"), "ages": names(data.get("ages"), "id")}
+
+
 def catalog_entry(pack_id: str) -> dict | None:
     return next((p for p in load_catalog() if p.get("id") == pack_id), None)
 

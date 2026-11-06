@@ -206,5 +206,8 @@
   "the whole of {document}": "{document} vollständig",
   "Busy answering another question, try again in a moment": "Beantworte gerade eine andere Frage, versuche es gleich noch einmal",
   "No chat model on this computer yet. Run:  ai-2 wizard": "Auf diesem Computer gibt es noch kein Chat-Modell. Führe aus:  ai-2 wizard",
-  "The AI could not start. See:  ai-2 doctor": "Die KI konnte nicht starten. Siehe:  ai-2 doctor"
+  "The AI could not start. See:  ai-2 doctor": "Die KI konnte nicht starten. Siehe:  ai-2 doctor",
+  "Not classified": "Nicht eingeordnet",
+  "for children": "für Kinder",
+  "for children: {ages}": "für Kinder: {ages}"
 }

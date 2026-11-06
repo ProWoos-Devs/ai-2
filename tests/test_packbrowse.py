@@ -149,3 +149,57 @@ def test_the_menu_entry_opens_a_window_big_enough_for_the_list(monkeypatch):
     assert cli.main(["knowledge", "browse", "--window"]) == 0
     assert opened == [["xfce4-terminal", "--title=Knowledge Packs", "--geometry=100x38", "--hide-menubar", "--disable-server",
                        "-x", "ai-2", "knowledge", "browse"]]
+
+
+CATS = {"categories": {"01": "Information, computing and communication", "01.04": "Computing",
+                       "01.04.04": "Operating systems", "11": "Formal and natural sciences",
+                       "11.01": "Mathematics", "13": "Medicine and health", "13.12": "First aid and emergency care"},
+        "ages": {"school-age": "Middle childhood, 6 to 9 years", "preteen": "Pre-teen, 10 to 12 years"}}
+CLASSIFIED = [
+    dict(CATALOG[0], categories=["01.04.04"], audience="general"),
+    {"id": "first-aid", "title": "First Aid", "categories": ["13.12"], "parts": 123, "size_bytes": 1000,
+     "languages": ["en"], "license": "MIT", "revision": 2},
+    {"id": "basic-maths", "title": "Basic Maths", "categories": ["11.01"], "audience": "children",
+     "ages": ["school-age", "preteen"], "parts": 40, "size_bytes": 1000, "languages": ["en"],
+     "license": "MIT", "revision": 1},
+    dict(CATALOG[2]),                                   # an entry from before categories existed
+]
+
+
+def test_packs_are_listed_under_their_class_and_numbered_in_that_order():
+    shown = packbrowse.ordered(CLASSIFIED, CATS["categories"])
+    assert [e["id"] for e in shown] == ["ai2-help", "basic-maths", "first-aid", "recipes"]
+    out = packbrowse.render(shown, {}, 96, CATS)
+    lines = out.split("\n")
+    assert lines.index("Information, computing and communication") < lines.index("   1  ai2-help             AI-2 Help")
+    assert "Formal and natural sciences" in out and "Medicine and health" in out
+    assert "Not classified" in out.split("recipes")[0], "an entry with no category goes last, under its own heading"
+    assert "      Operating systems" in out and "      First aid and emergency care" in out
+    assert "Mathematics. for children: Middle childhood, 6 to 9 years; Pre-teen, 10 to 12 years" in out
+    assert all(len(line) <= 100 for line in lines)
+
+
+def test_a_typed_number_installs_the_pack_shown_at_that_number(monkeypatch):
+    monkeypatch.setattr(pack, "load_catalog", lambda: CLASSIFIED)
+    monkeypatch.setattr(pack, "load_categories", lambda lang=None: CATS)
+    monkeypatch.setattr(pack, "installed_packs", lambda: [])
+    installs, answers = [], ["2", ""]
+    packbrowse.browse(lambda e: installs.append(e["id"]) or 0, lambda e: None,
+                      ask=lambda prompt: answers.pop(0), say=lambda text: None)
+    assert installs == ["basic-maths"]
+
+
+def test_without_categories_the_list_is_the_catalog_as_it_was():
+    plain = {"categories": {}, "ages": {}}
+    assert packbrowse.ordered(CATALOG, {}) == CATALOG
+    out = packbrowse.render(CATALOG, {}, 96, plain)
+    assert "Not classified" not in out and out.startswith("   1  ai2-help")
+
+
+def test_the_shipped_categories_name_every_code_the_shipped_catalog_uses():
+    cats = pack.load_categories("en")
+    assert len(cats["categories"]) > 100 and "school-age" in cats["ages"]
+    for entry in pack.load_catalog():
+        assert entry.get("categories"), f"{entry['id']} has no category"
+        for code in entry["categories"]:
+            assert str(code) in cats["categories"], f"{entry['id']}: {code} is not in pack-categories.yml"

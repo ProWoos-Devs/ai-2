@@ -1,0 +1,461 @@
+# The categories, audiences and age ranges of Knowledge Packs, a copy of
+# https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/catalog/categories.yml
+# The entries in packs.yml name their categories by these codes.
+#
+# Do not edit by hand. tools/sync-pack-catalog.py writes it before a release.
+version: 1
+audiences:
+- id: general
+  en: Everyone
+- id: children
+  en: Children
+ages:
+- id: infant
+  en: Infant, under 1 year
+- id: toddler
+  en: Toddler, 1 to 2 years
+- id: preschool
+  en: Preschooler, 3 to 5 years
+- id: school-age
+  en: Middle childhood, 6 to 9 years
+- id: preteen
+  en: Pre-teen, 10 to 12 years
+categories:
+- code: '01'
+  en: Information, computing and communication
+- code: '01.01'
+  en: Libraries and archives
+- code: '01.02'
+  en: Reference works (encyclopedias, dictionaries, almanacs)
+- code: '01.03'
+  en: Information science
+- code: '01.04'
+  en: Computing
+- code: 01.04.01
+  en: Hardware
+- code: 01.04.02
+  en: Software and applications
+- code: 01.04.03
+  en: Programming
+- code: 01.04.04
+  en: Operating systems
+- code: 01.04.05
+  en: Databases
+- code: 01.04.06
+  en: Artificial intelligence
+- code: 01.04.07
+  en: Networks
+- code: 01.04.08
+  en: Distributed computing
+- code: '01.05'
+  en: Internet and digital technology
+- code: '01.06'
+  en: Journalism and media
+- code: '01.07'
+  en: Advertising and public relations
+- code: '01.08'
+  en: Museums and documentary heritage
+- code: '02'
+  en: Philosophy
+- code: '02.01'
+  en: Metaphysics and ontology
+- code: '02.02'
+  en: Epistemology and logic
+- code: '02.03'
+  en: Ethics
+- code: '02.04'
+  en: Aesthetics
+- code: '02.05'
+  en: Political and social philosophy
+- code: '02.06'
+  en: Schools of thought
+- code: '02.07'
+  en: Philosophy by period
+- code: '03'
+  en: Religion, mythology and belief
+- code: '03.01'
+  en: Theology and doctrine
+- code: '03.02'
+  en: Christianity
+- code: '03.03'
+  en: Judaism
+- code: '03.04'
+  en: Islam
+- code: '03.05'
+  en: Eastern religions
+- code: '03.06'
+  en: Indigenous and ancient religions
+- code: '03.07'
+  en: Religious institutions and orders
+- code: '03.08'
+  en: Rites and practices
+- code: '03.09'
+  en: Mythology
+- code: '03.10'
+  en: Folk belief and new religious movements
+- code: '04'
+  en: Social sciences and politics
+- code: '04.01'
+  en: Sociology
+- code: '04.02'
+  en: Anthropology and ethnology
+- code: '04.03'
+  en: Psychology
+- code: '04.04'
+  en: Political science
+- code: '04.05'
+  en: Government and political institutions
+- code: '04.06'
+  en: Public administration
+- code: '04.07'
+  en: Political parties and movements
+- code: '04.08'
+  en: International relations
+- code: '04.09'
+  en: Demography
+- code: '04.10'
+  en: Public opinion
+- code: '04.11'
+  en: Community organization and mutual aid
+- code: '05'
+  en: Law
+- code: '05.01'
+  en: Theory and philosophy of law
+- code: '05.02'
+  en: Constitutional law
+- code: '05.03'
+  en: Civil law
+- code: '05.04'
+  en: Criminal law
+- code: '05.05'
+  en: Administrative law
+- code: '05.06'
+  en: Commercial law
+- code: '05.07'
+  en: International law
+- code: '05.08'
+  en: Labor law
+- code: '05.09'
+  en: History of law
+- code: '05.10'
+  en: Courts and judicial institutions
+- code: '06'
+  en: Economics, business and work
+- code: '06.01'
+  en: Economic theory
+- code: '06.02'
+  en: Macroeconomics
+- code: '06.03'
+  en: Microeconomics
+- code: '06.04'
+  en: Economic history
+- code: '06.05'
+  en: Finance and banking
+- code: '06.06'
+  en: Business and management
+- code: '06.07'
+  en: Accounting
+- code: '06.08'
+  en: Trade and marketing
+- code: '06.09'
+  en: Work and labor relations
+- code: '06.10'
+  en: Economic sectors
+- code: '06.11'
+  en: Barter and local exchange
+- code: '07'
+  en: Education
+- code: '07.01'
+  en: Pedagogy and educational theory
+- code: '07.02'
+  en: Education systems and policy
+- code: '07.03'
+  en: Educational institutions
+- code: '07.04'
+  en: Higher education
+- code: '07.05'
+  en: Primary and secondary education
+- code: '07.06'
+  en: History of education
+- code: '07.07'
+  en: Teaching methods
+- code: '07.08'
+  en: Special and non-formal education
+- code: '07.09'
+  en: Teaching without a school
+- code: 08
+  en: Language and literature
+- code: '08.01'
+  en: Linguistics
+- code: '08.02'
+  en: Grammar, phonetics and spelling
+- code: '08.03'
+  en: Languages of the world
+- code: '08.04'
+  en: Indigenous and minority languages
+- code: '08.05'
+  en: Philology
+- code: '08.06'
+  en: Literature by period
+- code: '08.07'
+  en: Literary genres (novel, poetry, drama, essay)
+- code: '08.08'
+  en: Literary movements
+- code: '08.09'
+  en: Literary works
+- code: '08.10'
+  en: Literary criticism
+- code: '08.11'
+  en: Rhetoric and metrics
+- code: '08.12'
+  en: Reading and writing (literacy)
+- code: 09
+  en: Arts, entertainment and leisure
+- code: '09.01'
+  en: Visual arts
+- code: '09.02'
+  en: Architecture
+- code: '09.03'
+  en: Music
+- code: '09.04'
+  en: Film and audiovisual
+- code: '09.05'
+  en: Theater and performing arts
+- code: '09.06'
+  en: Dance
+- code: '09.07'
+  en: Photography
+- code: '09.08'
+  en: Design, decorative arts and fashion
+- code: '09.09'
+  en: Shows and entertainment
+- code: '09.10'
+  en: Gastronomy
+- code: '09.11'
+  en: Games and pastimes
+- code: '09.12'
+  en: Popular culture, festivals and traditions
+- code: '10'
+  en: Sport
+- code: '10.01'
+  en: Ball sports
+- code: '10.02'
+  en: Athletics and gymnastics
+- code: '10.03'
+  en: Combat sports
+- code: '10.04'
+  en: Water sports
+- code: '10.05'
+  en: Cycling
+- code: '10.06'
+  en: Motor sports
+- code: '10.07'
+  en: Extreme sports
+- code: '10.08'
+  en: Mountain and outdoor sports
+- code: '10.09'
+  en: Equestrian sports
+- code: '10.10'
+  en: Competitions and events
+- code: '10.11'
+  en: Clubs, federations and venues
+- code: '11'
+  en: Formal and natural sciences
+- code: '11.01'
+  en: Mathematics
+- code: '11.02'
+  en: Statistics
+- code: '11.03'
+  en: Physics
+- code: '11.04'
+  en: Astronomy
+- code: '11.05'
+  en: Chemistry
+- code: '11.06'
+  en: Geology and earth sciences
+- code: '11.07'
+  en: Meteorology and climate
+- code: '11.08'
+  en: Oceanography
+- code: '11.09'
+  en: Biology
+- code: '11.10'
+  en: Botany
+- code: '11.11'
+  en: Zoology
+- code: '11.12'
+  en: Paleontology
+- code: '11.13'
+  en: Microbiology
+- code: '11.14'
+  en: Genetics
+- code: '11.15'
+  en: Ecology and environment
+- code: '12'
+  en: Technology, engineering and industry
+- code: '12.01'
+  en: Engineering
+- code: '12.02'
+  en: Industry and manufacturing
+- code: '12.03'
+  en: Energy
+- code: '12.04'
+  en: Construction and infrastructure
+- code: '12.05'
+  en: Transport and vehicles
+- code: '12.06'
+  en: Telecommunications
+- code: '12.07'
+  en: Agriculture, livestock and fishing
+- code: '12.08'
+  en: Food technology
+- code: '12.09'
+  en: Military technology
+- code: '12.10'
+  en: Mining and metallurgy
+- code: '12.11'
+  en: Maritime technology
+- code: '12.12'
+  en: Off-grid power (solar, batteries, generators)
+- code: '12.13'
+  en: Radio communication without the Internet
+- code: '13'
+  en: Medicine and health
+- code: '13.01'
+  en: Anatomy and physiology
+- code: '13.02'
+  en: Clinical medicine
+- code: '13.03'
+  en: Diseases and disorders
+- code: '13.04'
+  en: Surgery
+- code: '13.05'
+  en: Pharmacy and pharmacology
+- code: '13.06'
+  en: Nursing
+- code: '13.07'
+  en: Public health and epidemiology
+- code: '13.08'
+  en: Psychiatry and mental health
+- code: '13.09'
+  en: Dentistry
+- code: '13.10'
+  en: Veterinary medicine
+- code: '13.11'
+  en: History of medicine
+- code: '13.12'
+  en: First aid and emergency care
+- code: '13.13'
+  en: Water, sanitation and hygiene
+- code: '13.14'
+  en: Nutrition
+- code: '13.15'
+  en: Childbirth and infant care
+- code: '14'
+  en: Geography
+- code: '14.01'
+  en: Physical geography
+- code: '14.02'
+  en: Human geography
+- code: '14.03'
+  en: Regional geography
+- code: '14.04'
+  en: Biogeography
+- code: '14.05'
+  en: Cartography and navigation
+- code: '14.06'
+  en: Geographic methods
+- code: '15'
+  en: Places
+- code: '15.01'
+  en: Countries and territories
+- code: '15.02'
+  en: Administrative divisions
+- code: '15.03'
+  en: Cities
+- code: '15.04'
+  en: Towns and villages
+- code: '15.05'
+  en: Landforms (mountains, valleys, coasts, islands)
+- code: '15.06'
+  en: Rivers, lakes and seas
+- code: '15.07'
+  en: Protected areas
+- code: '15.08'
+  en: Landmarks and points of interest
+- code: '16'
+  en: History
+- code: '16.01'
+  en: Historiography
+- code: '16.02'
+  en: Prehistory
+- code: '16.03'
+  en: Ancient history
+- code: '16.04'
+  en: Middle Ages
+- code: '16.05'
+  en: Early modern period
+- code: '16.06'
+  en: Modern and contemporary history
+- code: '16.07'
+  en: Historical events
+- code: '16.08'
+  en: Wars and conflicts
+- code: '16.09'
+  en: Treaties and historical documents
+- code: '16.10'
+  en: Archaeology
+- code: '16.11'
+  en: Chronology
+- code: '16.12'
+  en: Thematic history
+- code: '16.13'
+  en: Historical heritage
+- code: '17'
+  en: Biography
+- code: '17.01'
+  en: Writers
+- code: '17.02'
+  en: Artists
+- code: '17.03'
+  en: Musicians and composers
+- code: '17.04'
+  en: Performers
+- code: '17.05'
+  en: Athletes
+- code: '17.06'
+  en: Scientists
+- code: '17.07'
+  en: Politicians and rulers
+- code: '17.08'
+  en: Military figures
+- code: '17.09'
+  en: Religious figures
+- code: '17.10'
+  en: Royalty and nobility
+- code: '17.11'
+  en: Business people and professionals
+- code: '17.12'
+  en: Explorers and navigators
+- code: '17.13'
+  en: Philosophers
+- code: '17.14'
+  en: Other people
+- code: '18'
+  en: Practical skills and self-reliance
+- code: '18.01'
+  en: Food growing in small plots
+- code: '18.02'
+  en: Food preservation and storage
+- code: '18.03'
+  en: Cooking with little fuel
+- code: '18.04'
+  en: Shelter, heating and cooling
+- code: '18.05'
+  en: Tools and repairs
+- code: '18.06'
+  en: Clothing and textiles
+- code: '18.07'
+  en: Foraging and wild food
+- code: '18.08'
+  en: Safety at home (fire, gas, electricity)

@@ -73,6 +73,40 @@ def update_notice(entries: list[dict]) -> str:
         names=names, window=WINDOW)
 
 
+def main_code(entry: dict) -> str:
+    """The entry's first category, where it is listed; "" when it has none."""
+    cats = entry.get("categories")
+    return str(cats[0]) if isinstance(cats, list) and cats else ""
+
+
+def ordered(catalog: list[dict], names: dict[str, str]) -> list[dict]:
+    """The catalog in the order it is shown and numbered: by the class of
+    each pack's main category, packs with no known category last, and the
+    catalog's own order within a class. Numbers are positions in this list,
+    so the window and what a typed number installs always agree."""
+    def key(item):
+        i, entry = item
+        top = main_code(entry).split(".")[0]
+        return (top not in names, top, i)
+    return [e for _, e in sorted(enumerate(catalog), key=key)]
+
+
+def heading(entry: dict, names: dict[str, str]) -> str:
+    top = main_code(entry).split(".")[0]
+    return names.get(top) or tr("Not classified")
+
+
+def classified(entry: dict, cats: dict) -> str:
+    """The pack's own branch, when it sits below its class, and who it is for
+    when that is children."""
+    code = main_code(entry)
+    bits = [cats["categories"][code]] if "." in code and code in cats["categories"] else []
+    if entry.get("audience") == "children":
+        ages = "; ".join(cats["ages"].get(a, str(a)) for a in entry.get("ages") or [])
+        bits.append(tr("for children: {ages}").format(ages=ages) if ages else tr("for children"))
+    return ". ".join(bits)
+
+
 def describe(entry: dict) -> str:
     size_kb = int(entry.get("size_bytes") or 0) // 1024
     size = f"{size_kb / 1024:.1f} MB" if size_kb >= 1024 else f"{max(1, size_kb)} KB"
@@ -82,18 +116,30 @@ def describe(entry: dict) -> str:
     return ", ".join(b for b in bits if b and b != "None")
 
 
-def render(catalog: list[dict], installed: dict[str, dict], width: int = 96) -> str:
-    """The numbered list. Each pack gets its sentence of description, because
-    an id and a title do not tell a person whether they want it."""
+def render(catalog: list[dict], installed: dict[str, dict], width: int = 96,
+           cats: dict | None = None) -> str:
+    """The numbered list, under a heading per class when the catalog has
+    categories. Each pack gets its sentence of description, because an id and
+    a title do not tell a person whether they want it. `catalog` must already
+    be in `ordered` order, since the numbers are positions in it."""
     labels = {"": "", "installed": tr("[installed]"),
               "update": tr("[installed, newer version available]")}
+    cats = cats or {"categories": {}, "ages": {}}
+    grouped = any(main_code(e) for e in catalog) and bool(cats["categories"])
     lines: list[str] = []
+    last = None
     for n, entry in enumerate(catalog, 1):
+        if grouped and heading(entry, cats["categories"]) != last:
+            last = heading(entry, cats["categories"])
+            lines += [last, ""]
         head = f"  {n:>2}  {entry['id']:<20} {entry.get('title') or ''}"
         label = labels[state_of(entry, installed)]
         lines.append(f"{head}  {label}".rstrip())
         if entry.get("description"):
             lines += textwrap.wrap(str(entry["description"]), width=width - 6,
+                                   initial_indent="      ", subsequent_indent="      ")
+        if grouped and classified(entry, cats):
+            lines += textwrap.wrap(classified(entry, cats), width=width - 6,
                                    initial_indent="      ", subsequent_indent="      ")
         lines.append(f"      {describe(entry)}")
         lines.append("")
@@ -134,7 +180,8 @@ def browse(install: Callable[[dict], int], model_cost: Callable[[dict], str | No
     returns 0 when it is searchable; `model_cost(entry)` returns a sentence
     about the embedding model when this computer still has to download it (the
     real cost of a first pack, said before anything is fetched), else None."""
-    catalog = pack.load_catalog()
+    cats = pack.load_categories()
+    catalog = ordered(pack.load_catalog(), cats["categories"])
     if banner:
         say(banner)
     say(textwrap.fill(tr("Knowledge Packs are sets of documents this computer searches and answers from, "
@@ -146,7 +193,7 @@ def browse(install: Callable[[dict], int], model_cost: Callable[[dict], str | No
     failed = 0
     while True:
         installed = installed_by_id()
-        say("\n" + render(catalog, installed, width))
+        say("\n" + render(catalog, installed, width, cats))
         say(tr("\nMore Knowledge Packs, and how to share one you made:  {url}").format(url=pack.CATALOG_URL))
         say(tr("A pack file you downloaded:                 ai-2 knowledge install FILE.ai2pack"))
         say(tr("Remove a pack:                              ai-2 knowledge remove NAME"))
