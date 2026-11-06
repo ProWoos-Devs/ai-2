@@ -229,3 +229,21 @@ def test_firefox_speaks_the_installer_languages_and_reports_nothing():
         ident = f"langpack-{locale}@firefox.mozilla.org"
         assert policies["ExtensionSettings"][ident]["install_url"].endswith(f"/{ident}.xpi")
     assert 'pref("intl.locale.requested", "");' in pathlib.Path("branding/firefox/ai2.js").read_text()
+
+
+def test_start_here_names_every_installer_choice_and_chat_entry():
+    """The guide lost "Replace a partition" and the Browser entry for weeks
+    (found 2026-11-06). Labels are the ones Calamares 3.4.2 shows per language."""
+    guides = {
+        "START-HERE.txt": ("Install alongside", "Replace a partition", "Erase disk",
+                           "Manual partitioning", "AI-2 Chat (Browser)"),
+        "EMPIEZA-AQUI.txt": ("Instalación paralela", "Reemplazar una partición",
+                             "Borrar el disco", "Particionado manual", "AI-2 Chat (navegador)"),
+        "START-HIER.txt": ("Parallel dazu installieren", "Ersetze eine Partition",
+                           "Festplatte löschen", "Manuelle Partitionierung", "AI-2 Chat (Browser)"),
+    }
+    for name, needed in guides.items():
+        text = (pathlib.Path("branding") / name).read_text()
+        for phrase in needed:
+            assert phrase in text, (name, phrase)
+        assert "AI-2 Chat (Gopher)" in text and "--terminal" in text and "--browser" in text

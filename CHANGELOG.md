@@ -4,6 +4,10 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.25.2] - 2026-11-06
+### Changed
+- **The START HERE guide, in English, Spanish and German, is up to date with the installer and the menu.** It now lists all four choices on the installer's disk page, including "Replace a partition", under the names the installer shows in each language, and describes AI-2 Chat (Browser) next to the Gopher and Terminal entries. The Spanish and German guides no longer call the terminal chat "the same AI without a browser", which stopped being the difference in 0.23.0, and give the full menu path for the chat and the guide.
+
 ## [0.25.1] - 2026-11-05
 ### Changed
 - **Firefox's new-tab page no longer shows sponsored shortcuts or sponsored stories.** The other shortcuts and stories stay, and anyone who wants the sponsored ones can turn them back on in Firefox's Settings > Home.

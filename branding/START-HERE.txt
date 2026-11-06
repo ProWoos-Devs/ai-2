@@ -78,10 +78,16 @@ INSTALLING AI-2 ON THIS COMPUTER
 3. Location: pick your region and city (sets the clock and locale).
 4. Keyboard: pick your layout and try it in the test box.
 5. Partitions: choose how to use the disk.
-     "Erase disk"   uses the whole disk for AI-2 (everything on it is lost).
-     "Install alongside" keeps an existing system (for example Windows) and
-                    lets you shrink it to make room; you get a boot menu.
-     "Manual"       for people who know their partitions.
+     "Install alongside"   keeps an existing system (for example Windows)
+                           and lets you shrink it to make room; you get a
+                           boot menu.
+     "Replace a partition" puts AI-2 in place of the partition you pick (for
+                           example an older Linux or an earlier AI-2);
+                           what is on that partition is lost, the others
+                           stay as they are.
+     "Erase disk"          uses the whole disk for AI-2 (everything on it
+                           is lost).
+     "Manual partitioning" for people who know their partitions.
    How to recognize your partitions in that page: the bar shows every
    partition of the chosen disk with a name, a size and a filesystem type.
    Windows lives on NTFS partitions ("Windows 7", "Windows 10" or just
@@ -138,6 +144,11 @@ machine.
 On a slow or low-RAM machine, prefer "AI-2 Chat (Terminal)" in the menu
 (or  ai-2 chat --terminal ). It is the same AI in a terminal, so it appears
 instantly and leaves the most memory to the model. It saves nothing.
+
+"AI-2 Chat (Browser)" in the menu (or  ai-2 chat --browser ) opens the same
+chat as a page in Firefox, the browser AI-2 comes with. On an old computer
+it is the slowest and heaviest of the three, and it does not use the saved
+conversations.
 
 The same steps by hand, in a terminal (Applications > Terminal Emulator):
 

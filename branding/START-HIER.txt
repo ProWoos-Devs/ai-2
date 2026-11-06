@@ -86,12 +86,18 @@ AI-2 AUF DIESEM COMPUTER INSTALLIEREN
 3. Standort: wähle Region und Stadt (stellt Uhr und Sprache ein).
 4. Tastatur: wähle deine Belegung und probiere sie im Testfeld aus.
 5. Partitionen: wähle, wie die Platte genutzt wird.
-     "Festplatte löschen"     nutzt die ganze Platte für AI-2 (alles darauf
-                              geht verloren).
-     "Parallel installieren"  behält ein vorhandenes System (zum Beispiel
-                              Windows), du kannst es verkleinern, um Platz
-                              zu schaffen, und bekommst ein Startmenü.
-     "Manuell"                für Leute, die ihre Partitionen kennen.
+     "Parallel dazu installieren" behält ein vorhandenes System (zum
+                                  Beispiel Windows), du kannst es
+                                  verkleinern, um Platz zu schaffen, und
+                                  bekommst ein Startmenü.
+     "Ersetze eine Partition"     setzt AI-2 an die Stelle der Partition,
+                                  die du wählst (zum Beispiel ein älteres
+                                  Linux oder ein schon installiertes AI-2);
+                                  was darauf ist, geht verloren, die anderen
+                                  bleiben, wie sie sind.
+     "Festplatte löschen"         nutzt die ganze Platte für AI-2 (alles
+                                  darauf geht verloren).
+     "Manuelle Partitionierung"   für Leute, die ihre Partitionen kennen.
    So erkennst du deine Partitionen auf dieser Seite: der Balken zeigt jede
    Partition der gewählten Platte mit Name, Größe und Dateisystemtyp.
    Windows liegt auf NTFS-Partitionen ("Windows 7", "Windows 10" oder
@@ -145,17 +151,22 @@ du ein eigenes. Jeder kann ein Paket hinzufügen:
 
   https://github.com/ProWoos-Devs/ai2-knowledge
 
-Dann rede mit der KI: Anwendungen > AI-2 Chat (Gopher) (oder  ai-2 chat
-in einem Terminal). Es startet die lokale KI und öffnet den Chat in der App
-AI-2 Gopher. Schreib in das Feld unten und drücke die Eingabetaste. Die KI hält
-von selbst an, wenn du sie eine Weile nicht benutzt hast. Gespräche werden
-auf diesem Computer gespeichert, und "Frühere Gespräche" holt sie zurück.
-Nichts verlässt die Maschine.
+Dann rede mit der KI: Anwendungen > AI-2 > AI-2 Chat (Gopher) (oder
+ai-2 chat  in einem Terminal). Es startet die lokale KI und öffnet den
+Chat in der App AI-2 Gopher. Schreib in das Feld unten und drücke die
+Eingabetaste. Die KI hält von selbst an, wenn du sie eine Weile nicht
+benutzt hast. Gespräche werden auf diesem Computer gespeichert, und
+"Frühere Gespräche" holt sie zurück. Nichts verlässt die Maschine.
 
 Auf einer langsamen Maschine oder mit wenig RAM nimm besser "AI-2 Chat
-(Terminal)" im Menü (oder  ai-2 chat --terminal ). Es ist dieselbe KI ohne
-Browser drumherum, erscheint sofort und lässt dem Modell den ganzen
-Speicher.
+(Terminal)" im Menü (oder  ai-2 chat --terminal ). Es ist dieselbe KI in
+einem Terminal, erscheint deshalb sofort und lässt dem Modell den meisten
+Speicher. Es speichert nichts.
+
+"AI-2 Chat (Browser)" im Menü (oder  ai-2 chat --browser ) öffnet denselben
+Chat als Seite in Firefox, dem Browser, den AI-2 mitbringt. Auf einem alten
+Computer ist er der langsamste und schwerste der drei, und er nutzt die
+gespeicherten Gespräche nicht.
 
 Dieselben Schritte von Hand, in einem Terminal (Anwendungen > Terminal):
 
@@ -188,7 +199,7 @@ Jeder Befehl hat --help.
 
 Das installierte System hat seine eigene Anleitung, über den Computer und
 nicht über diesen Stick. Sie liegt nach der ersten Anmeldung auf dem
-Schreibtisch, steht unter Anwendungen > AI-2 Anleitung, und im Terminal
+Schreibtisch, steht unter Anwendungen > AI-2 > AI-2 Anleitung, und im Terminal
 ist sie  ai-2 guide .
 
 
