@@ -112,6 +112,27 @@ PYCONF
   echo "TEST IMAGE: carrying $(printf '%s ' "${others[@]##*/}")"
 fi
 
+# AI-2: an image can be built from a dated Artix snapshot (AI2_SNAPSHOT=2026/10/07).
+# Qt 6.12 makes Calamares crash in "Replace a partition", upstream bug
+# https://codeberg.org/Calamares/calamares/issues/2535, and building from a date
+# before it is how the image keeps shipping while that is open (Rafael, 2026-11-05).
+# Only the build reads the snapshot. As with a candidate, the overlay puts the
+# ordinary pacman.conf back, so an installed system updates from the mirrors and
+# its first update brings it current. Calamares runs only from the stick.
+if [ -n "${AI2_SNAPSHOT:-}" ]; then
+  python3 - "$HOME/.config/artools/pacman.conf.d/iso-x86_64.conf" "$AI2_SNAPSHOT" <<'PYCONF'
+import sys
+conf, date = sys.argv[1], sys.argv[2]
+s = open(conf).read()
+old = "\nInclude = /etc/pacman.d/mirrorlist"
+assert s.count(old) == 3
+s = s.replace(old, f"\nServer = https://archive.artixlinux.org/repos/{date}/$repo/os/$arch")
+open(conf, "w").write(s)
+PYCONF
+  install -Dm644 "$SRC/iso/pacman.conf.d/iso-x86_64.conf" "$DST/root-overlay/etc/pacman.conf"
+  echo "SNAPSHOT IMAGE: Artix packages as of $AI2_SNAPSHOT"
+fi
+
 # basestrap copies the build host's pacman keyring into the rootfs, so the
 # AI-2 signing key must be trusted here (idempotent).
 if ! pacman-key --list-keys F1889E37B4E5FEC8 >/dev/null 2>&1; then

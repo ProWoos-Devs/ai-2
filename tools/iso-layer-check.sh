@@ -53,6 +53,11 @@ if grep -q 'ai2-candidate' "$EXTRACT/etc/pacman.conf" 2>/dev/null; then
 else
     ok "no candidate repository in /etc/pacman.conf"
 fi
+if grep -q 'archive.artixlinux.org' "$EXTRACT/etc/pacman.conf" 2>/dev/null; then
+    bad "/etc/pacman.conf points at a dated snapshot, so this system would never update"
+else
+    ok "no dated snapshot in /etc/pacman.conf"
+fi
 
 # 2. The login message is the one in git, not a copy that stopped being updated.
 if cmp -s "$EXTRACT/etc/motd" "$SRC/branding/motd"; then
