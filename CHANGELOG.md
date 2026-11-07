@@ -3,8 +3,13 @@
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+## [0.27.0] - 2026-11-07
 ### Added
+- **The Water and Sanitation Knowledge Pack installs by name**: `ai-2 knowledge install water-sanitation`. Twelve topics on safe water and sanitation with no services, from boiling and bleach to cleaning a flooded well and building a latrine, written from WHO sources and not reviewed by a specialist. It is a download, not part of the package or the image.
 - **Knowledge Packs are listed by subject.** `ai-2 knowledge available` and the Knowledge Packs window (Applications > AI-2 > Knowledge Packs) group the packs under their subject, such as Medicine and health or Places, and name each pack's own branch, such as First aid and emergency care. A pack written for children says so, with its age ranges. The subjects come from the community catalog's new categories file, which the package now carries beside its copy of the catalog (`ai2/data/pack-categories.yml`, written by `tools/sync-pack-catalog.py` with the catalog). The numbers in the window follow the order shown, so a typed number still installs the pack shown at it.
+### Changed
+- **First Aid by name installs revision 3.** Its About topic, like Water and Sanitation's, now says where to report a mistake or propose a change. Revision 3 downloaded as a file was refused by 0.26.0 without `--force`, because that release's catalog knew only revision 2.
 
 ## [0.26.0] - 2026-11-06
 ### Added

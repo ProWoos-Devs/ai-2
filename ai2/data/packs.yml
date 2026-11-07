@@ -58,23 +58,48 @@ packs:
   title: First Aid
   description: What to do in eleven medical emergencies with no training and possibly no help coming, written from IFRC 2025,
     not reviewed by a clinician
-  version: '2026-11-02'
-  revision: 2
+  version: '2026-11-07'
+  revision: 3
   languages:
   - en
   license: MIT
   attribution: Written for AI-2 by Rafael Minuesa, in its own wording, from the IFRC International First Aid, Resuscitation
     and Education Guidelines 2025. IFRC did not write or endorse it. MIT licensed, like the rest of the project.
   embedder: nomic-embed-text-v1.5
-  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-02-2/first-aid.ai2pack
-  size_bytes: 393198
-  sha256: 4c3eafd1d34a43d66b373c43d155f28533668b936e3ebeec3c793a647c475ac7
+  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-07-2/first-aid.ai2pack
+  size_bytes: 393409
+  sha256: 90498b552dfb637ba5ca5e9b26e553efd31e4bfc4f24432adc1cd97bcf03d14a
   documents: 12
   parts: 123
-  built_with: ai-2 0.21.0
+  built_with: ai-2 0.26.0
   contact: ProWoos-Devs
   categories:
   - '13.12'
+  audience: general
+- id: water-sanitation
+  title: Water and Sanitation
+  description: Safe water and sanitation with no services and possibly no help coming, from boiling and bleach to cleaning
+    a flooded well and building a latrine, written from WHO sources, not reviewed by a specialist
+  version: '2026-11-07'
+  revision: 2
+  languages:
+  - en
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa, in its own wording, from the WHO/WEDC Technical Notes on Drinking-water,
+    Sanitation and Hygiene in Emergencies (2013), WHO's Boil Water brief (2015), Guidelines for Drinking-water Quality (2022)
+    and Guidelines on Sanitation and Health (2018), the Eawag SODIS manual (2016), the US EPA's Emergency Disinfection of
+    Drinking Water (2026) and the Sphere Handbook (2018). None of them wrote or endorsed it. MIT licensed, like the rest of
+    the project.
+  embedder: nomic-embed-text-v1.5
+  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-07-2/water-sanitation.ai2pack
+  size_bytes: 328864
+  sha256: ef75aa0fe25994b31f5afdcc7564a8317730f4cea69ba09405a5485e85975b80
+  documents: 12
+  parts: 103
+  built_with: ai-2 0.26.0
+  contact: ProWoos-Devs
+  categories:
+  - '13.13'
   audience: general
 - id: linux-essentials
   title: Linux Essentials
