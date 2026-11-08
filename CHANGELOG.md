@@ -3,6 +3,16 @@
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Added
+- **Search Knowledge Packs from the AI-2 chat.** A button with a book icon under the chat box opens a menu of the Knowledge Packs on this computer, including ones installed from a file. One search covers them all and shows three topics, as **Closest passages**: the original text, its source and license, and **Read the complete topic**. Back returns through the results to the same conversation, and nothing is asked again. No chat model is used, and it works with no network. On a 2011 laptop a first search took about 12 seconds and later ones about 3. It needs AI-2 Gopher 1.6.0, which this release requires.
+- **Knowledge Packs built with different embedding models can be searched together** in the Gopher search, as in the terminal. The embedding engine is swapped for each model, so such a search is much slower: about a minute and a half on the same laptop.
+
+### Changed
+- **Searching one Knowledge Pack over Gopher** now says **Closest passages** too, states that a passage may not answer the question, and ends with links to search again and to the Knowledge Packs menu.
+- **On a computer sharing its Knowledge Packs with `--host 0.0.0.0`,** the menus it shows to itself now link to itself, so the app keeps results for Back.
+
+### Fixed
+- **The Gopher search no longer stops working after the embedding engine has stopped.** It used to remember the engine's address and fail until the Gopher server was restarted.
 
 ## [0.27.0] - 2026-11-07
 ### Added

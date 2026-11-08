@@ -24,6 +24,8 @@ ai-2 doc ask "how do I find a big file?"        the AI answers from those passag
 
 In the menu it is **Applications > AI-2 > Search Knowledge**, which opens a window that asks for a question and keeps asking. It shows passages from the documents on this computer, so nothing in the answer is written by the AI.
 
+In the AI-2 chat, the **Search Knowledge Packs** button under the message box does the same from the AI-2 Gopher app (AI-2 0.28.0 with AI-2 Gopher 1.6.0 or later). It opens a menu with one search across all the Knowledge Packs on this computer, including ones installed from a file, and a search and a list of topics for each one. The results are headed **Closest passages**, because the nearest text is returned even when no Knowledge Pack covers the question. Each result names its source, **Read the complete topic** opens the whole document, and the Back arrow returns to the conversation as you left it. Nothing there is written by the AI, and each search stands alone. A search across Knowledge Packs built with different embedding models swaps the embedding engine for each one, which is much slower.
+
 `ai-2 doc search` needs no chat model at all, which is why it answers in seconds on an old machine where `ask` takes minutes. Both name where the text came from, down to the page for a PDF, and a pack's own licence and attribution are printed with its results.
 
 ## Making one for yourself
@@ -72,9 +74,9 @@ ai-2 gopher --host 0.0.0.0
 
 On any other machine, open `gopher://that-computer:7071/` in a text browser. AI-2 ships **w3m**, which speaks Gopher; lynx does too, and clients exist for phones. Nothing of AI-2 is needed on the asking side.
 
-The menu offers, for each pack, a search item and a list of its documents. Type a question into the search item and the answer comes back as the passages themselves, each naming the document and page it came from, with the pack's license and attribution underneath.
+The menu offers, for each pack, a search item and a list of its documents. Type a question into the search item and the answer comes back as the passages themselves, each naming the document and page it came from, with the pack's license and attribution underneath. `gopher://that-computer:7071/1/knowledge` is a menu with one search across all the Knowledge Packs on that computer.
 
-Only knowledge packs are served. Your own indexed documents stay on your machine unless you add `--all`, and the command says plainly what it is exposing. The chat model is not served at all: an answer takes minutes on the machines AI-2 is built for, far longer than a Gopher client waits, and the passages are the part that is reliable there anyway.
+Only knowledge packs are served. Your own indexed documents stay on your machine unless you add `--all`, and the command says plainly what it is exposing. Chat answers only on the computer it runs on, because Gopher has no passwords or encryption. Other machines can read and search the Knowledge Packs, but they cannot reach the chat model.
 
 ## Where packs come from, and where yours goes
 
@@ -88,6 +90,6 @@ To share a pack you made, that repository has a step-by-step guide, [CONTRIBUTIN
 
 ## What packs are not
 
-They do not teach the AI anything. The model on your computer is unchanged; the pack is searched, and the passages found are handed to the model with your question. That is why an answer can name its source, and why a pack is as up to date as the day it was built, no more.
+They do not teach the AI anything. The model on your computer is unchanged; the pack is searched, and `ai-2 doc ask` hands the passages found to the model with your question, while every search shows the passages themselves and asks no model. That is why an answer can name its source, and why a pack is as up to date as the day it was built, no more.
 
 For that reason the packs that come with AI-2 avoid anything that goes stale: no prices, no populations, no security advice, no "who currently holds this office". A pack that sits on a machine for two years should still be right.
