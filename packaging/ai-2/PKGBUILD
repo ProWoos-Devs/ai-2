@@ -7,17 +7,17 @@
 # (git archive of www/ai-2), so a package always maps to a commit.
 
 pkgname=ai-2
-pkgver=0.27.0
+pkgver=0.28.0
 pkgrel=1
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
 url="https://github.com/ProWoos-Devs/ai-2"
 license=('MIT')
-depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pamac' 'sqlite' 'ai-2-gopher>=1.5.0-2' 'firefox-esr'
+depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pamac' 'sqlite' 'ai-2-gopher>=1.6.0-1' 'firefox-esr'
          'firefox-esr-i18n-es-es' 'firefox-esr-i18n-de' 'firefox-esr-i18n-pl')
 # pamac brings libpamac, whose pamac-checkupdates is the update check since 0.14.1 (pacman-contrib and
 # fakeroot were only there for checkupdates). sqlite: python only suggests it, ai-2 doc needs sqlite3.
-# ai-2-gopher: the app AI-2 Chat opens, on every AI-2 (Rafael, 2026-11-04). 1.5.0-2 carries Gopher Reader, which policies.json installs.
+# ai-2-gopher: the app AI-2 Chat opens, on every AI-2 (Rafael, 2026-11-04). 1.5.0-2 brought Gopher Reader, which policies.json installs, and 1.6.0-1 is what Search Knowledge Packs in the chat needs.
 # firefox-esr: AI-2's web browser (Rafael, 2026-11-05), the default through migrations/. Epiphany stays where it is installed.
 # The packs are about 0.5 MiB each and match the installer's languages. Firefox ignores them where Artix puts them until branding/firefox/policies.json loads them.
 checkdepends=('python-pytest')
