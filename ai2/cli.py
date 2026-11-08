@@ -876,7 +876,6 @@ def cmd_gopher(args) -> int:
         print("Nothing is indexed on this computer yet. Install a pack with:  "
               "ai-2 knowledge install ai2-help", file=sys.stderr)
         return 1
-    servers = {}
     from .chatstore import Store
     from .chatterm import CHARS_PER_CONTEXT_TOKEN
     usable = _usable_model(hw)
@@ -895,20 +894,19 @@ def cmd_gopher(args) -> int:
         return LocalReply(url, [system] + history)
 
     def embed_query(model_id, text):
-        """The question's vector, starting the embedding server on first use.
-        One server per embedding model, kept for the life of this command."""
-        if model_id not in servers:
-            model = runner._catalog_entry(model_id)
-            if model is None:
-                raise RuntimeError(f"{model_id} is not in this AI-2's catalog")
-            if runtime.find_model_file(model["file"]) is None:
-                raise RuntimeError(f"{model['label']} is not downloaded here")
-            url = runner._ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait,
-                                 idle_timeout=0)
-            if url is None:
-                raise RuntimeError("the embedding server did not start")
-            servers[model_id] = docmod.EmbedClient(url, model)
-        return servers[model_id].embed_query(text)
+        """The question's vector, starting the embedding server when it is not
+        running. Asked for every question: a server remembered from an earlier
+        one may have stopped since."""
+        model = runner._catalog_entry(model_id)
+        if model is None:
+            raise RuntimeError(f"{model_id} is not in this AI-2's catalog")
+        if runtime.find_model_file(model["file"]) is None:
+            raise RuntimeError(f"{model['label']} is not downloaded here")
+        url = runner._ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait,
+                                    idle_timeout=0)
+        if url is None:
+            raise RuntimeError("the embedding server did not start")
+        return docmod.EmbedClient(url, model).embed_query(text)
 
     advertise = args.advertise
     if advertise is None:

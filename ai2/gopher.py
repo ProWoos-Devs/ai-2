@@ -40,12 +40,16 @@ from .i18n import tr
 PORT = 7071                 # 70 needs root; this is the one AI-2 uses by default
 MAX_SELECTOR = 4096         # a client that sends more is not asking a question (a chat line can be a paragraph)
 MAX_HITS = 5
+KNOWLEDGE_HITS = 3          # distinct topics from a search across the Knowledge Packs
+KNOWLEDGE_CANDIDATES = 60   # parts looked at to find them: one long topic can fill a shorter list
 WRAP = 70                   # Gopher menus are read in 80-column clients
 TIMEOUT = 10.0              # a client that opens a socket and says nothing
 WORKERS = 1                 # see Server: one question at a time by default
 BUSY_WAIT = 20.0            # how long a waiting request holds on before saying busy
 CHAT_SELECTOR = "/chat"
 CHATS_SELECTOR = "/chats"
+KNOWLEDGE_SELECTOR = "/knowledge"
+KNOWLEDGE_SEARCH = "/knowledge/search"
 CHAT_SESSIONS = 8           # conversations kept; the oldest is forgotten first
 CHAT_BUDGET = 4096          # characters of a conversation sent to the model, for a 2048-token context
 CHAT_SHOWN = 100            # exchanges a conversation shows on its page
@@ -252,6 +256,7 @@ class Chat:
         else:
             out = (line("7", tr("Ask the next question"), f"{CHAT_SELECTOR}/{key}", "127.0.0.1", port)
                    + line("7", tr("Start a new conversation"), CHAT_SELECTOR, "127.0.0.1", port))
+        out += line("1", tr("Search Knowledge Packs"), KNOWLEDGE_SELECTOR, "127.0.0.1", port)
         if self.store and self.store.keys():
             out += line("1", tr("Earlier conversations"), CHATS_SELECTOR, "127.0.0.1", port)
         if self.store and key and key in self.store.keys():
@@ -400,6 +405,11 @@ class Library:
                 out.append((name, manifest))
         return out
 
+    def knowledge_packs(self) -> list[tuple[str, dict]]:
+        """Only what has a Knowledge Pack manifest, imported ones included. A
+        person's own collection is not one, even under --all."""
+        return [(name, manifest) for name, manifest in self.collections() if manifest is not None]
+
     def title(self, name: str, manifest: dict | None) -> str:
         return str((manifest or {}).get("title") or name)
 
@@ -420,6 +430,12 @@ class Menus:
         self.port = port
         self.chat = chat
 
+    def _link_host(self, local: bool) -> str:
+        """The host in a menu's links. This computer gets its own address even
+        when the server advertises a name to the network: the app treats any
+        other host as remote, with a short time limit and nothing kept for Back."""
+        return self.host if not local or self.host in LOCAL_NAMES else "127.0.0.1"
+
     def root(self, local: bool = False) -> str:
         from . import __version__
         out = [info(tr("AI-2 {version} knowledge, over Gopher").format(version=__version__)), info()]
@@ -431,10 +447,14 @@ class Menus:
             out.append(info(tr("Nothing is installed here yet.")))
             out.append(info(tr("On the AI-2 machine:  ai-2 knowledge install ai2-help")))
             return "".join(out) + "." + CRLF
+        host = self._link_host(local)
+        if local and self.lib.knowledge_packs():
+            out.append(line("1", tr("Search Knowledge Packs"), KNOWLEDGE_SELECTOR, host, self.port))
+            out.append(info())
         for name, manifest in collections:
             title = self.lib.title(name, manifest)
-            out.append(line("7", tr("Ask {title}").format(title=title), f"/search/{name}", self.host, self.port))
-            out.append(line("1", tr("What is in {title}").format(title=title), f"/list/{name}", self.host, self.port))
+            out.append(line("7", tr("Ask {title}").format(title=title), f"/search/{name}", host, self.port))
+            out.append(line("1", tr("What is in {title}").format(title=title), f"/list/{name}", host, self.port))
             if manifest:
                 out.append(info(f"   {manifest.get('version', '')}, {manifest.get('license', '')}"))
             out.append(info())
@@ -442,7 +462,36 @@ class Menus:
         out.append(info(tr("from the document that holds it, with its source named.")))
         return "".join(out) + "." + CRLF
 
-    def listing(self, name: str) -> str:
+    def knowledge(self, local: bool = False) -> str:
+        """The Knowledge Packs on this computer, read afresh, as an ordinary menu."""
+        from . import pack
+        host = self._link_host(local)
+        out = [info(tr("Knowledge Packs")), info()]
+        packs = self.lib.knowledge_packs()
+        if not packs:
+            out.append(info(tr("No Knowledge Packs are installed yet.")))
+            out.append(info(tr("On the AI-2 machine:  ai-2 knowledge install ai2-help")))
+            out.append(info(tr("More Knowledge Packs: {url}").format(url=pack.CATALOG_URL)))
+            return "".join(out) + "." + CRLF
+        out += [info(text) for text in textwrap.wrap(tr(
+            "Search the installed Knowledge Packs. Results are passages from their documents, "
+            "with the source named."), width=WRAP)]
+        out.append(info(tr("Each search stands alone and does not use your conversation.")))
+        out.append(info())
+        out.append(line("7", tr("Search all installed Knowledge Packs"), KNOWLEDGE_SEARCH, host, self.port))
+        out.append(info())
+        for name, manifest in packs:
+            title = self.lib.title(name, manifest)
+            languages = manifest.get("languages")
+            known = ", ".join(str(lang) for lang in languages) if isinstance(languages, list) else ""
+            out.append(info(f"{title} ({known})" if known else title))
+            out.append(line("7", tr("Search {title}").format(title=title), f"/search/{name}", host, self.port))
+            out.append(line("1", tr("Browse the topics of {title}").format(title=title), f"/list/{name}", host, self.port))
+            out.append(info())
+        out.append(info(tr("More Knowledge Packs: {url}").format(url=pack.CATALOG_URL)))
+        return "".join(out) + "." + CRLF
+
+    def listing(self, name: str, local: bool = False) -> str:
         conn = self.lib.store(name)
         if conn is None:
             return error(f"No knowledge called {name!r} here")
@@ -450,9 +499,9 @@ class Menus:
         out = [info(self.lib.title(name, manifest)), info()]
         for d in doc.list_documents(conn):
             out.append(line("0", f"{d['name']}  ({d['words']} words)", f"/doc/{name}/{d['name']}",
-                            self.host, self.port))
+                            self._link_host(local), self.port))
         out.append(info())
-        out.append(line("7", tr("Ask this one a question"), f"/search/{name}", self.host, self.port))
+        out.append(line("7", tr("Ask this one a question"), f"/search/{name}", self._link_host(local), self.port))
         return "".join(out) + "." + CRLF
 
     def document(self, name: str, doc_name: str) -> str:
@@ -487,7 +536,76 @@ class Menus:
             out += textwrap.wrap(str(manifest["attribution"]), width=WRAP)
         return out
 
-    def search(self, name: str, query: str) -> str:
+    def _results(self, query: str, hits: list[dict], stores: dict, again: str, local: bool,
+                 titled: bool, omitted: list[str] | None = None) -> str:
+        """A page of passages. The order is the search's; the source of each
+        result is its own, and the terms of each Knowledge Pack appear once."""
+        from . import pack
+        host = self._link_host(local)
+        manifests = dict(self.lib.collections())
+        out = [info(tr("Closest passages")), info(query), info()]
+        out += [info(text) for text in textwrap.wrap(
+            tr("These are the passages closest to your question. A passage may not answer it."), width=WRAP)]
+        if omitted:
+            out += [info(text) for text in textwrap.wrap(
+                tr("Not searched this time: {names}").format(names=", ".join(omitted)), width=WRAP)]
+        out.append(info())
+        if not hits:
+            out += [info(tr("No passages were returned.")), info()]
+        for i, hit in enumerate(hits, 1):
+            name = hit["collection"]
+            manifest = manifests.get(name)
+            label = f"{self.lib.title(name, manifest)}: {doc.cite(hit)}" if titled else doc.cite(hit)
+            out += [info(text) for text in textwrap.wrap(f"[{i}] {label}", width=WRAP)]
+            for wrapped in textwrap.wrap(doc.finish_sentence(stores[name], hit), width=WRAP):
+                out.append(info(f"    {wrapped}"))
+            url = pack.source_url(manifest, hit["doc"])
+            if url:
+                out.append(info("    " + tr("source: {url}").format(url=url)))
+            out.append(line("0", "    " + tr("Read the complete topic"), f"/doc/{name}/{hit['doc']}", host, self.port))
+            out.append(info())
+        for name in dict.fromkeys(hit["collection"] for hit in hits):
+            out += [info(text) for text in self.provenance(name, manifests.get(name))]
+        out.append(info())
+        out.append(line("7", tr("Search again"), again, host, self.port))
+        out.append(line("1", tr("Knowledge Packs"), KNOWLEDGE_SELECTOR, host, self.port))
+        return "".join(out) + "." + CRLF
+
+    def search_all(self, query: str, local: bool = False) -> str:
+        """One question across every installed Knowledge Pack. Asks only the
+        embedding server: this never reaches a chat model."""
+        query = query.strip()
+        if not query:
+            return error(tr("Type a question"))
+        titles = {name: self.lib.title(name, manifest) for name, manifest in self.lib.knowledge_packs()}
+        stores = {name: doc.open_store(doc.read_index_path(name)) for name in titles}
+        try:
+            models = {name: doc.store_model(conn) for name, conn in stores.items()}
+            usable = {name: model for name, model in models.items() if model and doc.list_documents(stores[name])}
+            if not usable:
+                return self.knowledge(local)
+            per_group, omitted, reason = [], [], ""
+            for model_id, names in doc.group_by_model(usable).items():
+                try:
+                    vector = self.embed_query(model_id, query)
+                except Exception as exc:               # the embedding server, not the client
+                    omitted += [titles[name] for name in names]
+                    reason = str(exc)
+                    continue
+                group = doc.search_collections({name: stores[name] for name in names}, vector,
+                                               top=KNOWLEDGE_CANDIDATES)
+                per_group.append(doc.distinct_docs(group, KNOWLEDGE_HITS))
+            if not per_group:
+                return (line("3", tr("Search is unavailable right now ({reason})").format(reason=reason))
+                        + line("1", tr("Knowledge Packs"), KNOWLEDGE_SELECTOR, self._link_host(local), self.port)
+                        + "." + CRLF)
+            hits = doc.interleave(per_group)[:KNOWLEDGE_HITS]
+            return self._results(query, hits, stores, KNOWLEDGE_SEARCH, local, titled=True, omitted=omitted)
+        finally:
+            for conn in stores.values():
+                conn.close()
+
+    def search(self, name: str, query: str, local: bool = False) -> str:
         conn = self.lib.store(name)
         if conn is None:
             return error(f"No knowledge called {name!r} here")
@@ -502,23 +620,9 @@ class Menus:
         hits = doc.search(conn, vector, top=MAX_HITS)
         if not hits:
             return error(tr("Nothing here matches that"))
-        manifest = dict(self.lib.collections()).get(name)
-        out = [info(f"{query}"), info()]
-        from . import pack
-        for i, hit in enumerate(hits, 1):
-            out.append(info(f"[{i}] {doc.cite(hit)}"))
-            for wrapped in textwrap.wrap(doc.finish_sentence(conn, hit), width=WRAP):
-                out.append(info(f"    {wrapped}"))
-            url = pack.source_url(manifest, hit["doc"])
-            if url:
-                out.append(info("    " + tr("source: {url}").format(url=url)))
-            out.append(line("0", "    " + tr("the whole of {document}").format(document=hit["doc"]),
-                            f"/doc/{name}/{hit['doc']}",
-                            self.host, self.port))
-            out.append(info())
-        for wrapped in self.provenance(name, manifest):
-            out.append(info(wrapped))
-        return "".join(out) + "." + CRLF
+        for hit in hits:
+            hit["collection"] = name
+        return self._results(query, hits, {name: conn}, f"/search/{name}", local, titled=False)
 
     def respond(self, request: str, local: bool = False) -> str:
         """The whole protocol except chat, which Handler writes as it comes: a
@@ -528,10 +632,14 @@ class Menus:
         if selector in ("", "/"):
             return self.root(local)
         parts = [p for p in selector.split("/") if p]
+        if parts == ["knowledge"]:
+            return self.knowledge(local)
+        if parts == ["knowledge", "search"]:
+            return self.search_all(query, local)
         if len(parts) == 2 and parts[0] == "list":
-            return self.listing(parts[1])
+            return self.listing(parts[1], local)
         if len(parts) == 2 and parts[0] == "search":
-            return self.search(parts[1], query)
+            return self.search(parts[1], query, local)
         if len(parts) >= 3 and parts[0] == "doc":
             return self.document(parts[1], "/".join(parts[2:]))
         return error(f"Nothing here called {selector!r}")

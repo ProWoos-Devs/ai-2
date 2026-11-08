@@ -456,6 +456,38 @@ def search_collections(stores: dict[str, sqlite3.Connection], qvec, top: int = T
     return hits[:top]
 
 
+def group_by_model(models: dict[str, str]) -> dict[str, list[str]]:
+    """Collections by the embedding model that built them, from {name: model}.
+    Only collections in one group can share a question vector."""
+    groups: dict[str, list[str]] = {}
+    for name, model_id in models.items():
+        groups.setdefault(model_id, []).append(name)
+    return groups
+
+
+def interleave(groups: list[list[dict]]) -> list[dict]:
+    """One from each group in turn. Scores from two embedding models do not
+    compare, so neither group may crowd the other out of the top results."""
+    merged = []
+    for i in range(max((len(g) for g in groups), default=0)):
+        merged.extend(g[i] for g in groups if i < len(g))
+    return merged
+
+
+def distinct_docs(hits: list[dict], top: int) -> list[dict]:
+    """The best part of each document, for a person reading results: the rest
+    of a document is one step away, and its parts would fill every slot."""
+    seen, kept = set(), []
+    for h in hits:
+        key = (h["collection"], h["doc"])
+        if key not in seen:
+            seen.add(key)
+            kept.append(h)
+        if len(kept) >= top:
+            break
+    return kept
+
+
 def pick_embedder_group(models: dict[str, list[str]], preferred: str | None,
                         chunks: dict[str, int]) -> str:
     """Which embedding model a search across collections uses when they were

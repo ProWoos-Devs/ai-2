@@ -81,7 +81,9 @@ def test_search_returns_the_passage_and_the_pack_terms(library):
         out = talk(server, "/search/everyday\twhat is the capital of Spain?")
         assert "i[1] spain.txt, page 1\t" in out
         assert "The capital of Spain is Madrid." in out
-        assert "0    the whole of spain.txt\t/doc/everyday/spain.txt\t" in out
+        assert "0    Read the complete topic\t/doc/everyday/spain.txt\t" in out
+        assert "iClosest passages\t" in out
+        assert "7Search again\t/search/everyday\t" in out and "1Knowledge Packs\t/knowledge\t" in out
         assert "Facts from Wikidata." in out
         assert talk(server, "/search/everyday\t   ").startswith("3Type a question")
         assert talk(server, "/search/my-notes\tdisk").startswith("3No knowledge called")
@@ -722,3 +724,211 @@ def test_offers_chat_reads_the_menu_not_the_open_port():
     port = closed.getsockname()[1]
     closed.close()
     assert gopher.offers_chat(port, timeout=1) is False
+
+
+# ---------------------------------------- Knowledge Packs from the chat window
+
+def add_pack(root, name, title, parts, model="nomic-embed-text-v1.5", **fields):
+    """An installed Knowledge Pack: {document: [(text, vector), ...]}."""
+    conn = doc.open_store(doc.index_path(name))
+    doc.set_store_model(conn, model, 8)
+    for document, pieces in parts.items():
+        doc.add_document(conn, document, document, [t for t, _ in pieces], [v for _, v in pieces], words=5)
+    conn.close()
+    manifest = {"id": name, "title": title, "version": "2026-11-08", "license": "MIT",
+                "attribution": f"Written for {title}.", "format": 1, **fields}
+    (root / f"data/ai2/doc/{name}/manifest.yml").write_text(yaml.safe_dump(manifest), encoding="utf-8")
+
+
+def menus_for(embed=None, host="127.0.0.1", everything=False):
+    return gopher.Menus(gopher.Library(everything), embed or (lambda model_id, text: vec(text)), host, 7071)
+
+
+def test_chat_offers_the_knowledge_packs_on_empty_and_existing_conversations(library):
+    chat = gopher.Chat(lambda history: iter(["An answer."]))
+    wanted = "1Search Knowledge Packs\t/knowledge\t127.0.0.1\t7071\r\n"
+    assert wanted in chat.page(None, 7071)
+    written = []
+    chat.answer(None, "hello", written.append, 7071)
+    assert wanted in "".join(written)
+
+
+def test_the_button_comes_before_the_saved_conversations(tmp_path):
+    store = chatstore.Store(tmp_path)
+    chat = gopher.Chat(lambda history: iter(["An answer."]), store)
+    chat.answer(None, "hello", lambda text: None, 7071)
+    page = chat.page(None, 7071)
+    assert page.index("/knowledge") < page.index("/chats")
+
+
+def test_the_menu_lists_each_knowledge_pack_with_its_language(library):
+    add_pack(library, "water", "Water and Sanitation", {"wells.txt": [("Wells need a cover.", vec("x"))]}, languages=["en"])
+    out = menus_for().respond("/knowledge", local=True)
+    assert out.startswith("iKnowledge Packs\t")
+    assert "Results are passages" in out
+    assert "7Search all installed Knowledge Packs\t/knowledge/search\t" in out
+    assert "iWater and Sanitation (en)\t" in out and "iEveryday Reference\t" in out
+    assert "7Search Water and Sanitation\t/search/water\t" in out
+    assert "1Browse the topics of Water and Sanitation\t/list/water\t" in out
+
+
+def test_a_personal_collection_is_not_a_knowledge_pack_even_with_all(library):
+    menus = menus_for(everything=True)
+    assert "my-notes" not in menus.respond("/knowledge", local=True)
+    assert "private" not in menus.respond("/knowledge/search\tdisk", local=True)
+    assert "/search/my-notes" in menus.root()              # --all still serves it where it did
+
+
+def test_a_knowledge_pack_outside_the_catalog_appears_without_a_restart(library):
+    menus = menus_for()
+    assert "/search/from-a-friend" not in menus.respond("/knowledge", local=True)
+    add_pack(library, "from-a-friend", "From a Friend", {"note.txt": [("The capital is near.", vec("capital"))]})
+    assert "/search/from-a-friend" in menus.respond("/knowledge", local=True)
+    assert "/doc/from-a-friend/note.txt" in menus.respond("/knowledge/search\tcapital", local=True)
+
+
+def test_with_nothing_installed_there_is_no_search_and_no_download(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    asked = []
+    menus = menus_for(lambda model_id, text: asked.append(text))
+    for request in ("/knowledge", "/knowledge/search\tanything"):
+        out = menus.respond(request, local=True)
+        assert "No Knowledge Packs are installed yet." in out
+        assert "ai-2 knowledge install ai2-help" in out
+        assert "/knowledge/search" not in out
+    assert asked == []
+
+
+def test_a_blank_question_is_refused_before_any_engine(library):
+    asked = []
+    out = menus_for(lambda model_id, text: asked.append(text)).respond("/knowledge/search\t   ", local=True)
+    assert out.startswith("3Type a question") and asked == []
+
+
+def test_search_across_knowledge_packs_names_each_source(library):
+    add_pack(library, "aid", "First Aid", {"burns.txt": [("The capital rule for burns is cool water.", vec("capital"))]},
+             sources=[{"file": "burns.txt", "url": "https://example.org/burns"}])
+    out = menus_for().respond("/knowledge/search\tcapital", local=True)
+    assert out.startswith("iClosest passages\t") and "closest to your" in out
+    assert "First Aid: burns.txt, part 1 of 1" in out and "Everyday Reference: spain.txt, page 1" in out
+    assert "/doc/aid/burns.txt\t" in out and "/doc/everyday/spain.txt\t" in out
+    assert out.count("0    Read the complete topic\t") == 2
+    assert "source: https://example.org/burns" in out
+    assert out.count("Written for First Aid.") == 1 and out.count("Facts from Wikidata.") == 1
+    assert "7Search again\t/knowledge/search\t" in out and "1Knowledge Packs\t/knowledge\t" in out
+
+
+def test_three_distinct_topics_not_three_parts_of_one(library):
+    many = {"long.txt": [(f"The capital part {i}.", vec("capital")) for i in range(6)],
+            "b.txt": [("The capital of b.", vec("capital"))],
+            "c.txt": [("The capital of c.", vec("capital"))],
+            "d.txt": [("The capital of d.", vec("capital"))]}
+    add_pack(library, "big", "Big", many)
+    out = menus_for().respond("/knowledge/search\tcapital", local=True)
+    assert out.count("0    Read the complete topic\t") == gopher.KNOWLEDGE_HITS
+    assert out.count("/doc/big/long.txt\t") <= 1
+
+
+def test_one_long_topic_does_not_crowd_out_the_others(library):
+    long_topic = {"long.txt": [(f"The capital part {i}.", vec("capital")) for i in range(20)]}
+    others = {name: [(f"Close to it, {name}.", vec("madrid"))] for name in ("b.txt", "c.txt")}
+    add_pack(library, "big", "Big", {**long_topic, **others})
+    (library / "data/ai2/doc/everyday/manifest.yml").unlink()   # only this Knowledge Pack
+    out = menus_for().respond("/knowledge/search\tcapital", local=True)
+    assert out.count("0    Read the complete topic\t") == 3
+    assert "/doc/big/b.txt\t" in out and "/doc/big/c.txt\t" in out
+
+
+def two_models(library):
+    add_pack(library, "aa", "Alpha", {"a1.txt": [("Alpha one.", vec("capital"))], "a2.txt": [("Alpha two.", vec("disk"))]}, model="model-a")
+    add_pack(library, "bb", "Beta", {"b1.txt": [("Beta one.", vec("capital"))], "b2.txt": [("Beta two.", vec("disk"))]}, model="model-b")
+    (library / "data/ai2/doc/everyday/manifest.yml").unlink()   # only the two models under test
+
+
+def test_two_embedding_models_get_their_own_vector_and_take_turns(library):
+    two_models(library)
+    asked = []
+
+    def embed(model_id, text):
+        asked.append(model_id)
+        return vec("capital")
+
+    menus = menus_for(embed)
+    first = menus.respond("/knowledge/search\tcapital", local=True)
+    assert asked == ["model-a", "model-b"]                     # one question per model
+    assert first == menus.respond("/knowledge/search\tcapital", local=True)
+    order = [first.index(x) for x in ("/doc/aa/a1.txt", "/doc/bb/b1.txt", "/doc/aa/a2.txt")]
+    assert order == sorted(order)                              # turns, not one model's scores first
+
+
+def test_a_group_that_cannot_be_searched_is_named_and_the_rest_shown(library):
+    two_models(library)
+
+    def embed(model_id, text):
+        if model_id == "model-b":
+            raise RuntimeError("the embedding server is busy")
+        return vec("capital")
+
+    out = menus_for(embed).respond("/knowledge/search\tcapital", local=True)
+    assert "Not searched this time: Beta" in out
+    assert "/doc/aa/a1.txt" in out and "/doc/bb/" not in out
+
+
+def test_no_engine_at_all_says_unavailable_not_no_match(library):
+    def embed(model_id, text):
+        raise RuntimeError("the embedding server did not start")
+
+    out = menus_for(embed).respond("/knowledge/search\tcapital", local=True)
+    assert out.startswith("3Search is unavailable right now (the embedding server did not start)")
+    assert "Closest passages" not in out and "No passages" not in out
+    assert "1Knowledge Packs\t/knowledge\t" in out
+
+
+def test_this_computer_gets_local_links_and_a_peer_the_advertised_name(library):
+    menus = menus_for(host="ai2test-pc")
+    for request in ("", "/knowledge", "/list/everyday", "/search/everyday\tcapital", "/knowledge/search\tcapital"):
+        assert "\tai2test-pc\t" not in menus.respond(request, local=True), request
+        peer = menus.respond(request, local=False)
+        assert "\t127.0.0.1\t" not in peer and "\tai2test-pc\t" in peer, request
+
+
+def test_browsing_and_searching_never_ask_the_chat_model(library):
+    asked = []
+    server = gopher.serve(lambda model_id, text: vec(text), host="127.0.0.1", port=0,
+                          chat_reply=lambda history: asked.append(history) or iter(["no"]))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        for request in ("/knowledge", "/knowledge/search\tcapital", "/search/everyday\tcapital",
+                        "/list/everyday", "/doc/everyday/spain.txt"):
+            assert not talk(server, request).startswith("3"), request
+        assert asked == []
+    finally:
+        server.shutdown()
+
+
+def test_every_question_asks_for_a_running_embedding_server(library, monkeypatch):
+    """A server remembered from the last question may have stopped since."""
+    import argparse
+    from unittest import mock
+    from ai2 import cli, runner, runtime
+    captured = {}
+    urls = iter(["http://127.0.0.1:8081/", "http://127.0.0.1:8081/"])
+    ensure = mock.Mock(side_effect=lambda *a, **k: next(urls))
+    fake = mock.Mock()
+    fake.serve_forever.side_effect = KeyboardInterrupt
+
+    def capture(embed_query, **kwargs):
+        captured["embed"] = embed_query
+        return fake
+
+    monkeypatch.setattr(cli, "detect", lambda: mock.Mock())
+    monkeypatch.setattr(cli, "_usable_model", lambda hw: None)
+    monkeypatch.setattr(runner, "_catalog_entry", lambda model_id: {"file": "m.gguf", "label": "M", "id": model_id})
+    monkeypatch.setattr(runtime, "find_model_file", lambda name: "/m.gguf")
+    monkeypatch.setattr(runner, "_ensure_server", ensure)
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, text: [1.0])
+    monkeypatch.setattr(gopher, "serve", capture)
+    args = argparse.Namespace(host="127.0.0.1", port=7071, all=False, advertise=None, workers=1, wait=5, for_chat=False)
+    cli.cmd_gopher(args)
+    assert captured["embed"]("nomic", "one") == [1.0] and captured["embed"]("nomic", "two") == [1.0]
+    assert ensure.call_count == 2

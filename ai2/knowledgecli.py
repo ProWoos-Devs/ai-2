@@ -446,27 +446,6 @@ def _ensure_embed(hw, model: dict, wait: int):
     return runner._ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=wait)
 
 
-def _interleave(groups: list[list[dict]]) -> list[dict]:
-    """One from each group in turn. Scores from two embedding models do not
-    compare, so neither group may crowd the other out of the top results."""
-    merged = []
-    for i in range(max((len(g) for g in groups), default=0)):
-        merged.extend(g[i] for g in groups if i < len(g))
-    return merged
-
-
-def _distinct_docs(hits: list[dict], top: int) -> list[dict]:
-    seen, kept = set(), []
-    for h in hits:
-        key = (h["collection"], h["doc"])
-        if key not in seen:
-            seen.add(key)
-            kept.append(h)
-        if len(kept) >= top:
-            break
-    return kept
-
-
 def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[dict] | None:
     """The parts of the indexed documents closest to the question, found by
     the embedding server (started on demand), across every collection unless
@@ -493,9 +472,7 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
         if not usable:
             print(f"No document named {args.doc!r} (ai-2 doc list shows the names).", file=sys.stderr)
             return None
-    groups: dict[str, list[str]] = {}
-    for n in usable:
-        groups.setdefault(info[n][0], []).append(n)
+    groups = docmod.group_by_model({n: info[n][0] for n in usable})
     pack_models, own_models, seen = [], [], []
     for n in usable:
         model_id = info[n][0]
@@ -533,10 +510,10 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
         hits = docmod.search_collections({n: stores[n] for n in groups[model_id]},
                                          qvec, top=fetch, doc=args.doc)
         if distinct:
-            hits = _distinct_docs(hits, args.top)
+            hits = docmod.distinct_docs(hits, args.top)
         per_group.append(hits)
         searched.extend(groups[model_id])
-    hits = _interleave(per_group)[:args.top]
+    hits = docmod.interleave(per_group)[:args.top]
     if not hits:
         if not searched:
             if last_error is None:
