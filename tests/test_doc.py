@@ -1094,3 +1094,32 @@ def test_a_sentence_that_runs_on_is_left_alone(tmp_path):
     long_part = "word " * (doc.FINISH_WORDS + 5) + "end."
     conn = _parts(tmp_path, ["Start of it", long_part])
     assert doc.finish_sentence(conn, {"text": "Start of it", "doc": "d.txt", "ord": 0}) == "Start of it"
+
+
+def _store_with_long_document(tmp_path):
+    conn = doc.open_store(str(tmp_path / "index.sqlite"))
+    doc.set_store_model(conn, "m", 2)
+    doc.add_document(conn, "long.txt", "long.txt", [f"long {i}" for i in range(70)], [[1.0, 0.0]] * 70, words=70)
+    doc.add_document(conn, "b.txt", "b.txt", ["b one", "b two"], [[0.6, 0.8], [0.8, 0.6]], words=2)
+    doc.add_document(conn, "c.txt", "c.txt", ["c one"], [[0.5, 0.86]], words=1)
+    return conn
+
+
+def test_a_long_document_leaves_room_for_the_others(tmp_path):
+    conn = _store_with_long_document(tmp_path)
+    hits = doc.best_per_document(conn, [1.0, 0.0], top=3)
+    assert [(h["doc"], h["text"]) for h in hits] == [("long.txt", "long 0"), ("b.txt", "b two"), ("c.txt", "c one")]
+    assert hits[1]["ord"] == 1 and hits[1]["of"] == 2
+
+
+def test_closest_documents_merges_stores_and_names_them(tmp_path):
+    conn = _store_with_long_document(tmp_path)
+    hits = doc.closest_documents({"one": conn}, [1.0, 0.0], top=2)
+    assert [(h["collection"], h["doc"]) for h in hits] == [("one", "long.txt"), ("one", "b.txt")]
+
+
+def test_search_returns_the_closest_parts_in_store_order_on_ties(tmp_path):
+    conn = _store_with_long_document(tmp_path)
+    assert [h["text"] for h in doc.search(conn, [1.0, 0.0], top=3)] == ["long 0", "long 1", "long 2"]
+    assert [h["text"] for h in doc.search(conn, [1.0, 0.0], top=2, doc="b.txt")] == ["b two", "b one"]
+

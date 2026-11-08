@@ -41,7 +41,6 @@ PORT = 7071                 # 70 needs root; this is the one AI-2 uses by defaul
 MAX_SELECTOR = 4096         # a client that sends more is not asking a question (a chat line can be a paragraph)
 MAX_HITS = 5
 KNOWLEDGE_HITS = 3          # distinct topics from a search across the Knowledge Packs
-KNOWLEDGE_CANDIDATES = 60   # parts looked at to find them: one long topic can fill a shorter list
 WRAP = 70                   # Gopher menus are read in 80-column clients
 TIMEOUT = 10.0              # a client that opens a socket and says nothing
 WORKERS = 1                 # see Server: one question at a time by default
@@ -423,12 +422,14 @@ class Menus:
     """Builds every response. Kept apart from the socket handling so the
     tests can ask for a menu without opening a port."""
 
-    def __init__(self, library: Library, embed_query, host: str, port: int, chat: Chat | None = None):
+    def __init__(self, library: Library, embed_query, host: str, port: int, chat: Chat | None = None,
+                 resident=None):
         self.lib = library
         self.embed_query = embed_query
         self.host = host
         self.port = port
         self.chat = chat
+        self.resident = resident           # which embedding model is loaded now, if the caller knows
 
     def _link_host(self, local: bool) -> str:
         """The host in a menu's links. This computer gets its own address even
@@ -584,17 +585,21 @@ class Menus:
             usable = {name: model for name, model in models.items() if model and doc.list_documents(stores[name])}
             if not usable:
                 return self.knowledge(local)
-            per_group, omitted, reason = [], [], ""
-            for model_id, names in doc.group_by_model(usable).items():
+            groups = doc.group_by_model(usable)
+            # The model already loaded goes first, which saves loading it again.
+            # What is shown does not depend on it: see per_group below.
+            loaded = self.resident() if self.resident else None
+            found, reason = {}, ""
+            for model_id in sorted(groups, key=lambda model: model != loaded):
                 try:
                     vector = self.embed_query(model_id, query)
                 except Exception as exc:               # the embedding server, not the client
-                    omitted += [titles[name] for name in names]
                     reason = str(exc)
                     continue
-                group = doc.search_collections({name: stores[name] for name in names}, vector,
-                                               top=KNOWLEDGE_CANDIDATES)
-                per_group.append(doc.distinct_docs(group, KNOWLEDGE_HITS))
+                found[model_id] = doc.closest_documents({name: stores[name] for name in groups[model_id]},
+                                                        vector, top=KNOWLEDGE_HITS)
+            per_group = [found[model_id] for model_id in groups if model_id in found]
+            omitted = [titles[name] for model_id in groups if model_id not in found for name in groups[model_id]]
             if not per_group:
                 return (line("3", tr("Search is unavailable right now ({reason})").format(reason=reason))
                         + line("1", tr("Knowledge Packs"), KNOWLEDGE_SELECTOR, self._link_host(local), self.port)
@@ -762,14 +767,14 @@ class Threaded(socketserver.ThreadingTCPServer):
 
 def serve(embed_query, host: str = "127.0.0.1", port: int = PORT, everything: bool = False,
           advertise: str | None = None, workers: int = WORKERS, chat_reply=None,
-          chat_store=None, chat_budget: int = CHAT_BUDGET):
+          chat_store=None, chat_budget: int = CHAT_BUDGET, resident=None):
     """A running Gopher server. `embed_query(model_id, text)` returns the
     vector for a question, which is what turns a search item into an answer;
     `advertise` is the host name put into the menu lines the client follows;
     `workers` is how many questions may be answered at once; `chat_reply` turns
-    on the chat item, see Chat."""
+    on the chat item, see Chat; `resident()` names the embedding model loaded now."""
     menus = Menus(Library(everything), embed_query, advertise or host, port,
-                  Chat(chat_reply, chat_store, chat_budget) if chat_reply else None)
+                  Chat(chat_reply, chat_store, chat_budget) if chat_reply else None, resident)
     workers = max(1, int(workers))
     if workers == 1:
         server = Sequential((host, port), Handler)

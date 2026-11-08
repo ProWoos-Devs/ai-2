@@ -74,11 +74,23 @@ def _alive(pid: int) -> bool:
         return False
     try:
         os.kill(pid, 0)
-        return True
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True
+        pass
+    return not _exited(pid)
+
+
+def _exited(pid: int) -> bool:
+    """A process that has ended but whose parent has not collected it still
+    answers kill(pid, 0). The Gopher server starts the engine and does not wait
+    for it, so without this every stop waited out both of its time limits for
+    a process that was already gone."""
+    try:
+        with open(f"/proc/{pid}/stat", encoding="utf-8", errors="replace") as fh:
+            return fh.read().rsplit(")", 1)[1].split()[0] == "Z"
+    except (OSError, IndexError):
+        return False
 
 
 def read_server(name: str = CHAT) -> dict | None:

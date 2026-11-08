@@ -189,8 +189,10 @@ def _start_server(hw, model: dict, port: int, record: str, url: str, wait: int,
     print(f"Starting {model['label']} ... this takes a moment on a slow disk", flush=True)
     start = time.monotonic()
     last_note = start
+    pause = 0.1                    # soon at first: a small model is ready quickly
     while time.monotonic() < start + wait and not _server_ready(url):
-        time.sleep(2)
+        time.sleep(pause)
+        pause = min(pause * 1.5, 1.0)
         if time.monotonic() - last_note >= 10:
             last_note = time.monotonic()
             print(f"  still starting ({int(last_note - start)} s)", flush=True)

@@ -915,7 +915,8 @@ def cmd_gopher(args) -> int:
         server = gopher.serve(embed_query, host=args.host, port=args.port,
                               everything=args.all, advertise=advertise, workers=args.workers,
                               chat_reply=chat_reply, chat_store=Store(),
-                              chat_budget=context * CHARS_PER_CONTEXT_TOKEN)
+                              chat_budget=context * CHARS_PER_CONTEXT_TOKEN,
+                              resident=lambda: (serverstate.read_server(serverstate.EMBED) or {}).get("model"))
     except OSError as exc:
         print(f"error: cannot listen on {args.host}:{args.port} ({exc})", file=sys.stderr)
         return 1

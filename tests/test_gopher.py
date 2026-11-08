@@ -830,7 +830,7 @@ def test_three_distinct_topics_not_three_parts_of_one(library):
 
 
 def test_one_long_topic_does_not_crowd_out_the_others(library):
-    long_topic = {"long.txt": [(f"The capital part {i}.", vec("capital")) for i in range(20)]}
+    long_topic = {"long.txt": [(f"The capital part {i}.", vec("capital")) for i in range(70)]}
     others = {name: [(f"Close to it, {name}.", vec("madrid"))] for name in ("b.txt", "c.txt")}
     add_pack(library, "big", "Big", {**long_topic, **others})
     (library / "data/ai2/doc/everyday/manifest.yml").unlink()   # only this Knowledge Pack
@@ -859,6 +859,22 @@ def test_two_embedding_models_get_their_own_vector_and_take_turns(library):
     assert first == menus.respond("/knowledge/search\tcapital", local=True)
     order = [first.index(x) for x in ("/doc/aa/a1.txt", "/doc/bb/b1.txt", "/doc/aa/a2.txt")]
     assert order == sorted(order)                              # turns, not one model's scores first
+
+
+def test_the_loaded_model_goes_first_and_the_page_stays_the_same(library):
+    two_models(library)
+    asked = []
+
+    def embed(model_id, text):
+        asked.append(model_id)
+        return vec("capital")
+
+    plain = gopher.Menus(gopher.Library(), embed, "127.0.0.1", 7071).respond("/knowledge/search\tcapital", local=True)
+    assert asked == ["model-a", "model-b"]
+    asked.clear()
+    menus = gopher.Menus(gopher.Library(), embed, "127.0.0.1", 7071, resident=lambda: "model-b")
+    assert menus.respond("/knowledge/search\tcapital", local=True) == plain
+    assert asked == ["model-b", "model-a"]
 
 
 def test_a_group_that_cannot_be_searched_is_named_and_the_rest_shown(library):

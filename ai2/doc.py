@@ -26,6 +26,7 @@ model or a long wait, and says so, because the excerpts leave the computer.
 from __future__ import annotations
 
 import array
+import heapq
 import json
 import math
 import os
@@ -258,28 +259,47 @@ def forget(conn: sqlite3.Connection, name: str | None = None, everything: bool =
     return n
 
 
-def search(conn: sqlite3.Connection, qvec, top: int = TOP_K, doc: str | None = None) -> list[dict]:
-    """The `top` chunks closest to qvec (cosine), each with its document name,
-    position and score. A few thousand chunks is a fraction of a second in
-    plain Python; that is the whole vector store."""
+def _scored(conn: sqlite3.Connection, qvec, doc: str | None = None):
+    """Every part's cosine score and where it is, one at a time and without its
+    text, so a search holds only what it keeps."""
     q = array.array("f", qvec)
     qn = math.sqrt(sum(x * x for x in q)) or 1.0
-    sql = ("SELECT chunks.text, chunks.ord, docs.name, docs.chunks, chunks.vec, chunks.page, chunks.page_end "
+    sql = ("SELECT chunks.id, chunks.ord, docs.name, docs.chunks, chunks.vec, chunks.page, chunks.page_end "
            "FROM chunks JOIN docs ON docs.id = chunks.doc_id")
     params: tuple = ()
     if doc:
         sql += " WHERE docs.name = ?"
         params = (doc,)
-    hits = []
-    for text, ord_, name, total, blob, page, page_end in conn.execute(sql, params):
+    for chunk_id, ord_, name, total, blob, page, page_end in conn.execute(sql, params):
         v = from_blob(blob)
-        if len(v) != len(q):
-            continue
-        score = sum(a * b for a, b in zip(q, v)) / qn
-        hits.append({"text": text, "ord": ord_, "doc": name, "of": total, "score": score,
-                     "page": page, "page_end": page_end})
-    hits.sort(key=lambda h: -h["score"])
-    return hits[:top]
+        if len(v) == len(q):
+            yield sum(a * b for a, b in zip(q, v)) / qn, chunk_id, ord_, name, total, page, page_end
+
+
+def _hit(conn: sqlite3.Connection, row: tuple) -> dict:
+    score, chunk_id, ord_, name, total, page, page_end = row
+    text = conn.execute("SELECT text FROM chunks WHERE id = ?", (chunk_id,)).fetchone()[0]
+    return {"text": text, "ord": ord_, "doc": name, "of": total, "score": score,
+            "page": page, "page_end": page_end}
+
+
+def search(conn: sqlite3.Connection, qvec, top: int = TOP_K, doc: str | None = None) -> list[dict]:
+    """The `top` chunks closest to qvec (cosine), each with its document name,
+    position and score. A few thousand chunks is a fraction of a second in
+    plain Python; that is the whole vector store. Equal scores keep their order
+    in the store."""
+    best = heapq.nsmallest(top, enumerate(_scored(conn, qvec, doc)), key=lambda pair: (-pair[1][0], pair[0]))
+    return [_hit(conn, row) for _, row in best]
+
+
+def best_per_document(conn: sqlite3.Connection, qvec, top: int = TOP_K) -> list[dict]:
+    """The closest part of each of the `top` closest documents. However many
+    parts of one long document match, the others keep their places."""
+    best: dict[str, tuple] = {}
+    for row in _scored(conn, qvec):
+        if row[3] not in best or row[0] > best[row[3]][0]:
+            best[row[3]] = row
+    return [_hit(conn, row) for row in sorted(best.values(), key=lambda row: -row[0])[:top]]
 
 
 # ------------------------------------------------------- text and chunking
@@ -474,18 +494,17 @@ def interleave(groups: list[list[dict]]) -> list[dict]:
     return merged
 
 
-def distinct_docs(hits: list[dict], top: int) -> list[dict]:
-    """The best part of each document, for a person reading results: the rest
-    of a document is one step away, and its parts would fill every slot."""
-    seen, kept = set(), []
-    for h in hits:
-        key = (h["collection"], h["doc"])
-        if key not in seen:
-            seen.add(key)
-            kept.append(h)
-        if len(kept) >= top:
-            break
-    return kept
+def closest_documents(stores: dict[str, sqlite3.Connection], qvec, top: int = TOP_K) -> list[dict]:
+    """best_per_document() over several stores built with the same embedding
+    model, merged: for a person reading results, because the rest of a document
+    is one step away and its parts would fill every slot."""
+    hits = []
+    for name, conn in stores.items():
+        for h in best_per_document(conn, qvec, top=top):
+            h["collection"] = name
+            hits.append(h)
+    hits.sort(key=lambda h: -h["score"])
+    return hits[:top]
 
 
 def pick_embedder_group(models: dict[str, list[str]], preferred: str | None,

@@ -2,6 +2,7 @@
 import os
 import stat
 import textwrap
+import time
 
 from ai2 import runtime, serverstate
 from ai2.tiers import load_tiers, runtime_defaults
@@ -294,3 +295,43 @@ def test_chat_and_serve_refuse_to_start_the_oversized_model(monkeypatch, tmp_pat
     assert "need more memory than its 2048 MiB" in err and "not set up" not in err
     assert cli.main(["serve"]) == 1
     assert "need more memory than its 2048 MiB" in capsys.readouterr().err
+
+
+def _running_child():
+    import subprocess
+    import sys
+    return subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])
+
+
+def test_stopping_a_cooperative_child_does_not_wait_out_the_limits(tmp_path, monkeypatch):
+    """Its parent has not collected it, which is how the Gopher server leaves
+    an engine it started: it has ended, and kill(pid, 0) still answers."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    child = _running_child()
+    try:
+        serverstate.write_server(child.pid, "t", "/x/m.gguf", 8080, "127.0.0.1")
+        started = time.monotonic()
+        assert serverstate.stop_server() is True
+        assert time.monotonic() - started < 5
+        assert serverstate.read_server() is None
+    finally:
+        child.kill()
+        child.wait()
+
+
+def test_a_child_that_has_exited_is_not_running(tmp_path, monkeypatch):
+    import subprocess
+    import sys
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    try:
+        for _ in range(100):
+            with open(f"/proc/{child.pid}/stat", encoding="utf-8") as fh:
+                if fh.read().rsplit(")", 1)[1].split()[0] == "Z":
+                    break
+            time.sleep(0.05)
+        assert serverstate._alive(child.pid) is False
+        assert serverstate._alive(os.getpid()) is True
+    finally:
+        child.wait()
+

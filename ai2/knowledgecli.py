@@ -488,7 +488,6 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
     # parts of the same FAQ took two of Rafael's three slots (2026-09-18) and the
     # rest of any document is one keypress away. `doc ask` keeps every part: the
     # chat model may need two parts of one document to answer.
-    fetch = args.top * 4 if distinct else args.top
     per_group: list[list[dict]] = []
     searched: list[str] = []
     last_error = None
@@ -508,10 +507,9 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
                   file=sys.stderr)
             continue
         qvec = docmod.EmbedClient(url, emb).embed_query(question)
-        hits = docmod.search_collections({n: stores[n] for n in groups[model_id]},
-                                         qvec, top=fetch, doc=args.doc)
-        if distinct:
-            hits = docmod.distinct_docs(hits, args.top)
+        group = {n: stores[n] for n in groups[model_id]}
+        hits = (docmod.closest_documents(group, qvec, top=args.top) if distinct
+                else docmod.search_collections(group, qvec, top=args.top, doc=args.doc))
         per_group.append(hits)
         searched.extend(groups[model_id])
     hits = docmod.interleave(per_group)[:args.top]
