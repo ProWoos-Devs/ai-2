@@ -14,7 +14,7 @@ from .benchmark import STAR_LABELS, measure
 from .detect import detect
 from .models import benchmark_model, is_starter, load_catalog, recommend
 from . import runner, serverstate
-from .knowledgecli import cmd_doc, cmd_knowledge, _mention_knowledge_packs
+from .knowledgecli import cmd_doc, cmd_knowledge, _ensure_embed, _mention_knowledge_packs
 from . import runtime
 from .runtime import (download_model, download_preflight, find_benchmark_model, installed_models,
                       model_dir, run_llama_bench, runtime_package, sampling_args, serve,
@@ -894,18 +894,18 @@ def cmd_gopher(args) -> int:
         return LocalReply(url, [system] + history)
 
     def embed_query(model_id, text):
-        """The question's vector, starting the embedding server when it is not
-        running. Asked for every question: a server remembered from an earlier
-        one may have stopped since."""
+        """The question's vector, from the server for this model, started or
+        swapped in when needed (one port, so Knowledge Packs built with two
+        models take turns). Asked for every question: a server remembered from
+        an earlier one may have stopped since."""
         model = runner._catalog_entry(model_id)
         if model is None:
             raise RuntimeError(f"{model_id} is not in this AI-2's catalog")
         if runtime.find_model_file(model["file"]) is None:
             raise RuntimeError(f"{model['label']} is not downloaded here")
-        url = runner._ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait,
-                                    idle_timeout=0)
+        url = _ensure_embed(hw, model, args.wait, idle_timeout=0)
         if url is None:
-            raise RuntimeError("the embedding server did not start")
+            raise RuntimeError("the embedding server is busy or did not start")
         return docmod.EmbedClient(url, model).embed_query(text)
 
     advertise = args.advertise

@@ -932,3 +932,61 @@ def test_every_question_asks_for_a_running_embedding_server(library, monkeypatch
     cli.cmd_gopher(args)
     assert captured["embed"]("nomic", "one") == [1.0] and captured["embed"]("nomic", "two") == [1.0]
     assert ensure.call_count == 2
+
+
+def gopher_embed(monkeypatch):
+    """The embed_query that `ai-2 gopher` gives its server."""
+    import argparse
+    from unittest import mock
+    from ai2 import cli, runner, runtime
+    captured = {}
+    fake = mock.Mock()
+    fake.serve_forever.side_effect = KeyboardInterrupt
+
+    def capture(embed_query, **kwargs):
+        captured["embed"] = embed_query
+        return fake
+
+    monkeypatch.setattr(cli, "detect", lambda: mock.Mock())
+    monkeypatch.setattr(cli, "_usable_model", lambda hw: None)
+    monkeypatch.setattr(runner, "_catalog_entry", lambda model_id: {"file": "m.gguf", "label": "M", "id": model_id})
+    monkeypatch.setattr(runtime, "find_model_file", lambda name: "/m.gguf")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, text: [self.model["id"]])
+    monkeypatch.setattr(gopher, "serve", capture)
+    cli.cmd_gopher(argparse.Namespace(host="127.0.0.1", port=7071, all=False, advertise=None,
+                                      workers=1, wait=5, for_chat=False))
+    return captured["embed"]
+
+
+def test_a_second_embedding_model_swaps_the_server(library, monkeypatch):
+    from unittest import mock
+    from ai2 import knowledgecli, runner, serverstate
+    embed = gopher_embed(monkeypatch)
+    running = {"model": "model-a"}
+    stop = mock.Mock(side_effect=lambda name: running.clear())
+
+    def ensure(hw, model, port, record, wait, idle_timeout):
+        assert idle_timeout == 0
+        running["model"] = model["id"]
+        return "http://127.0.0.1:8081/"
+
+    monkeypatch.setattr(serverstate, "read_server", lambda name: dict(running))
+    monkeypatch.setattr(serverstate, "stop_server", stop)
+    monkeypatch.setattr(knowledgecli, "_server_busy", lambda url: False)
+    monkeypatch.setattr(runner, "_ensure_server", ensure)
+    assert embed("model-a", "q") == ["model-a"] and stop.call_count == 0
+    assert embed("model-b", "q") == ["model-b"] and stop.call_count == 1
+    assert embed("model-a", "q") == ["model-a"] and stop.call_count == 2
+
+
+def test_a_server_busy_with_another_model_is_left_alone(library, monkeypatch):
+    from unittest import mock
+    from ai2 import knowledgecli, serverstate
+    embed = gopher_embed(monkeypatch)
+    stop = mock.Mock()
+    monkeypatch.setattr(serverstate, "read_server", lambda name: {"model": "model-a"})
+    monkeypatch.setattr(serverstate, "stop_server", stop)
+    monkeypatch.setattr(knowledgecli, "_server_busy", lambda url: True)
+    with pytest.raises(RuntimeError, match="busy or did not start"):
+        embed("model-b", "q")
+    assert stop.call_count == 0

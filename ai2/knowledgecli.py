@@ -432,7 +432,7 @@ def _server_busy(url: str, timeout: float = 2.0) -> bool:
     return any(isinstance(s, dict) and s.get("is_processing") for s in slots or [])
 
 
-def _ensure_embed(hw, model: dict, wait: int):
+def _ensure_embed(hw, model: dict, wait: int, idle_timeout: int | None = None):
     """The embedding server for this model. Scores only compare inside one
     model, so a search that covers two groups swaps the server between them
     (one port). A server busy with another model, an `ai-2 doc index` in
@@ -443,7 +443,8 @@ def _ensure_embed(hw, model: dict, wait: int):
         if _server_busy(f"http://127.0.0.1:{docmod.EMBED_PORT}/"):
             return None
         serverstate.stop_server(name=serverstate.EMBED)
-    return runner._ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=wait)
+    return runner._ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=wait,
+                                 idle_timeout=idle_timeout)
 
 
 def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[dict] | None:
