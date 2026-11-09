@@ -3,6 +3,8 @@
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+## [0.28.1] - 2026-11-09
 ### Changed
 - **A search across embedding models is about ten times faster.** Every swap between engines counted the engine that had just ended as still running and waited out 40 seconds. On a 2011 laptop such a search went from 93 seconds to between 7 and 11. `ai-2 stop` no longer waits either when `ai-2 gopher` was started by hand.
 - **A search across embedding models starts with the one already loaded,** which saves loading it again. The results do not change.
