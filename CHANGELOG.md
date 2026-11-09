@@ -4,6 +4,13 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.28.3] - 2026-11-09
+### Changed
+- **A long text document opens at once in the AI-2 Gopher app and takes little memory.** The reader lays out only the text near the window. On a 2011 laptop with 4 GB a document of 5 MB is readable in under half a second with the app at about 230 MiB, where it took 6 seconds and 1.7 GB, and Find on it had to be stopped at 2.5 GB. A match far away in a long document still takes time, about 13 seconds to the end of 5 MB on that laptop. This is AI-2 Gopher 1.6.2, which this release requires.
+### Fixed
+- **Find goes to the match after a click on a line.** It went to the end of the page, on documents, menus and the chat.
+- **What is copied from a document keeps its line ends,** and Select all and then Copy takes the whole document.
+
 ## [0.28.2] - 2026-11-09
 ### Changed
 - **A search of the Knowledge Packs from the AI-2 chat is readable about 2.5 seconds sooner on a 2011 laptop,** in about 3.2 seconds where it took 5.7. While this computer works on a search, the AI-2 Gopher app now shows a still hourglass and one line of text. The turning circle it showed before took about half a processor core away from the search on a computer with two. This is AI-2 Gopher 1.6.1, which this release requires.
