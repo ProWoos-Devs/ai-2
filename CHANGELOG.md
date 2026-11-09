@@ -4,6 +4,10 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.28.2] - 2026-11-09
+### Changed
+- **A search of the Knowledge Packs from the AI-2 chat is readable about 2.5 seconds sooner on a 2011 laptop,** in about 3.2 seconds where it took 5.7. While this computer works on a search, the AI-2 Gopher app now shows a still hourglass and one line of text. The turning circle it showed before took about half a processor core away from the search on a computer with two. This is AI-2 Gopher 1.6.1, which this release requires.
+
 ## [0.28.1] - 2026-11-09
 ### Changed
 - **A search across embedding models is about ten times faster.** Every swap between engines counted the engine that had just ended as still running and waited out 40 seconds. On a 2011 laptop such a search went from 93 seconds to between 7 and 11. `ai-2 stop` no longer waits either when `ai-2 gopher` was started by hand.

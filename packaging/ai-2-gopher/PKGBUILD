@@ -19,8 +19,8 @@
 # own.
 
 pkgname=ai-2-gopher
-pkgver=1.6.0
-_build=9
+pkgver=1.6.1
+_build=10
 pkgrel=1
 pkgdesc="AI-2 Gopher, a Gopher browser for the desktop and the app AI-2 chats in"
 arch=('x86_64')
@@ -38,7 +38,7 @@ source=("$_name.tar.gz::$url/releases/download/v$pkgver/$pkgname-$pkgver%2B$_bui
         "gopher_reader-$_reader.xpi::https://addons.mozilla.org/firefox/downloads/file/5156726/gopher_reader-$_reader.xpi"
         'org.gopherclient.reader.json')
 noextract=("gopher_reader-$_reader.xpi")
-sha256sums=('f9e1035b3fcf5fb0fda529b25f9b2d015f45a43085a559f359b5e225262036f2'
+sha256sums=('16cb0869b8d2c96baefb1caaa288d70a81d188fa9ac4340554d1e9475c0333c8'
             'SKIP'
             'e487de031d256f37519361b827f335df282b3f645b512ebc8a9ad6733212a2a8'
             'SKIP')

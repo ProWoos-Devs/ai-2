@@ -198,7 +198,7 @@ def test_the_chat_app_is_on_the_image_and_required():
     prof = yaml.safe_load((ISO / "profile.yaml").read_text())
     assert "ai-2-gopher" in prof["rootfs"]["packages"]
     pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text()
-    assert "'ai-2-gopher>=1.6.0-1'" in pkgbuild.split("checkdepends=")[0]
+    assert "'ai-2-gopher>=1.6.1-1'" in pkgbuild.split("checkdepends=")[0]
     assert "'ai-2-gopher:" not in pkgbuild
 
 
