@@ -103,11 +103,15 @@ rootfs:
       - networkmanager-s6
 livefs:
   packages:
-    - amd-ucode
+    # AI-2: no amd-ucode or intel-ucode here. Both are in the installed system
+    # already (common.yaml), and listing them again put a second copy of their
+    # files in this layer (about 25 MiB for Intel's).
     - artix-grub-live
+    # AI-2: stands in for plasma-integration, which calamares depends on and
+    # which brings KDE Plasma along, about 181 MiB (packaging/ai2-no-plasma)
+    - ai2-no-plasma
     - calamares-extensions
     - gparted
-    - intel-ucode
     - mkinitcpio-nfs-utils
     - nbd
     - squashfs-tools

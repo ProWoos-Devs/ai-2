@@ -72,6 +72,21 @@ chmod 755 "$DST/root-overlay/usr/bin/artix-service" "$DST/live-overlay/usr/bin/a
 mkdir -p "$HOME/.config/artools/pacman.conf.d"
 cp "$SRC/iso/pacman.conf.d/iso-x86_64.conf" "$HOME/.config/artools/pacman.conf.d/iso-x86_64.conf"
 
+# AI-2: calamares-extensions carries Artix's own installer branding (32.6 MB
+# and 2.9 MB on disk) and AI-2's settings use `branding: ai2`. The build's
+# pacman leaves those two folders out. Only the build reads this line: the
+# root overlay below always carries the ordinary pacman.conf, so neither the
+# live session nor an installed system has it.
+python3 - "$HOME/.config/artools/pacman.conf.d/iso-x86_64.conf" <<'PYCONF'
+import sys
+conf = sys.argv[1]
+s = open(conf).read()
+old = "[options]\n"
+assert s.count(old) == 1
+open(conf, "w").write(s.replace(old, old + "NoExtract = usr/share/calamares/branding/artix/* "
+                                           "usr/share/calamares/branding/artix-next/*\n"))
+PYCONF
+
 # AI-2: a TEST image carries the unsigned candidate package instead of the
 # published one (AI2_CANDIDATE=1). A candidate is tried on real hardware before
 # it is signed, and a from-scratch install is the only way to judge first-run
@@ -87,7 +102,8 @@ cp "$SRC/iso/pacman.conf.d/iso-x86_64.conf" "$HOME/.config/artools/pacman.conf.d
 # Not under /root: pacman 7 fetches as the unprivileged `alpm` user, which cannot
 # read there ("Could not open file .../ai2-candidate.db", 2026-09-19).
 CANDIDATE_REPO=/srv/ai2-candidate-repo
-rm -rf "$CANDIDATE_REPO" "$DST/root-overlay/etc/pacman.conf"
+rm -rf "$CANDIDATE_REPO"
+install -Dm644 "$SRC/iso/pacman.conf.d/iso-x86_64.conf" "$DST/root-overlay/etc/pacman.conf"
 if [ "${AI2_CANDIDATE:-0}" = 1 ]; then
   shopt -s nullglob
   cands=("$SRC"/packaging/candidate/ai-2-*.pkg.tar.zst)

@@ -1,0 +1,25 @@
+# Maintainer: Rafael Minuesa <rafael.minuesa@gmail.com>
+# Stands in for plasma-integration on the AI-2 live stick, and holds no files.
+# Artix's calamares depends on plasma-integration (the KDE look for Qt
+# programs), which depends on xdg-desktop-portal-kde, which brings
+# plasma-workspace, kwin, breeze and 90 more packages: about 181 MiB of the
+# image for an installer that runs on XFCE. Only the live layer of the ISO
+# lists this package (iso/profiles/ai2/profile.yaml); nothing on an installed
+# system needs it, and pacman never picks it by itself because the real
+# plasma-integration matches the dependency by name.
+
+pkgname=ai2-no-plasma
+pkgver=1
+pkgrel=1
+pkgdesc="Empty stand-in for plasma-integration on the AI-2 live stick"
+arch=('any')
+url="https://github.com/ProWoos-Devs/ai-2"
+license=('GPL-3.0-or-later')
+provides=('plasma-integration')
+conflicts=('plasma-integration')
+
+package() {
+  install -d "$pkgdir/usr/share/doc/$pkgname"
+  echo "Stands in for plasma-integration on the AI-2 live stick. See the AI-2 source, packaging/ai2-no-plasma." \
+    > "$pkgdir/usr/share/doc/$pkgname/README"
+}

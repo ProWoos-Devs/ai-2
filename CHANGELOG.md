@@ -5,6 +5,8 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ## [Unreleased]
 ### Added
 - **`ai-2 doctor` looks at the computer itself.** Three new checks: what each built-in disk says about its own condition (damaged sectors, hours of use), how much of its original capacity the battery still holds, and the processor's temperature against the point where the computer slows itself down or switches off. On an old or donated computer a worn disk or a dead battery is more likely than a software fault, and doctor said nothing about either. The disk's record needs administrator rights, so AI-2 reads it once at every start of the computer and `ai-2 doctor` shows that; `sudo ai-2 doctor` reads it at that moment. No serial number is read or kept. The `smartmontools` package (2.2 MiB) becomes a dependency for this.
+### Changed
+- **The next ISO is about 276 MiB smaller.** The live stick no longer carries KDE Plasma, which Artix's installer pulled in through one dependency (`plasma-integration`, replaced on the stick by the empty package `ai2-no-plasma`), nor Artix's own installer branding, which AI-2 never showed, nor a second copy of the processor microcode. A test image came to 1,851,246,592 bytes, where ISO 20261106 has 2,140,211,200. The installed system is the same. The installer was tried on that image in a virtual machine with "Replace a partition", through to the first login.
 
 ## [0.28.3] - 2026-11-09
 ### Changed
