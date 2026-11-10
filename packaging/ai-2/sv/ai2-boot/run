@@ -1,4 +1,7 @@
 #!/bin/sh
 # One-shot (Artix convention, see zramen-runit): apply, then park.
 /usr/lib/ai2/boot-tuning.sh
+# the disks' own health records, for `ai-2 doctor` (in the background: a slow
+# disk must not hold the boot)
+[ -x /usr/lib/ai2/disk-health.sh ] && /usr/lib/ai2/disk-health.sh &
 exec pause

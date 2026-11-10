@@ -80,7 +80,7 @@ A knowledge pack is how the slow part moves to a fast computer (the [[Knowledge 
 
 | Command | What it does |
 |---|---|
-| `ai-2 doctor` | Check engine, model, tuning, services and repository key. |
+| `ai-2 doctor` | Check engine, model, tuning, services and repository key, and the computer itself: each built-in disk's own record of damage, what the battery still holds, and the processor's temperature. The disk record is read at every start of the computer; `sudo ai-2 doctor` reads it at that moment. |
 | `ai-2 report` | Write `~/ai2-report.txt` to attach to a bug report. |
 | `ai-2 owner-setup` | On a computer installed with "Install for someone else": the owner's name, login name, password and the computer's name, asked at the first boot (root; the first boot runs it by itself). See [[Installation]]. |
 | `ai-2 crashes` | The programs that stopped unexpectedly for this account in the last 7 days, and what to do about each. The desktop says so once in a bubble; `ai-2 doctor` has the same as a check. Only a name, a signal and a time are kept, never a memory dump, and nothing is sent anywhere. |

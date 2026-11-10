@@ -1,4 +1,4 @@
-On an installed system, start with `ai-2 doctor`, which checks the engine, model, tuning, services and repository key. For a bug report, `ai-2 report` writes `~/ai2-report.txt` to attach to an [issue](https://github.com/ProWoos-Devs/ai-2/issues). Questions and ideas go to [Discussions](https://github.com/ProWoos-Devs/ai-2/discussions).
+On an installed system, start with `ai-2 doctor`, which checks the engine, model, tuning, services and repository key, and the health of the disk, the battery and the processor's temperature. For a bug report, `ai-2 report` writes `~/ai2-report.txt` to attach to an [issue](https://github.com/ProWoos-Devs/ai-2/issues). Questions and ideas go to [Discussions](https://github.com/ProWoos-Devs/ai-2/discussions).
 
 ## Booting the stick
 

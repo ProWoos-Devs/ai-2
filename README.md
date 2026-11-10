@@ -110,7 +110,7 @@ ai-2 doc search      # ask the Knowledge Packs and your own documents (the Searc
 ai-2 knowledge browse # see the Knowledge Packs there are, install or update by number
 ai-2 chat            # start the local AI if needed and open the chat in the AI-2 Gopher app (--terminal on a slow machine)
 ai-2 update          # update AI-2, the engine, the model catalog and the system in one step
-ai-2 doctor          # check engine, model, tuning, services, repository key
+ai-2 doctor          # check engine, model, tuning, services, repository key, disk, battery, temperature
 ```
 
 Everything else, 27 commands in all, from `ai-2 detect` to `ai-2 transcribe`, is in the wiki,

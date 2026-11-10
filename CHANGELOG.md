@@ -3,6 +3,8 @@
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Added
+- **`ai-2 doctor` looks at the computer itself.** Three new checks: what each built-in disk says about its own condition (damaged sectors, hours of use), how much of its original capacity the battery still holds, and the processor's temperature against the point where the computer slows itself down or switches off. On an old or donated computer a worn disk or a dead battery is more likely than a software fault, and doctor said nothing about either. The disk's record needs administrator rights, so AI-2 reads it once at every start of the computer and `ai-2 doctor` shows that; `sudo ai-2 doctor` reads it at that moment. No serial number is read or kept. The `smartmontools` package (2.2 MiB) becomes a dependency for this.
 
 ## [0.28.3] - 2026-11-09
 ### Changed

@@ -175,6 +175,78 @@ def check_disk() -> Check:
     return Check(status, "Disk", f"{free} MB free in {d}")
 
 
+def check_disk_health() -> list[Check]:
+    """What each built-in disk says about its own condition (ai2/health.py).
+    A disk that has started to lose sectors is the commonest way an old
+    computer loses somebody's files, and it gives this warning first."""
+    from . import health
+    out = []
+    for name, data in health.read_disks():
+        label = f"Disk {name}"
+        if data is None:
+            if name.startswith("mmcblk"):
+                continue
+            if not shutil.which("smartctl"):
+                out.append(Check(INFO, label, "its health record needs the smartmontools package; "
+                                              "run: ai-2 update"))
+            else:
+                out.append(Check(INFO, label, "its health record is read as administrator; "
+                                              "run: sudo ai-2 doctor"))
+            continue
+        s = health.summarize_smart(data)
+        hours = f"{s['hours']} hours of use" if s["hours"] is not None else ""
+        if s["state"] == "failing":
+            out.append(Check(FAIL, label, f"{s['detail']}. Copy your files to another disk now; "
+                                          "this one can stop working at any time"))
+        elif s["state"] == "worn":
+            out.append(Check(WARN, label, f"{s['detail']}. The disk still works, but this is how a failing "
+                                          "disk starts: keep a copy of what matters on another disk"))
+        elif s["state"] == "unknown":
+            out.append(Check(INFO, label, "it keeps no health record"))
+        else:
+            out.append(Check(OK, label, "no damage recorded" + (f", {hours}" if hours else "")))
+    return out
+
+
+def check_battery() -> list[Check]:
+    """How much of its original capacity each battery still holds."""
+    from . import health
+    found = health.batteries()
+    if not found:
+        if health.is_portable():
+            return [Check(INFO, "Battery", "none found, so this computer works only on its charger")]
+        return []
+    out = []
+    for b in found:
+        pct = b["percent_of_new"]
+        cycles = f", {b['cycles']} charge cycles" if b["cycles"] else ""
+        if pct is None:
+            out.append(Check(INFO, "Battery", f"{b['name']} does not say how much it still holds{cycles}"))
+        elif pct < 50:
+            out.append(Check(WARN, "Battery", f"{b['name']} holds {pct}% of what it held when new{cycles}; "
+                                              "expect a short time away from the charger"))
+        else:
+            out.append(Check(OK, "Battery", f"{b['name']} holds {min(pct, 100)}% of what it held when new{cycles}"))
+    return out
+
+
+def check_temperature() -> Check | None:
+    """The processor's temperature at this moment against the point where
+    the computer protects itself. Close to it, the cooling is not keeping up
+    (dust in the vents, a tired fan), and the AI work that follows will be
+    slowed down or cut short."""
+    from . import health
+    t = health.cpu_temperature()
+    if t is None:
+        return None
+    if t["limit"] is None:
+        return Check(INFO, "Temperature", f"processor at {t['now']} °C")
+    does = "slows itself down" if t["limit_kind"] == "passive" else "switches itself off"
+    if t["now"] >= t["limit"] - health.NEAR_LIMIT:
+        return Check(WARN, "Temperature", f"processor at {t['now']} °C, and this computer {does} at "
+                                          f"{t['limit']} °C; check that the fan turns and the air vents are clean")
+    return Check(OK, "Temperature", f"processor at {t['now']} °C (this computer {does} at {t['limit']} °C)")
+
 def check_tier() -> Check:
     tid = installed_tier_id()
     if not tid:
@@ -313,6 +385,11 @@ def run_checks(hw: Hardware, backend=None) -> list[Check]:
     checks += check_models(hw)
     checks += check_knowledge()
     checks += [check_disk(), check_sysctl(), check_zram(), check_mglru(), check_broadcom()]
+    checks += check_disk_health()
+    checks += check_battery()
+    temperature = check_temperature()
+    if temperature:
+        checks.append(temperature)
     if backend is not None:
         checks.append(check_service(backend, "earlyoom", True))
         tid = installed_tier_id()

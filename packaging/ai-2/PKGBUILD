@@ -14,11 +14,12 @@ arch=('any')
 url="https://github.com/ProWoos-Devs/ai-2"
 license=('MIT')
 depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pamac' 'sqlite' 'ai-2-gopher>=1.6.2-1' 'firefox-esr'
-         'firefox-esr-i18n-es-es' 'firefox-esr-i18n-de' 'firefox-esr-i18n-pl')
+         'firefox-esr-i18n-es-es' 'firefox-esr-i18n-de' 'firefox-esr-i18n-pl' 'smartmontools')
 # pamac brings libpamac, whose pamac-checkupdates is the update check since 0.14.1 (pacman-contrib and
 # fakeroot were only there for checkupdates). sqlite: python only suggests it, ai-2 doc needs sqlite3.
 # ai-2-gopher: the app AI-2 Chat opens, on every AI-2 (Rafael, 2026-11-04). 1.5.0-2 brought Gopher Reader, which policies.json installs, 1.6.0-1 is what Search Knowledge Packs in the chat needs, 1.6.1-1 waits for a search without an animation, which gave the search about half a processor core back on a 2-core computer, and 1.6.2-1 reads a long document without laying all of it out.
 # firefox-esr: AI-2's web browser (Rafael, 2026-11-05), the default through migrations/. Epiphany stays where it is installed.
+# smartmontools: `ai-2 doctor` reads each disk's own health record with smartctl (2.2 MiB installed, measured 2026-11-10).
 # The packs are about 0.5 MiB each and match the installer's languages. Firefox ignores them where Artix puts them until branding/firefox/policies.json loads them.
 checkdepends=('python-pytest')
 optdepends=('pciutils: GPU detection via lspci'
@@ -106,6 +107,8 @@ for info in json.load(open("ai2/data/languages.json")).values():
 
   # boot-time memory tuning (zswap/MGLRU live in sysfs): script + one-shot services
   install -Dm755 packaging/ai-2/boot-tuning.sh "$pkgdir/usr/lib/ai2/boot-tuning.sh"
+  # the disks' health records, read as root at boot for `ai-2 doctor` (ai2/health.py)
+  install -Dm755 packaging/ai-2/disk-health.sh "$pkgdir/usr/lib/ai2/disk-health.sh"
   install -Dm755 packaging/ai-2/sv/ai2-boot/run "$pkgdir/etc/runit/sv/ai2-boot/run"
   install -Dm644 packaging/ai-2/systemd/ai2-boot.service "$pkgdir/usr/lib/systemd/system/ai2-boot.service"
 
