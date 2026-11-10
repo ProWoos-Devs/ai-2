@@ -111,7 +111,6 @@ for info in json.load(open("ai2/data/languages.json")).values():
   install -Dm755 packaging/ai-2/disk-health.sh "$pkgdir/usr/lib/ai2/disk-health.sh"
   install -Dm755 packaging/ai-2/cpu-guard.sh "$pkgdir/usr/lib/ai2/cpu-guard.sh"
   install -Dm755 packaging/ai-2/sv/ai2-boot/run "$pkgdir/etc/runit/sv/ai2-boot/run"
-  install -Dm644 packaging/ai-2/systemd/ai2-boot.service "$pkgdir/usr/lib/systemd/system/ai2-boot.service"
 
   # install for another owner (ai2/owner.py): the session the first boot logs
   # the temporary account into, and the script it runs

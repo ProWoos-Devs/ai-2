@@ -198,7 +198,15 @@ def build_plan(hw: Hardware, tier: Tier, config: dict, backend, pkg_backend) -> 
             os.path.join(STATE_DIR, "memory.conf"), content,
             f"write {STATE_DIR}/memory.conf ({what})",
         ))
-        if os.path.isfile(BOOT_TUNING):
+        if backend.name != "runit":
+            # AI-2 ships runit services only. Elsewhere the settings are
+            # applied once now and are gone at the next start.
+            actions.append(Action(description=f"no boot service on {backend.name}: AI-2 is made for Artix with "
+                                              "runit, so these settings last until the next start only",
+                                  run=lambda: None))
+            if os.path.isfile(BOOT_TUNING):
+                actions.append(_cmd_action([BOOT_TUNING], "apply the memory settings now"))
+        elif os.path.isfile(BOOT_TUNING):
             action = _service_action(
                 backend, "ai2-boot", True,
                 f"enable boot-time memory tuning service 'ai2-boot' ({backend.name})")

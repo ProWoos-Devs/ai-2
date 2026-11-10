@@ -27,7 +27,9 @@ A complete system: Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool,
 
 After the installation, the setup wizard opens at the first login and does everything below for you. Requirements: a 64-bit PC, 2 GB of RAM (4 GB recommended), about 6 GB of disk, Secure Boot off (the image is not signed for it). Internet is not needed to install, only later for models and updates.
 
-### Option 2: packages on an existing Artix or Arch-based system
+### Option 2: packages on an existing Artix system
+
+This is for Artix Linux with runit. An installation on Arch Linux, or on a system built on it, is not supported, because those systems run systemd and AI-2 uses none; see [Install on an existing Arch system](https://github.com/ProWoos-Devs/ai-2/wiki/Install-on-an-existing-Arch-system).
 
 Add the signed AI-2 repository:
 

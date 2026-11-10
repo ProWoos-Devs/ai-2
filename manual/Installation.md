@@ -1,4 +1,4 @@
-The recommended way to get AI-2 is the ISO, a complete system with Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool, plus a graphical installer. Lean by design, 1.85 GB. To add AI-2 to a Linux system you already have, see [[Install on an existing Artix or Arch system]] instead.
+The recommended way to get AI-2 is the ISO, a complete system with Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool, plus a graphical installer. Lean by design, 1.85 GB. To add AI-2 to a Linux system you already have, see [[Install on an existing Artix system]] instead. An installation on Arch Linux is possible but not supported, see [[Install on an existing Arch system]].
 
 ## Requirements
 

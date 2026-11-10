@@ -8,7 +8,8 @@ The oldest validated machine is a 2011 laptop with 4 GB of RAM and no SSE4.1, ru
 
 * [[Installation]], download and verify the ISO, write the USB stick, try the live desktop, run the installer.
 * [[First Steps]], the setup wizard at first login, opening the chat, the basic commands.
-* [[Install on an existing Artix or Arch system]], the signed `[ai2]` pacman repository.
+* [[Install on an existing Artix system]], the signed `[ai2]` pacman repository.
+* [[Install on an existing Arch system]], possible but not supported.
 * [[Verifying and Pinning|Verifying-and-Pinning]], checking the image and the packages against the AI-2 signing key, and staying on an older version.
 
 ## Reference

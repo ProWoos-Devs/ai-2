@@ -2,7 +2,7 @@
 # AI-2 boot-time memory tuning. Applies what /etc/ai2/memory.conf asks for:
 # settings that live in sysfs and do not survive a reboot (zswap parameters,
 # MGLRU anti-thrashing). Written by `ai-2 init --apply`, run at boot by the
-# ai2-boot service (runit) or ai2-boot.service (systemd), and once directly
+# ai2-boot runit service, and once directly
 # when the plan is applied. Idempotent; every step is optional.
 CONF=/etc/ai2/memory.conf
 [ -r "$CONF" ] || exit 0

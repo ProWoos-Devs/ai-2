@@ -1,4 +1,4 @@
-You do not need the ISO to use AI-2. The `ai-2` tool and the AI engine install as normal packages on an existing Artix or Arch-based system, from AI-2's signed pacman repository.
+You do not need the ISO to use AI-2. The `ai-2` tool and the AI engine install as normal packages on an existing Artix Linux system with runit, from AI-2's signed pacman repository. For Arch Linux and systems built on it, see [[Install on an existing Arch system]].
 
 ## 1. Trust the signing key
 

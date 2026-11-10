@@ -254,6 +254,15 @@ def check_temperature() -> Check | None:
                                           f"{t['limit']} °C; check that the fan turns and the air vents are clean")
     return Check(OK, "Temperature", f"processor at {t['now']} °C (this computer {does} at {t['limit']} °C)")
 
+def check_init(hw: Hardware) -> Check | None:
+    """AI-2 is Artix with runit. The packages install on other systems that
+    use pacman, but nothing there is tried or supported."""
+    if hw.init_system in ("runit", "unknown", ""):
+        return None
+    return Check(WARN, "System", f"this computer starts with {hw.init_system}, not runit. AI-2 is made for Artix "
+                                 "Linux with runit, and an installation on any other system is not supported")
+
+
 def check_tier() -> Check:
     tid = installed_tier_id()
     if not tid:
@@ -388,7 +397,8 @@ def check_crashes() -> Check:
 
 
 def run_checks(hw: Hardware, backend=None) -> list[Check]:
-    checks = [check_tier(), check_runtime(hw), check_other_runtimes(hw), check_score()]
+    checks = [c for c in [check_init(hw)] if c]
+    checks += [check_tier(), check_runtime(hw), check_other_runtimes(hw), check_score()]
     checks += check_models(hw)
     checks += check_knowledge()
     checks += [check_disk(), check_sysctl(), check_zram(), check_mglru(), check_broadcom()]

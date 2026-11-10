@@ -213,3 +213,20 @@ def test_failed_write_is_already_recoverable(tmp_path, monkeypatch):
         tuning.apply_plan([action], FakeBackend())
     assert tuning._load_manifest()["files"] == [str(target)]
     assert (tmp_path / "target.ai2-orig").read_text() == "original\n"
+
+
+def test_no_boot_service_outside_runit(monkeypatch):
+    """AI-2 ships runit services only: on any other init the plan says the
+    settings last until the next start and enables nothing."""
+    from ai2 import tuning
+    monkeypatch.setattr(tuning, "BOOT_TUNING", __file__)
+
+    class Other(FakeBackend):
+        name = "systemd"
+
+    tiers = load_tiers()
+    tier = tiers["standard"]
+    hw = Hardware(ram_nominal_gib=8, logical_cores=4, init_system="systemd", flags={"avx2"})
+    text = render_plan(build_plan(hw, tier, resolve_config(tier, tiers), Other(), FakePkgBackend()))
+    assert "fake-enable ai2-boot" not in text
+    assert "made for Artix with runit" in text and "until the next start only" in text

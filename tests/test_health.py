@@ -146,3 +146,16 @@ def test_doctor_reads_the_record_left_at_boot(tmp_path, monkeypatch):
     assert c.status == doctor.INFO and "sudo ai-2 doctor" in c.detail
     monkeypatch.setattr(doctor.shutil, "which", lambda name: None)
     assert "smartmontools" in doctor.check_disk_health()[2].detail
+
+
+def test_doctor_warns_outside_runit():
+    from ai2.detect import Hardware
+    assert doctor.check_init(Hardware(init_system="runit")) is None
+    c = doctor.check_init(Hardware(init_system="systemd"))
+    assert c.status == doctor.WARN and "not supported" in c.detail
+
+
+def test_the_package_ships_nothing_for_systemd():
+    from pathlib import Path
+    pkgbuild = (Path(__file__).resolve().parents[1] / "packaging" / "ai-2" / "PKGBUILD").read_text()
+    assert "systemd" not in pkgbuild
