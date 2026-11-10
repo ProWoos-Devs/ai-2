@@ -121,3 +121,55 @@ packs:
   categories:
   - 01.04.04
   audience: general
+- id: basic-math
+  title: Basic Math for Children
+  description: Thirteen topics of basic mathematics for children of 6 to 12, from counting and place value to fractions, percentages
+    and telling time, not reviewed by a teacher
+  version: '2026-11-09'
+  revision: 1
+  languages:
+  - en
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa for children learning basic mathematics. MIT licensed, like the rest of
+    the project.
+  embedder: nomic-embed-text-v1.5
+  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-10/basic-math.ai2pack
+  size_bytes: 239597
+  sha256: f6daa5fa93753a1bcc99e0337a2f2f7b100b441eac0221c7e155168159c3b88e
+  documents: 15
+  parts: 75
+  built_with: ai-2 0.28.3
+  contact: ProWoos-Devs
+  categories:
+  - '11.01'
+  - '07.05'
+  audience: children
+  ages:
+  - school-age
+  - preteen
+- id: basic-physics
+  title: Basic Physics for Children
+  description: Fourteen topics of basic physics for children of 6 to 12, from forces and gravity to light, sound, electricity
+    and magnets, with things to try, not reviewed by a teacher or physicist
+  version: '2026-11-09'
+  revision: 1
+  languages:
+  - en
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa for children learning basic physics. MIT licensed, like the rest of the
+    project.
+  embedder: nomic-embed-text-v1.5
+  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-10/basic-physics.ai2pack
+  size_bytes: 280944
+  sha256: a1808310f64cdaec09907e6fc0cdd70700421cae18d4a7866d987d2d9889824e
+  documents: 16
+  parts: 87
+  built_with: ai-2 0.28.3
+  contact: ProWoos-Devs
+  categories:
+  - '11.03'
+  - '07.05'
+  audience: children
+  ages:
+  - school-age
+  - preteen
