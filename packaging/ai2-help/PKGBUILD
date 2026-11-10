@@ -12,7 +12,7 @@ arch=('any')
 url="https://github.com/ProWoos-Devs/ai2-knowledge"
 license=('MIT')
 depends=('ai-2')
-source=("ai2-help-$pkgver.ai2pack::https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-09-18/ai2-help.ai2pack")
+source=("ai2-help-$pkgver.ai2pack::https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/ai2-help/ai2-help-r2.ai2pack")
 sha256sums=('b32036ce6b41587afe54fa24402d11fb9c3c30491c77a29c5de98b571fca71df')
 noextract=("ai2-help-$pkgver.ai2pack")
 

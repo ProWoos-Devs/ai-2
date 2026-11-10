@@ -12,7 +12,7 @@ arch=('any')
 url="https://github.com/ProWoos-Devs/ai2-knowledge"
 license=('MIT')
 depends=('ai-2')
-source=("ai2-linux-essentials-$pkgver.ai2pack::https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-09-18/linux-essentials.ai2pack")
+source=("ai2-linux-essentials-$pkgver.ai2pack::https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/linux-essentials/linux-essentials-r2.ai2pack")
 sha256sums=('dd0ad1e1957c5fa3eb47aba3829a9078e84478d65f6b7bff2ed5d987defd232e')
 noextract=("ai2-linux-essentials-$pkgver.ai2pack")
 

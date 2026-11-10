@@ -22,7 +22,7 @@ packs:
   license: MIT
   attribution: AI-2's own documentation, by Rafael Minuesa. MIT licensed, like the rest of the project.
   embedder: nomic-embed-text-v1.5
-  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-09-18/ai2-help.ai2pack
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/ai2-help/ai2-help-r2.ai2pack
   size_bytes: 346022
   sha256: b32036ce6b41587afe54fa24402d11fb9c3c30491c77a29c5de98b571fca71df
   documents: 16
@@ -43,7 +43,7 @@ packs:
   attribution: Written for AI-2 by Rafael Minuesa. MIT licensed, like the rest of the project. Facts from Wikidata (https://www.wikidata.org),
     which places its structured data in the public domain under CC0.
   embedder: nomic-embed-text-v1.5
-  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-02-2/everyday.ai2pack
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/everyday/everyday-r3.ai2pack
   size_bytes: 591875
   sha256: 978cb8ae0672a547f9cf58d373142368126c79ae76a00f4d13a4540780f22e84
   documents: 196
@@ -66,7 +66,7 @@ packs:
   attribution: Written for AI-2 by Rafael Minuesa, in its own wording, from the IFRC International First Aid, Resuscitation
     and Education Guidelines 2025. IFRC did not write or endorse it. MIT licensed, like the rest of the project.
   embedder: nomic-embed-text-v1.5
-  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-07-2/first-aid.ai2pack
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/first-aid/first-aid-r3.ai2pack
   size_bytes: 393409
   sha256: 90498b552dfb637ba5ca5e9b26e553efd31e4bfc4f24432adc1cd97bcf03d14a
   documents: 12
@@ -91,7 +91,7 @@ packs:
     Drinking Water (2026) and the Sphere Handbook (2018). None of them wrote or endorsed it. MIT licensed, like the rest of
     the project.
   embedder: nomic-embed-text-v1.5
-  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-07-2/water-sanitation.ai2pack
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/water-sanitation/water-sanitation-r2.ai2pack
   size_bytes: 328864
   sha256: ef75aa0fe25994b31f5afdcc7564a8317730f4cea69ba09405a5485e85975b80
   documents: 12
@@ -111,7 +111,7 @@ packs:
   license: MIT
   attribution: Written for AI-2 by Rafael Minuesa. MIT licensed, like the rest of the project.
   embedder: nomic-embed-text-v1.5
-  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-09-18/linux-essentials.ai2pack
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/linux-essentials/linux-essentials-r2.ai2pack
   size_bytes: 128531
   sha256: dd0ad1e1957c5fa3eb47aba3829a9078e84478d65f6b7bff2ed5d987defd232e
   documents: 20
@@ -133,7 +133,7 @@ packs:
   attribution: Written for AI-2 by Rafael Minuesa for children learning basic mathematics. MIT licensed, like the rest of
     the project.
   embedder: nomic-embed-text-v1.5
-  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-10/basic-math.ai2pack
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/basic-math/basic-math-r1.ai2pack
   size_bytes: 239597
   sha256: f6daa5fa93753a1bcc99e0337a2f2f7b100b441eac0221c7e155168159c3b88e
   documents: 15
@@ -159,7 +159,7 @@ packs:
   attribution: Written for AI-2 by Rafael Minuesa for children learning basic physics. MIT licensed, like the rest of the
     project.
   embedder: nomic-embed-text-v1.5
-  url: https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-10/basic-physics.ai2pack
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/basic-physics/basic-physics-r1.ai2pack
   size_bytes: 280944
   sha256: a1808310f64cdaec09907e6fc0cdd70700421cae18d4a7866d987d2d9889824e
   documents: 16

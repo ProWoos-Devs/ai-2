@@ -12,7 +12,7 @@ arch=('any')
 url="https://github.com/ProWoos-Devs/ai2-knowledge"
 license=('MIT')
 depends=('ai-2')
-source=("ai2-everyday-$pkgver.ai2pack::https://github.com/ProWoos-Devs/ai2-knowledge/releases/download/packs-2026-11-02-2/everyday.ai2pack")
+source=("ai2-everyday-$pkgver.ai2pack::https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/everyday/everyday-r3.ai2pack")
 sha256sums=('978cb8ae0672a547f9cf58d373142368126c79ae76a00f4d13a4540780f22e84')
 noextract=("ai2-everyday-$pkgver.ai2pack")
 
