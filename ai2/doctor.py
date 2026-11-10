@@ -239,6 +239,13 @@ def check_temperature() -> Check | None:
     t = health.cpu_temperature()
     if t is None:
         return None
+    guard = health.cpu_guard()
+    if guard and guard["held"]:
+        # the guard is already acting: say what it does, it is not a fault
+        speed = f"top speed {guard['max_khz'] / 1e6:.1f} GHz" if guard["max_khz"] else "boost off"
+        return Check(INFO, "Temperature", f"processor at {t['now']} °C; AI-2 is running it slower ({speed}) to "
+                                          f"keep it under {guard['ceiling']} °C, so the AI answers more slowly. "
+                                          "Check that the fan turns and the air vents are clean")
     if t["limit"] is None:
         return Check(INFO, "Temperature", f"processor at {t['now']} °C")
     does = "slows itself down" if t["limit_kind"] == "passive" else "switches itself off"

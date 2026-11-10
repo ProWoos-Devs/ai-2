@@ -25,6 +25,8 @@ DISK_CACHE = "/run/ai2/disk-health"
 HWMON = "/sys/class/hwmon"
 THERMAL = "/sys/class/thermal"
 
+CPU_GUARD = "/run/ai2/cpu-guard/status"
+
 # How close to the limit counts as too close, in degrees.
 NEAR_LIMIT = 5
 POWER_SUPPLY = "/sys/class/power_supply"
@@ -119,6 +121,20 @@ def cpu_temperature(hwmon: str = HWMON, thermal: str = THERMAL) -> dict | None:
                 limit, kind = round(best[1] / 1000), "passive"
             return {"sensor": name, "now": round(best[0] / 1000), "limit": limit, "limit_kind": kind}
     return None
+
+
+def cpu_guard(path: str = CPU_GUARD) -> dict | None:
+    """What the processor guard (/usr/lib/ai2/cpu-guard.sh) is doing now:
+    {"ceiling", "held", "boost", "max_khz"}. None when it is not running."""
+    text = _read(path)
+    if not text:
+        return None
+    raw = dict(line.split("=", 1) for line in text.splitlines() if "=" in line)
+    try:
+        return {"ceiling": int(raw["ceiling"]), "held": raw.get("held") == "1", "boost": raw.get("boost"),
+                "max_khz": int(raw["max_khz"]) if raw.get("max_khz") else None}
+    except (KeyError, ValueError):
+        return None
 
 
 # --- battery

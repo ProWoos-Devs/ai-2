@@ -30,6 +30,8 @@ On an installed system, start with `ai-2 doctor`, which checks the engine, model
 
 **Why is the recommended model so small? I have the RAM for a bigger one.** RAM says what fits, not what runs. The recommendation is gated by measured speed, and AI-2 would rather tell you a big model is unusably slow on this machine than pretend, see [[Models]].
 
+**The AI got slower after a few minutes, or the laptop is very hot.** AI work uses the whole processor, and an old laptop's cooling often no longer keeps up. AI-2 reads the processor's temperature every 5 seconds. At 85 °C it lowers the top speed one step, and it raises it again once the processor is under 79 °C, so the computer stays away from the point where its own firmware would step in. `ai-2 doctor` says when this is happening. The cure is the cooling: check that the fan turns, clean the air vents, and keep the laptop on a hard surface. To choose another ceiling, write `ceiling = 80` (any value from 50 to 100) in `/etc/ai2/cpu-guard.conf` as administrator and restart the computer; `ceiling = off` switches the guard off.
+
 ## Updates
 
 **A bubble says updates are available, and Software Updates then has nothing to install.** Fixed in ai-2 0.19.3. In earlier versions, an update check that was running while updates were being installed could save its old count afterwards, and the bubble repeated that count at the next logins. It clears by itself within a day. To clear it at once, run `ai-2 update-check` in a terminal, which checks again and answers "The system is current."

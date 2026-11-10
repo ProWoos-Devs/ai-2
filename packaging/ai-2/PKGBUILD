@@ -109,6 +109,7 @@ for info in json.load(open("ai2/data/languages.json")).values():
   install -Dm755 packaging/ai-2/boot-tuning.sh "$pkgdir/usr/lib/ai2/boot-tuning.sh"
   # the disks' health records, read as root at boot for `ai-2 doctor` (ai2/health.py)
   install -Dm755 packaging/ai-2/disk-health.sh "$pkgdir/usr/lib/ai2/disk-health.sh"
+  install -Dm755 packaging/ai-2/cpu-guard.sh "$pkgdir/usr/lib/ai2/cpu-guard.sh"
   install -Dm755 packaging/ai-2/sv/ai2-boot/run "$pkgdir/etc/runit/sv/ai2-boot/run"
   install -Dm644 packaging/ai-2/systemd/ai2-boot.service "$pkgdir/usr/lib/systemd/system/ai2-boot.service"
 
