@@ -4,6 +4,11 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-11-11
+### Added
+- **Health and Hygiene for Children is in the Knowledge Packs catalog.** `ai-2 knowledge install health-hygiene` installs it: fifteen topics on washing, teeth, safe water and food, eating, sleep, play and what to do when ill, for children of 6 to 12 with parents and teachers helping. It is written from CDC, NIH and WHO sources and has not been reviewed by a teacher or a clinician.
+- **The next ISO has an on-screen keyboard.** Onboard, for a laptop with dead keys or for a person who cannot use the keys. On an AI-2 that is already installed, `sudo pacman -S onboard` adds it.
+
 ## [0.29.0] - 2026-11-10
 ### Added
 - **`ai-2 doctor` looks at the computer itself.** Three new checks: what each built-in disk says about its own condition (damaged sectors, hours of use), how much of its original capacity the battery still holds, and the processor's temperature against the point where the computer slows itself down or switches off. On an old or donated computer a worn disk or a dead battery is more likely than a software fault, and doctor said nothing about either. The disk's record needs administrator rights, so AI-2 reads it once at every start of the computer and `ai-2 doctor` shows that; `sudo ai-2 doctor` reads it at that moment. No serial number is read or kept. The `smartmontools` package (2.2 MiB) becomes a dependency for this.

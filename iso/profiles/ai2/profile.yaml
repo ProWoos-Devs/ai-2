@@ -45,6 +45,10 @@ rootfs:
     - xfce4-pulseaudio-plugin
     - xfce4-screenshooter
     - xfce4-taskmanager
+    # AI-2: an on-screen keyboard, for a laptop with dead keys or a person who
+    # cannot use the keys (Applications > Accessories > Onboard). With what it
+    # needs, 7 packages and 6.4 MiB to download (measured 2026-11-10).
+    - onboard
     # AI-2: the graphical package manager (Artix's own package of Manjaro's
     # Add/Remove Software). It brings gtk4 and libadwaita, and the polkit agent
     # (polkit-gnome) with xfce4-session. Its update tray is hidden by the
