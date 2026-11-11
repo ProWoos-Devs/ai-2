@@ -80,8 +80,8 @@ packs:
   title: Water and Sanitation
   description: Safe water and sanitation with no services and possibly no help coming, from boiling and bleach to cleaning
     a flooded well and building a latrine, written from WHO sources, not reviewed by a specialist
-  version: '2026-11-07'
-  revision: 2
+  version: '2026-11-11'
+  revision: 3
   languages:
   - en
   license: MIT
@@ -91,12 +91,12 @@ packs:
     Drinking Water (2026) and the Sphere Handbook (2018). None of them wrote or endorsed it. MIT licensed, like the rest of
     the project.
   embedder: nomic-embed-text-v1.5
-  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/water-sanitation/water-sanitation-r2.ai2pack
-  size_bytes: 328864
-  sha256: ef75aa0fe25994b31f5afdcc7564a8317730f4cea69ba09405a5485e85975b80
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/water-sanitation/water-sanitation-r3.ai2pack
+  size_bytes: 328936
+  sha256: fbc73a52cc1665699d94600cc7251948b3865bdc6df4ccb5ef161d26fdd3f57d
   documents: 12
   parts: 103
-  built_with: ai-2 0.26.0
+  built_with: ai-2 0.29.1
   contact: ProWoos-Devs
   categories:
   - '13.13'
