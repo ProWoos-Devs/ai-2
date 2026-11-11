@@ -4,6 +4,12 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.29.2] - 2026-11-11
+### Added
+- **Living Things and the Human Body for Children is in the Knowledge Packs catalog.** `ai-2 knowledge install living-things` installs it: fourteen topics on living and nonliving things, cells, plants, animals, habitats, food webs, the senses and how the body moves, pumps blood, breathes and digests, for children of 6 to 12 with parents and teachers helping. It is written from United States agency sources and has not been reviewed by a teacher or a clinician. The catalog now has 9 Knowledge Packs.
+### Changed
+- **The catalog offers newer revisions of two Knowledge Packs:** Water and Sanitation, revision 3, and Health and Hygiene for Children, revision 2.
+
 ## [0.29.1] - 2026-11-11
 ### Added
 - **Health and Hygiene for Children is in the Knowledge Packs catalog.** `ai-2 knowledge install health-hygiene` installs it: fifteen topics on washing, teeth, safe water and food, eating, sleep, play and what to do when ill, for children of 6 to 12 with parents and teachers helping. It is written from CDC, NIH and WHO sources and has not been reviewed by a teacher or a clinician.
