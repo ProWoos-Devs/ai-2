@@ -177,8 +177,8 @@ packs:
   title: Health and Hygiene for Children
   description: Fifteen topics on washing, teeth, safe water and food, eating, sleep, play and what to do when ill, for children
     of 6 to 12 with parents and teachers helping, written from CDC, NIH and WHO sources, not reviewed by a teacher or clinician
-  version: '2026-11-10'
-  revision: 1
+  version: '2026-11-11'
+  revision: 2
   languages:
   - en
   license: MIT
@@ -190,12 +190,12 @@ packs:
     and Drug Administration and the American Dental Association are stated in our own words; neither organization wrote or
     endorsed this Knowledge Pack. Source documents and images are not included.'
   embedder: nomic-embed-text-v1.5
-  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/health-hygiene/health-hygiene-r1.ai2pack
-  size_bytes: 346608
-  sha256: dc6759b96f318d690ecc6a2365639b3dd82d2d27cbf4c83ef6e5064be6153fbf
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/health-hygiene/health-hygiene-r2.ai2pack
+  size_bytes: 356014
+  sha256: 3d0f97040b015d532ffcaebb21f8700c0904e1dc32d9e7cfb8172b19bdba5f35
   documents: 17
-  parts: 107
-  built_with: ai-2 0.29.0
+  parts: 110
+  built_with: ai-2 0.29.1
   contact: ProWoos-Devs
   categories:
   - '13.13'
