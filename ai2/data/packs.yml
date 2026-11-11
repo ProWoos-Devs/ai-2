@@ -205,3 +205,36 @@ packs:
   ages:
   - school-age
   - preteen
+- id: living-things
+  title: Living Things and the Human Body for Children
+  description: Fourteen topics on living and nonliving things, cells, plants, animals, habitats, food webs, the senses and
+    how the body moves, pumps blood, breathes and digests, for children of 6 to 12 with parents and teachers helping, written
+    from United States agency sources, not reviewed by a teacher or clinician
+  version: '2026-11-11'
+  revision: 1
+  languages:
+  - en
+  license: MIT
+  attribution: 'Original educational writing for the ProWoos-Devs AI-2 project, from factual references by the U.S. National
+    Park Service, U.S. Fish & Wildlife Service, USDA, NOAA, NIH, NASA and the U.S. Department of Energy. No claim to original
+    U.S. Government works. The agencies and the United States Government did not write or endorse this Knowledge Pack. Source:
+    National Heart, Lung, and Blood Institute; National Institutes of Health; U.S. Department of Health and Human Services.
+    Courtesy: National Eye Institute, National Institutes of Health (NEI/NIH). Courtesy: National Human Genome Research Institute.
+    NLM MeSH facts are from entries retrieved on 2026-11-11; this offline writing does not reflect later changes. MIT applies
+    to the original writing, not to source documents or data.'
+  embedder: nomic-embed-text-v1.5
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/living-things/living-things-r1.ai2pack
+  size_bytes: 339226
+  sha256: 59e162d0436d8ac71936dfd7fa81fcf3ebc59634d3a1a6c6532ae5bd8e530957
+  documents: 16
+  parts: 105
+  built_with: ai-2 0.29.1
+  contact: ProWoos-Devs
+  categories:
+  - '11.09'
+  - '13.01'
+  - '07.05'
+  audience: children
+  ages:
+  - school-age
+  - preteen
