@@ -4,6 +4,11 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.29.3] - 2026-11-18
+### Added
+- **USB sticks open in the File Manager.** A USB stick, a memory card or an external disk now appears in the File Manager when it is plugged in, opens with a click and has a button to take it out safely, with no password. Until now a person who was not an administrator could not open one at all. The File Manager also gets its Trash, so a file deleted there by mistake can be brought back. The `udisks2` and `gvfs` packages become dependencies for this: 18 packages with what they need, 3.5 MiB to download, 23.7 MiB installed.
+- **Five more Knowledge Packs in the catalog,** installed by name with `ai-2 knowledge install ID`: PHP Essentials (`php-essentials`) and MySQL & MariaDB Essentials (`mysql-mariadb-essentials`), both in English and not reviewed by an outside developer or database administrator; and three in Spanish by community authors, Finanzas básicas (`real8-finanzas-es`) and REAL8 y Stellar (`real8-stellar-es`) by REAL8, and Mitos y hechos de la historia hispánica (`historia-hispanica-mitos-es`) by Hispanopedia. The catalog now has 14 Knowledge Packs.
+
 ## [0.29.2] - 2026-11-11
 ### Added
 - **Living Things and the Human Body for Children is in the Knowledge Packs catalog.** `ai-2 knowledge install living-things` installs it: fourteen topics on living and nonliving things, cells, plants, animals, habitats, food webs, the senses and how the body moves, pumps blood, breathes and digests, for children of 6 to 12 with parents and teachers helping. It is written from United States agency sources and has not been reviewed by a teacher or a clinician. The catalog now has 9 Knowledge Packs.
