@@ -289,3 +289,72 @@ packs:
   categories:
   - '06.05'
   audience: general
+- id: historia-hispanica-mitos-es
+  title: Mitos y hechos de la historia hispánica
+  description: Forty questions about the history of Spain and the Hispanic world in Spanish, each opening with the common
+    myths and the fact beside them, the Leyenda Negra, the conquests, the laws on the Indians, encomienda and mita, slavery,
+    the Inquisition, viceroyalties, science and voyages, wars and battles, written by Hispanopedia from its own encyclopedia
+    with a source on every fact and the gaps stated
+  version: '2026-11-15'
+  revision: 1
+  languages:
+  - es
+  license: CC-BY-SA-4.0
+  attribution: Escrito por Hispanopedia con sus propias palabras a partir de los artículos de su enciclopedia, https://es.hispanopedia.com/
+    , que se publican con licencia Creative Commons Atribución-CompartirIgual 4.0 y de los que una parte procede de Wikipedia
+    en español. Cada tema nombra sus artículos. Licencia CC BY-SA 4.0.
+  embedder: nomic-embed-text-v2-moe
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/historia-hispanica-mitos-es/historia-hispanica-mitos-es-r1.ai2pack
+  size_bytes: 2992966
+  sha256: 56873533aa288dfd405ad25402dddeb6438f065c0052c7382a791655ab2e8d4b
+  documents: 42
+  parts: 937
+  built_with: ai-2 0.29.2
+  contact: hispanopedia-admin
+  categories:
+  - '16.12'
+  - '16.05'
+  audience: general
+- id: php-essentials
+  title: PHP Essentials
+  description: Everyday PHP tasks, errors and secure coding, written for AI-2, not reviewed by an outside PHP developer
+  version: '2026-11-17'
+  revision: 1
+  languages:
+  - en
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa, in its own wording, with the PHP Manual by the PHP Documentation Group
+    as reference. The PHP Documentation Group did not write or endorse it. MIT licensed, like the rest of the project.
+  embedder: nomic-embed-text-v1.5
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/php-essentials/php-essentials-r1.ai2pack
+  size_bytes: 242844
+  sha256: 79c8ef32c8a0de53ba569bdff7844f8000d9603867ef73a7bcd1e7d026dfe175
+  documents: 23
+  parts: 75
+  built_with: ai-2 0.29.2
+  contact: ProWoos-Devs
+  categories:
+  - 01.04.03
+  audience: general
+- id: mysql-mariadb-essentials
+  title: MySQL & MariaDB Essentials
+  description: Everyday MySQL and MariaDB tasks and errors, written for AI-2, not reviewed by an outside database administrator
+  version: '2026-11-17'
+  revision: 1
+  languages:
+  - en
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa, in its own wording, with the MariaDB documentation and the MySQL 8.4 Reference
+    Manual as reference. Neither the MariaDB Foundation, MariaDB plc nor Oracle wrote or endorsed it. MIT licensed, like the
+    rest of the project.
+  embedder: nomic-embed-text-v1.5
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/mysql-mariadb-essentials/mysql-mariadb-essentials-r1.ai2pack
+  size_bytes: 257639
+  sha256: daf20d6f0e4bc1a64a1d9eb7b6bb82e7d05241f15d39b0dc53018798edc731b3
+  documents: 23
+  parts: 80
+  built_with: ai-2 0.29.2
+  contact: ProWoos-Devs
+  categories:
+  - 01.04.05
+  audience: general
