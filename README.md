@@ -173,8 +173,10 @@ MIT, see `LICENSE`. Two small pieces derived from Artix Linux keep their own ter
 
 ## About
 
-AI-2 is made by Rafael Minuesa (https://github.com/rafael-minuesa), the ProWoos Team (https://prowoos.com), and Erasmus students (https://github.com/department-of-artificial-intelligence/Advanced_Web_Programming_Erasmus), helped by Claude Code (https://github.com/anthropics/claude-code) abd Codex (https://github.com/openai/codex). 
+AI-2 is developed by Rafael Minuesa (https://github.com/rafael-minuesa) from the ProWoos Team (https://prowoos.com), and reviewed by students from the Erasmus+ Programme (https://github.com/department-of-artificial-intelligence/Advanced_Web_Programming_Erasmus), and the Universidad Politécnica de Madrid (https://github.com/Univ-Politecnica-Madrid), among other volunteers. 
+
+Claude Code (https://github.com/anthropics/claude-code) and Codex (https://github.com/openai/codex) have assisted with different coding assignments, mostly in Python and QML (Qt Meta-Object Language). Google Antigravity (https://github.com/google-antigravity) has aided with content research and data synthesis for the AI-2's Knowledge Packs. 
+
+Project page at ProWoos: https://prowoos.com/software-development/linux/ai-2/
 
 MIT licensed; Artix Linux, llama.cpp and the models keep their own licenses (see `LICENSES.md`). 
-
-Project page: https://prowoos.com/software-development/linux/ai-2/
