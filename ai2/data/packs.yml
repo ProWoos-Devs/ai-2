@@ -386,3 +386,28 @@ packs:
   ages:
   - school-age
   - preteen
+- id: looking-after-a-laptop
+  title: Looking After a Laptop
+  description: Keeping old laptops working where there is no technician, from where to use and keep them, heat, dust, spills
+    and charging safely to the battery and when to stop using it, getting rid of old batteries, a laptop that will not start
+    and checking its health with ai-2 doctor, written for AI-2, not reviewed by a repair technician
+  version: '2026-11-19'
+  revision: 1
+  languages:
+  - en
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa for people who look after laptops without a technician. The safety advice
+    follows the U.S. Fire Administration, the U.S. Environmental Protection Agency and the U.S. Centers for Disease Control
+    and Prevention, in its own words; none of them wrote or endorsed it. MIT licensed, like the rest of the project.
+  embedder: nomic-embed-text-v1.5
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/looking-after-a-laptop/looking-after-a-laptop-r1.ai2pack
+  size_bytes: 243233
+  sha256: 7d1b27ec70eca4275b6ac01385dd4e0a2de6d5b31758910ad99e068c644abb9d
+  documents: 16
+  parts: 76
+  built_with: ai-2 0.29.3
+  contact: ProWoos-Devs
+  categories:
+  - '18.05'
+  - '12.12'
+  audience: general
