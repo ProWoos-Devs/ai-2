@@ -358,3 +358,31 @@ packs:
   categories:
   - 01.04.05
   audience: general
+- id: using-a-computer
+  title: Using a Computer for Children
+  description: Seventeen topics for children of 6 to 12 using a computer for the first time, from the mouse, the keyboard
+    and windows to files, saving, USB sticks, passwords and staying safe online, written for AI-2, not reviewed by a teacher
+  version: '2026-11-18'
+  revision: 1
+  languages:
+  - en
+  license: MIT
+  attribution: Written for AI-2 by Rafael Minuesa for children using a computer for the first time. The password advice and
+    the warning about found USB sticks follow the Cybersecurity and Infrastructure Security Agency (CISA, Secure Our World
+    and The Risks of Using Portable Devices) and the advice on strangers and personal details follows the U.S. Federal Trade
+    Commission, in its own words; neither agency wrote or endorsed it. MIT licensed, like the rest of the project.
+  embedder: nomic-embed-text-v1.5
+  url: https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/packs/using-a-computer/using-a-computer-r1.ai2pack
+  size_bytes: 315586
+  sha256: 2b8c26a11cc7bf736a9459921710829ea82e5f4dcc5c40b977434b0d57ee12cc
+  documents: 17
+  parts: 99
+  built_with: ai-2 0.29.3
+  contact: ProWoos-Devs
+  categories:
+  - '01.04'
+  - '07.05'
+  audience: children
+  ages:
+  - school-age
+  - preteen
