@@ -12,7 +12,7 @@ and remotely only by explicit choice. Reference platform is Artix Linux with run
 
 ### Option 1: the AI-2 ISO (recommended)
 
-A complete system: Artix Linux (runit), XFCE, the AI engine and the `ai-2` tool, with a graphical installer. Lean by design, about 1.9 GB, with three Knowledge Packs and the model that searches them already on board.
+A complete system: Artix Linux (runit), XFCE, Firefox ESR, the AI-2 Gopher app, the AI engine and the `ai-2` tool, with a graphical installer. Lean by design, about 1.9 GB, with three Knowledge Packs and the model that searches them already on board.
 
 1. Download the latest ISO: [ai-2-x86_64.iso](https://github.com/ProWoos-Devs/ai-2/releases/latest/download/ai-2-x86_64.iso) and its [SHA-256](https://github.com/ProWoos-Devs/ai-2/releases/latest/download/ai-2-x86_64.iso.sha256). Every release is also kept under its build date on the [Releases page](https://github.com/ProWoos-Devs/ai-2/releases), and mirrored on [SourceForge](https://sourceforge.net/projects/ai-2/).
 2. Verify it: `sha256sum -c ai-2-x86_64.iso.sha256`
@@ -73,6 +73,12 @@ after the install.
   [this one's](https://github.com/ProWoos-Devs/ai-2/issues).
 
 More in the wiki, [Knowledge Packs](https://github.com/ProWoos-Devs/ai-2/wiki/Knowledge-Packs).
+
+## AI-2 Gopher and Firefox
+
+AI-2 Chat opens in the [AI-2 Gopher app](https://github.com/rafael-minuesa/AI-2-gopher), which comes on every AI-2. The same app searches the Knowledge Packs, browses Gopher menus, and keeps bookmarks and history.
+
+The web browser is Firefox ESR, with Spanish, German and Polish language packs. It comes with Gopher Reader, the >_ button on its toolbar, as published on addons.mozilla.org. Gopher Reader turns the page you are on into plain text with numbered links, and **Open in Gopher app** saves that copy into the AI-2 Gopher app, where it can be read after Firefox is closed and without the internet. Removing it in Firefox's Add-ons keeps it removed.
 
 ## Translations
 
