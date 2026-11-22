@@ -53,6 +53,15 @@ CHAT_SESSIONS = 8           # conversations kept; the oldest is forgotten first
 CHAT_BUDGET = 4096          # characters of a conversation sent to the model, for a 2048-token context
 CHAT_SHOWN = 100            # exchanges a conversation shows on its page
 CHAT_STATUS = "/chat-status"   # marks a line about this answer, not part of the conversation
+# The chat asks the Knowledge Packs before the model. A passage standing this
+# high (doc.stand) is shown in place of the model's answer. Measured on the
+# 4 GB reference laptop on 2026-11-22, 45 questions in Spanish and English:
+# the right document stood at 0.40 to 0.68, and greetings, requests for a poem
+# and questions no Knowledge Pack covers at 0.44 or lower.
+CHAT_MATCH = 0.45
+CHAT_PASSAGES = 2           # an answer in the chat is short; the search page shows more
+FROM_KNOWLEDGE = "knowledge"   # in a saved message's "from": Knowledge Pack passages, no model
+FROM_MEMORY = "memory"         # the model answered after the Knowledge Packs had nothing
 LOOPBACK = ("127.0.0.1", "::1", "::ffff:127.0.0.1")
 LOCAL_NAMES = ("127.0.0.1", "::1", "localhost")
 CRLF = "\r\n"
@@ -188,12 +197,18 @@ class Chat:
     iterator of text pieces and raises RuntimeError with a sentence for the
     person when no model can start. The model and its system prompt are the
     caller's, the same ones `ai-2 chat` uses. `store` keeps finished exchanges on
-    disk, and `budget` is how many characters of a conversation fit the model."""
+    disk, and `budget` is how many characters of a conversation fit the model.
+    `lookup(question)` asks the Knowledge Packs first (Menus.chat_passages):
+    a small model answers a question it knows nothing about as surely as one
+    it does («Sí, era una forma de esclavitud que se practicaba en América
+    del Norte», about the encomienda, 2026-11-22), so what the Knowledge
+    Packs hold is shown in its place, and what they do not hold is said."""
 
-    def __init__(self, reply, store=None, budget: int = CHAT_BUDGET):
+    def __init__(self, reply, store=None, budget: int = CHAT_BUDGET, lookup=None):
         self.reply = reply
         self.store = store
         self.budget = budget
+        self.lookup = lookup
         self.sessions: collections.OrderedDict[str, list[dict]] = collections.OrderedDict()
         self.starts: dict[str, int] = {}   # where the model's part of each conversation begins
         self.lane = threading.Lock()
@@ -228,12 +243,42 @@ class Chat:
     def _asked(question: str) -> str:
         return "".join(info(f"> {text}") for text in textwrap.wrap(question, width=WRAP)) + info()
 
+    @staticmethod
+    def _from_memory() -> str:
+        return "".join(info(text) for text in textwrap.wrap(
+            tr("No Knowledge Pack on this computer covers this. What follows comes from the memory "
+               "of the AI model, has no source and may be wrong."), width=WRAP)) + info()
+
+    @staticmethod
+    def _for_model(history: list[dict]) -> list[dict]:
+        """What the model reads: its own exchanges. A passage shown from a
+        Knowledge Pack is several hundred words the slow computers would take
+        minutes to read again with every later question."""
+        out: list[dict] = []
+        for m in history:
+            if m.get("from") == FROM_KNOWLEDGE:
+                if out and out[-1]["role"] == "user":
+                    out.pop()
+                continue
+            out.append({"role": m["role"], "content": m["content"]})
+        return out
+
+    def _look_up(self, question: str):
+        if self.lookup is None:
+            return None
+        try:
+            return self.lookup(question)
+        except Exception:                  # the search must never cost the person their answer
+            return None
+
     def _shown(self, history: list[dict]) -> str:
         out = []
         for m in history[-2 * CHAT_SHOWN:]:
             if m["role"] == "user":
                 out.append(self._asked(m["content"]))
             else:
+                if m.get("from") == FROM_MEMORY:
+                    out.append(self._from_memory())
                 wrap = LineWrap()
                 out.extend(info(text) for text in wrap.feed(m["content"]) + wrap.tail())
                 out.append(info())
@@ -331,6 +376,20 @@ class Chat:
             # before the model is asked: it says nothing until it has read everything
             out(line("i", tr("Processing ..."), CHAT_STATUS))
             out(line("i", "", CHAT_STATUS))
+            found = self._look_up(question)
+            if found:
+                shown, text = found
+                out(shown)
+                history.append({"role": "user", "content": question})
+                history.append({"role": "assistant", "content": text, "from": FROM_KNOWLEDGE})
+                if self.store:
+                    self.store.save(key, history)
+                out(info())
+                out(self._items(key, port) + "." + CRLF)
+                return
+            unsourced = found is False     # asked, and the Knowledge Packs hold nothing on it
+            if unsourced:
+                out(self._from_memory())
             history.append({"role": "user", "content": question})
             self.starts[key] = fit_start(history, self.starts.get(key, 0), self.budget)
             parts: list[str] = []
@@ -340,7 +399,7 @@ class Chat:
             told = False
             while True:
                 try:
-                    pieces = self.reply(list(history[self.starts[key]:]))
+                    pieces = self.reply(self._for_model(history[self.starts[key]:]))
                     if watch is not None:
                         watch.attach(pieces)
                     for piece in pieces:
@@ -375,7 +434,8 @@ class Chat:
                 out(info())
                 out(info(tr("The AI stopped before it finished. Try asking again.")))
             elif "".join(parts).strip():
-                history.append({"role": "assistant", "content": "".join(parts)})
+                history.append({"role": "assistant", "content": "".join(parts),
+                                **({"from": FROM_MEMORY} if unsourced else {})})
                 if self.store:
                     self.store.save(key, history)
             else:
@@ -541,7 +601,6 @@ class Menus:
                  titled: bool, omitted: list[str] | None = None) -> str:
         """A page of passages. The order is the search's; the source of each
         result is its own, and the terms of each Knowledge Pack appear once."""
-        from . import pack
         host = self._link_host(local)
         manifests = dict(self.lib.collections())
         out = [info(tr("Closest passages")), info(query), info()]
@@ -554,23 +613,96 @@ class Menus:
         if not hits:
             out += [info(tr("No passages were returned.")), info()]
         for i, hit in enumerate(hits, 1):
-            name = hit["collection"]
-            manifest = manifests.get(name)
-            label = f"{self.lib.title(name, manifest)}: {doc.cite(hit)}" if titled else doc.cite(hit)
-            out += [info(text) for text in textwrap.wrap(f"[{i}] {label}", width=WRAP)]
-            for wrapped in textwrap.wrap(doc.finish_sentence(stores[name], hit), width=WRAP):
-                out.append(info(f"    {wrapped}"))
-            url = pack.source_url(manifest, hit["doc"])
-            if url:
-                out.append(info("    " + tr("source: {url}").format(url=url)))
-            out.append(line("0", "    " + tr("Read the complete topic"), f"/doc/{name}/{hit['doc']}", host, self.port))
-            out.append(info())
+            out += self._passage(i, hit, stores, manifests, host, titled)[0]
         for name in dict.fromkeys(hit["collection"] for hit in hits):
             out += [info(text) for text in self.provenance(name, manifests.get(name))]
         out.append(info())
         out.append(line("7", tr("Search again"), again, host, self.port))
         out.append(line("1", tr("Knowledge Packs"), KNOWLEDGE_SELECTOR, host, self.port))
         return "".join(out) + "." + CRLF
+
+    def _passage(self, i: int, hit: dict, stores: dict, manifests: dict, host: str,
+                 titled: bool) -> tuple[list[str], str]:
+        """One result as menu lines, and as the plain text a saved conversation keeps."""
+        from . import pack
+        name = hit["collection"]
+        manifest = manifests.get(name)
+        label = f"{self.lib.title(name, manifest)}: {doc.cite(hit)}" if titled else doc.cite(hit)
+        passage = doc.finish_sentence(stores[name], hit)
+        out = [info(text) for text in textwrap.wrap(f"[{i}] {label}", width=WRAP)]
+        out += [info(f"    {wrapped}") for wrapped in textwrap.wrap(passage, width=WRAP)]
+        plain = [f"[{i}] {label}", " ".join(passage.split())]
+        url = pack.source_url(manifest, hit["doc"])
+        if url:
+            out.append(info("    " + tr("source: {url}").format(url=url)))
+            plain.append(tr("source: {url}").format(url=url))
+        out.append(line("0", "    " + tr("Read the complete topic"), f"/doc/{name}/{hit['doc']}", host, self.port))
+        out.append(info())
+        return out, "\n".join(plain) + "\n"
+
+    def _closest(self, query: str, titles: dict, stores: dict) -> tuple[list[list[dict]], list[str], str] | None:
+        """The closest topics of each group of Knowledge Packs (one group per
+        embedding model), the titles of the ones that could not be searched and
+        why. None when no Knowledge Pack here has anything in it."""
+        models = {name: doc.store_model(conn) for name, conn in stores.items()}
+        usable = {name: model for name, model in models.items() if model and doc.list_documents(stores[name])}
+        if not usable:
+            return None
+        groups = doc.group_by_model(usable)
+        # The model already loaded goes first, which saves loading it again.
+        # What is shown does not depend on it: see per_group below.
+        loaded = self.resident() if self.resident else None
+        found, reason = {}, ""
+        for model_id in sorted(groups, key=lambda model: model != loaded):
+            try:
+                vector = self.embed_query(model_id, query)
+            except Exception as exc:               # the embedding server, not the client
+                reason = str(exc)
+                continue
+            found[model_id] = doc.closest_documents({name: stores[name] for name in groups[model_id]},
+                                                    vector, top=KNOWLEDGE_HITS)
+        per_group = [found[model_id] for model_id in groups if model_id in found]
+        omitted = [titles[name] for model_id in groups if model_id not in found for name in groups[model_id]]
+        return per_group, omitted, reason
+
+    def chat_passages(self, question: str):
+        """For the chat, before the model is asked: (menu lines, plain text) of
+        the passages that plainly match the question; False when the Knowledge
+        Packs were all searched and none does; None when that cannot be said
+        (nothing installed, a search model that did not start, or too few
+        parts for a standing)."""
+        titles = {name: self.lib.title(name, manifest) for name, manifest in self.lib.knowledge_packs()}
+        stores = {name: doc.open_store(doc.read_index_path(name)) for name in titles}
+        try:
+            closest = self._closest(question, titles, stores)
+            if closest is None:
+                return None
+            per_group, omitted, _ = closest
+            hits = doc.interleave(per_group)[:CHAT_PASSAGES]
+            if not hits or hits[0].get("standing") is None:
+                return None
+            matches = []
+            for hit in hits:
+                if hit.get("standing", 0.0) < CHAT_MATCH:
+                    break
+                matches.append(hit)
+            if not matches:
+                return None if omitted else False
+            manifests = dict(self.lib.collections())
+            lines = [info(text) for text in textwrap.wrap(
+                tr("From the Knowledge Packs on this computer. The AI model wrote none of this, "
+                   "and a passage may not answer your question."), width=WRAP)] + [info()]
+            plain = []
+            for i, hit in enumerate(matches, 1):
+                shown, text = self._passage(i, hit, stores, manifests, "127.0.0.1", titled=True)
+                lines += shown
+                plain.append(text)
+            for name in dict.fromkeys(hit["collection"] for hit in matches):
+                lines += [info(text) for text in self.provenance(name, manifests.get(name))]
+            return "".join(lines), "\n".join(plain)
+        finally:
+            for conn in stores.values():
+                conn.close()
 
     def search_all(self, query: str, local: bool = False) -> str:
         """One question across every installed Knowledge Pack. Asks only the
@@ -581,25 +713,10 @@ class Menus:
         titles = {name: self.lib.title(name, manifest) for name, manifest in self.lib.knowledge_packs()}
         stores = {name: doc.open_store(doc.read_index_path(name)) for name in titles}
         try:
-            models = {name: doc.store_model(conn) for name, conn in stores.items()}
-            usable = {name: model for name, model in models.items() if model and doc.list_documents(stores[name])}
-            if not usable:
+            closest = self._closest(query, titles, stores)
+            if closest is None:
                 return self.knowledge(local)
-            groups = doc.group_by_model(usable)
-            # The model already loaded goes first, which saves loading it again.
-            # What is shown does not depend on it: see per_group below.
-            loaded = self.resident() if self.resident else None
-            found, reason = {}, ""
-            for model_id in sorted(groups, key=lambda model: model != loaded):
-                try:
-                    vector = self.embed_query(model_id, query)
-                except Exception as exc:               # the embedding server, not the client
-                    reason = str(exc)
-                    continue
-                found[model_id] = doc.closest_documents({name: stores[name] for name in groups[model_id]},
-                                                        vector, top=KNOWLEDGE_HITS)
-            per_group = [found[model_id] for model_id in groups if model_id in found]
-            omitted = [titles[name] for model_id in groups if model_id not in found for name in groups[model_id]]
+            per_group, omitted, reason = closest
             if not per_group:
                 return (line("3", tr("Search is unavailable right now ({reason})").format(reason=reason))
                         + line("1", tr("Knowledge Packs"), KNOWLEDGE_SELECTOR, self._link_host(local), self.port)
@@ -773,8 +890,9 @@ def serve(embed_query, host: str = "127.0.0.1", port: int = PORT, everything: bo
     `advertise` is the host name put into the menu lines the client follows;
     `workers` is how many questions may be answered at once; `chat_reply` turns
     on the chat item, see Chat; `resident()` names the embedding model loaded now."""
-    menus = Menus(Library(everything), embed_query, advertise or host, port,
-                  Chat(chat_reply, chat_store, chat_budget) if chat_reply else None, resident)
+    menus = Menus(Library(everything), embed_query, advertise or host, port, None, resident)
+    if chat_reply:
+        menus.chat = Chat(chat_reply, chat_store, chat_budget, lookup=menus.chat_passages)
     workers = max(1, int(workers))
     if workers == 1:
         server = Sequential((host, port), Handler)

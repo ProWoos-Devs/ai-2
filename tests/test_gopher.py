@@ -1006,3 +1006,78 @@ def test_a_server_busy_with_another_model_is_left_alone(library, monkeypatch):
     with pytest.raises(RuntimeError, match="busy or did not start"):
         embed("model-b", "q")
     assert stop.call_count == 0
+
+
+# ------------------------------------- the chat asks the Knowledge Packs first
+
+def said(reply: str) -> str:
+    """The text lines of a reply as one string, however they were wrapped."""
+    return " ".join(l[1:].split("\t")[0] for l in reply.splitlines() if l.startswith("i"))
+
+
+@pytest.fixture
+def big_library(library):
+    """The pack of `library` with enough other parts for a standing (doc.stand)."""
+    conn = doc.open_store(doc.index_path("everyday"))
+    filler = [f"Something else entirely, number {i}." for i in range(doc.STANDING_MIN_PARTS)]
+    doc.add_document(conn, "other.txt", "other.txt", filler, [vec("z") for _ in filler], words=5)
+    conn.close()
+    return library
+
+
+def test_the_chat_shows_the_knowledge_pack_passage_and_never_asks_the_model(big_library):
+    """Rafael, 2026-11-22: the model said the encomienda was slavery practised
+    in North America, with the right topic installed on the same computer."""
+    asked = []
+    server = chat_server(lambda history: asked.append(history) or iter(["Invented."]))
+    try:
+        first = talk(server, "/chat\twhat is the capital, madrid?")
+        assert asked == [] and "Invented" not in first
+        assert "The AI model wrote none of this" in said(first)
+        assert "[1] Everyday Reference: spain.txt, page 1" in first
+        assert "The capital of Spain is Madrid." in first
+        assert ["0    Read the complete topic", "/doc/everyday/spain.txt"] == items(first, "0")[0][:2]
+        assert "From the Knowledge Pack Everyday Reference (CC0-1.0)" in said(first)
+        key = items(first)[0][1].split("/")[-1]
+        saved = server.menus.chat.sessions[key]
+        assert saved[1]["from"] == gopher.FROM_KNOWLEDGE and "Madrid" in saved[1]["content"]
+        assert "The capital of Spain is Madrid." in talk(server, f"/chat/{key}")      # the page keeps it
+    finally:
+        server.shutdown()
+
+
+def test_the_chat_says_when_the_answer_has_no_source_and_the_model_does_not_reread_passages(big_library):
+    asked = []
+    server = chat_server(lambda history: asked.append(history) or iter(["A poem."]))
+    try:
+        first = talk(server, "/chat\twhat is the capital, madrid?")
+        key = items(first)[0][1].split("/")[-1]
+        second = talk(server, f"/chat/{key}\twrite me a poem about a frozen program")
+        flat = said(second)
+        assert "No Knowledge Pack on this computer covers this." in flat and "may be wrong" in flat
+        assert flat.index("may be wrong") < flat.index("A poem.")
+        assert asked == [[{"role": "user", "content": "write me a poem about a frozen program"}]]
+        assert server.menus.chat.sessions[key][3]["from"] == gopher.FROM_MEMORY
+        page = said(talk(server, f"/chat/{key}"))
+        assert page.count("may be wrong") == 1 and "The capital of Spain is Madrid." in page
+    finally:
+        server.shutdown()
+
+
+def test_the_chat_says_nothing_about_sources_when_it_could_not_tell(library):
+    """Too few parts for a standing, a search model that does not start, or no
+    lookup at all: the model answers as it always did."""
+    server = chat_server(lambda history: iter(["Hola."]))
+    try:
+        assert "may be wrong" not in talk(server, "/chat\tmadrid capital")
+    finally:
+        server.shutdown()
+
+    def broken(model_id, text):
+        raise RuntimeError("no embedding server")
+    menus = gopher.Menus(gopher.Library(), broken, "127.0.0.1", 7070)
+    assert menus.chat_passages("madrid capital") is None
+    chat = gopher.Chat(lambda history: iter(["Hola."]), lookup=lambda question: 1 / 0)
+    sent = []
+    chat.answer("", "madrid", sent.append, 7070)
+    assert "Hola." in "".join(sent) and "may be wrong" not in "".join(sent)
