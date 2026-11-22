@@ -4,6 +4,12 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.29.4] - 2026-11-22
+### Changed
+- **The chat asks the Knowledge Packs before the AI model.** When a Knowledge Pack on the computer covers the question, the chat in the AI-2 Gopher app shows the passages themselves, each with its Knowledge Pack, its source and **Read the complete topic**, and the model is not asked: on a 2011 laptop with 4 GB that took 14 seconds. When no Knowledge Pack covers it, the model answers as before, under a line saying that the answer comes from the model's memory, has no source and may be wrong. A small model answers what it does not know as surely as what it does: asked whether the encomienda was slavery, with the Knowledge Pack that answers it installed on the same computer, it said it was a form of slavery practised in North America. The terminal chat and the browser page are unchanged.
+### Fixed
+- **A search across Knowledge Packs no longer puts unrelated passages first.** Knowledge Packs built with the English search model and those built with the multilingual one took turns in the results, the English ones first, whatever they had found. A question in Spanish about the encomienda showed a passage about the secret key of a wallet first and the encomienda fourth, outside the three results on screen. The group that found the answer now goes first, and a group that found nothing on the subject comes after all of its results. When both found something they still take turns. This applies to Search Knowledge, `ai-2 doc search`, `ai-2 doc ask` and Search Knowledge Packs in the chat.
+
 ## [0.29.3] - 2026-11-18
 ### Added
 - **USB sticks open in the File Manager.** A USB stick, a memory card or an external disk now appears in the File Manager when it is plugged in, opens with a click and has a button to take it out safely, with no password. Until now a person who was not an administrator could not open one at all. The File Manager also gets its Trash, so a file deleted there by mistake can be brought back. The `udisks2` and `gvfs` packages become dependencies for this: 18 packages with what they need, 3.5 MiB to download, 23.7 MiB installed.
