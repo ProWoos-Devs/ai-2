@@ -4,6 +4,13 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 
+## [0.29.5] - 2026-11-22
+### Changed
+- **Both search models stay loaded when the computer has the memory.** Knowledge Packs built with the English search model and those built with the multilingual one shared one port, so every question stopped one model and started the other. Each now keeps its own port (8081 and 8082) when the second one's memory peak plus 1024 MiB would still be free; otherwise they take turns as before, so a 2 GB computer behaves as it did. On a 2011 laptop with 4 GB a chat question that a Knowledge Pack answers took 9.0 to 12.8 seconds and now takes 5.7 to 7.6, with the same passages. `ai-2 stop` stops both, and `ai-2 doc index` uses its model on whichever port it is loaded.
+- **A search from the terminal asks the loaded search model first.** `ai-2 doc search` and `ai-2 doc ask` went through the models in a fixed order, which could stop the loaded one, start the other and then start the first again. On the same laptop a search fell from about 14 seconds to 8.3 when the right model was loaded, with the same results.
+### Fixed
+- **A model that cannot start no longer holds the chat for three minutes.** When a model file was present but could not be loaded, AI-2 waited the whole 180 seconds for a server that had already stopped, and in the AI-2 Gopher app the next question waited too. It now reports the failure as soon as the server has ended (1 second instead of the whole wait on the same laptop). A server that is still loading a model from a slow disk keeps the long wait.
+
 ## [0.29.4] - 2026-11-22
 ### Changed
 - **The chat asks the Knowledge Packs before the AI model.** When a Knowledge Pack on the computer covers the question, the chat in the AI-2 Gopher app shows the passages themselves, each with its Knowledge Pack and its source, with a **Read the complete topic** button for each under the question box, and the model is not asked: on a 2011 laptop with 4 GB that took 14 seconds. When no Knowledge Pack covers it, the model answers as before, under a line saying that the answer comes from the model's memory, has no source and may be wrong. A small model answers what it does not know as surely as what it does: asked whether the encomienda was slavery, with the Knowledge Pack that answers it installed on the same computer, it said it was a form of slavery practised in North America. The terminal chat and the browser page are unchanged.
