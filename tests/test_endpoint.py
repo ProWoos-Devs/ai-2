@@ -168,6 +168,9 @@ def test_two_commands_starting_together_start_one_server(tmp_path, monkeypatch):
     class FakePopen:
         def __init__(self, cmd, **kw):
             started.append(cmd)
+
+        def poll(self):
+            return None
     monkeypatch.setattr(subprocess, "Popen", FakePopen)
     monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: bool(started))
     monkeypatch.setattr(runner, "endpoint_problem", lambda url, port, expected_file=None: None)
@@ -182,3 +185,34 @@ def test_two_commands_starting_together_start_one_server(tmp_path, monkeypatch):
     for t in threads:
         t.join(20)
     assert len(started) == 1 and results == ["http://127.0.0.1:8081/"] * 4
+
+
+class _Child:
+    def __init__(self, code):
+        self.code = code
+
+    def poll(self):
+        return self.code
+
+
+def test_a_server_that_ends_while_starting_is_not_waited_for(monkeypatch, capsys):
+    """A model file that cannot be loaded ends `ai-2 serve` within a second.
+    Waiting out the 180 s then held the chat, and the next question, for minutes."""
+    import time
+    monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: False)
+    start = time.monotonic()
+    assert runner.wait_until_ready(_Child(1), "http://127.0.0.1:1/", 180, "/x/serve.log") is False
+    assert time.monotonic() - start < 5
+    err = capsys.readouterr().err
+    assert "stopped while starting" in err and "/x/serve.log" in err
+
+
+def test_a_live_server_gets_the_whole_wait(monkeypatch, capsys):
+    monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: False)
+    assert runner.wait_until_ready(_Child(None), "http://127.0.0.1:1/", 1, "/x/serve.log") is False
+    assert "did not come up within 1 s" in capsys.readouterr().err
+
+
+def test_a_server_that_is_ready_counts_even_when_its_starter_ended(monkeypatch):
+    monkeypatch.setattr(runner, "_server_ready", lambda url, timeout=2.0: True)
+    assert runner.wait_until_ready(_Child(0), "http://127.0.0.1:1/", 1, "/x/serve.log") is True

@@ -174,7 +174,6 @@ def _start_server(hw, model: dict, port: int, record: str, url: str, wait: int,
     """Start `ai-2 serve` detached and wait until it reports ready. False, with
     the reason printed, when it cannot."""
     import subprocess
-    import time
     if runtime.find_runtime(hw.cpu_variant) is None or runtime.find_model_file(model["file"]) is None:
         print("AI-2 is not set up on this computer yet. Run:  ai-2 wizard", file=sys.stderr)
         return False
@@ -184,20 +183,34 @@ def _start_server(hw, model: dict, port: int, record: str, url: str, wait: int,
     cmd = [sys.executable, "-m", "ai2.cli", "serve", "--port", str(port), "--model", model["id"]]
     if idle_timeout is not None:
         cmd += ["--idle-timeout", str(idle_timeout)]
-    subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True,
-                     cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    child = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True,
+                             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     print(f"Starting {model['label']} ... this takes a moment on a slow disk", flush=True)
+    return wait_until_ready(child, url, wait, serverstate.log_file(record))
+
+
+def wait_until_ready(child, url: str, wait: int, log_path: str) -> bool:
+    """Wait for the `ai-2 serve` just started to report ready. False, with the
+    reason printed, when it does not: at once when the child has ended (a model
+    file that cannot be loaded ends it within a second, and waiting out the
+    whole time would hold a chat for minutes), otherwise after `wait` seconds,
+    which stay long because a live child may be reading a model off a slow disk."""
+    import time
     start = time.monotonic()
     last_note = start
     pause = 0.1                    # soon at first: a small model is ready quickly
     while time.monotonic() < start + wait and not _server_ready(url):
+        if child.poll() is not None:
+            break
         time.sleep(pause)
         pause = min(pause * 1.5, 1.0)
         if time.monotonic() - last_note >= 10:
             last_note = time.monotonic()
             print(f"  still starting ({int(last_note - start)} s)", flush=True)
-    if not _server_ready(url):
-        print(f"error: the server did not come up within {wait} s (see {serverstate.log_file(record)})",
-              file=sys.stderr)
-        return False
-    return True
+    if _server_ready(url):         # also when the child ended because another one is serving
+        return True
+    if child.poll() is not None:
+        print(f"error: the server stopped while starting (see {log_path})", file=sys.stderr)
+    else:
+        print(f"error: the server did not come up within {wait} s (see {log_path})", file=sys.stderr)
+    return False

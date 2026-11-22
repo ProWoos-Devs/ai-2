@@ -604,7 +604,6 @@ def _start_chat_server(args, hw, url: str) -> dict | None:
     """Start the chat server detached and wait until it reports ready. The model
     it runs, or None with the reason printed."""
     import subprocess
-    import time
     runtime_dir = runtime.find_runtime(hw.cpu_variant)
     model = runner._catalog_entry(args.model) if args.model else _usable_model(hw)
     too_big = _no_fit_message(hw) if model is None else None
@@ -622,24 +621,13 @@ def _start_chat_server(args, hw, url: str) -> dict | None:
         cmd += ["--idle-timeout", str(args.idle_timeout)]
     if args.model:
         cmd += ["--model", model["id"]]
-    subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
-                     start_new_session=True,
-                     cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    child = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                             start_new_session=True,
+                             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     # whole lines, no dot spinner: screen readers only follow completed
     # lines, and the sighted cost of a line every 10 s is nil
     print(f"Starting the AI ({model['label']}) ... this takes a moment on a slow disk", flush=True)
-    start = time.monotonic()
-    deadline = start + args.wait
-    last_note = start
-    while time.monotonic() < deadline and not runner._server_ready(url):
-        time.sleep(2)
-        now = time.monotonic()
-        if now - last_note >= 10:
-            last_note = now
-            print(f"  still starting ({int(now - start)} s)", flush=True)
-    if not runner._server_ready(url):
-        print(f"error: the server did not come up within {args.wait} s "
-              f"(see {os.path.join(state_dir, 'serve.log')})", file=sys.stderr)
+    if not runner.wait_until_ready(child, url, args.wait, serverstate.log_file()):
         return None
     return model
 
