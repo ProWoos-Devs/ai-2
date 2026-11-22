@@ -1175,3 +1175,28 @@ def test_a_search_over_many_parts_gives_its_hits_a_standing(tmp_path):
     doc.set_store_model(small, "m", 8)
     doc.add_document(small, "s.txt", "/s.txt", ["Madrid."], [fake_vec("Madrid")], words=1)
     assert "standing" not in doc.closest_documents({"small": small}, fake_vec("Madrid"), top=1)[0]
+
+
+def test_doc_search_asks_the_loaded_model_first_and_shows_the_same(tmp_path, monkeypatch, capsys):
+    """Two models share one port. Asking them in a fixed order stopped the one
+    loaded, started the other, then started the first again."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    asked = []
+    monkeypatch.setattr(knowledgecli, "_ensure_embed",
+                        lambda hw, model, wait=None, **kw: asked.append(model["id"]) or "http://127.0.0.1:8081/")
+    monkeypatch.setattr(doc.EmbedClient, "embed_query", lambda self, q: fake_vec(q))
+    _store("spanish", "nomic-embed-text-v2-moe", {"c.pdf": ["Madrid, la capital."]})
+    _store("english", "nomic-embed-text-v1.5", {"e.txt": ["Madrid is the capital."]})
+    shown = []
+    for loaded in (None, "nomic-embed-text-v1.5", "nomic-embed-text-v2-moe"):
+        monkeypatch.setattr(serverstate, "read_server",
+                            lambda name=serverstate.CHAT, loaded=loaded: {"model": loaded} if loaded else None)
+        del asked[:]
+        assert cli.main(["doc", "search", "--top", "3", "Madrid capital"]) == 0
+        shown.append(capsys.readouterr().out)
+        assert sorted(asked) == ["nomic-embed-text-v1.5", "nomic-embed-text-v2-moe"]
+        if loaded:
+            assert asked[0] == loaded
+    assert shown[0] == shown[1] == shown[2]
