@@ -1036,12 +1036,19 @@ def test_the_chat_shows_the_knowledge_pack_passage_and_never_asks_the_model(big_
         assert "The AI model wrote none of this" in said(first)
         assert "[1] Everyday Reference: spain.txt, page 1" in first
         assert "The capital of Spain is Madrid." in first
-        assert ["0    Read the complete topic", "/doc/everyday/spain.txt"] == items(first, "0")[0][:2]
+        # the chat page of the app follows only menu items, so the way to the topic is one
+        assert items(first, "0") == []
+        assert ["1Read the complete topic [1]", "/topic/everyday/spain.txt"] in [i[:2] for i in items(first, "1")]
+        whole = talk(server, "/topic/everyday/spain.txt")
+        assert "The currency used in Spain is the euro." in said(whole) and "Everyday Reference (CC0-1.0)" in said(whole)
+        assert items(whole, "0") == [] and whole.endswith(".\r\n")
+        assert talk(server, "/topic/everyday/nothing.txt").startswith("3")
         assert "From the Knowledge Pack Everyday Reference (CC0-1.0)" in said(first)
         key = items(first)[0][1].split("/")[-1]
         saved = server.menus.chat.sessions[key]
         assert saved[1]["from"] == gopher.FROM_KNOWLEDGE and "Madrid" in saved[1]["content"]
-        assert "The capital of Spain is Madrid." in talk(server, f"/chat/{key}")      # the page keeps it
+        again = talk(server, f"/chat/{key}")                                         # the page keeps it
+        assert "The capital of Spain is Madrid." in again and "/topic/everyday/spain.txt" in again
     finally:
         server.shutdown()
 
@@ -1060,6 +1067,7 @@ def test_the_chat_says_when_the_answer_has_no_source_and_the_model_does_not_rere
         assert server.menus.chat.sessions[key][3]["from"] == gopher.FROM_MEMORY
         page = said(talk(server, f"/chat/{key}"))
         assert page.count("may be wrong") == 1 and "The capital of Spain is Madrid." in page
+        assert "/topic/" not in second            # the buttons belong to the answer they came with
     finally:
         server.shutdown()
 

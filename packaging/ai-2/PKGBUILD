@@ -8,7 +8,7 @@
 
 pkgname=ai-2
 pkgver=0.29.4
-pkgrel=1
+pkgrel=2
 pkgdesc="AI-2 automatically transforms compatible PCs into the best AI workstation that hardware can realistically support"
 arch=('any')
 url="https://github.com/ProWoos-Devs/ai-2"

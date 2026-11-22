@@ -49,6 +49,7 @@ CHAT_SELECTOR = "/chat"
 CHATS_SELECTOR = "/chats"
 KNOWLEDGE_SELECTOR = "/knowledge"
 KNOWLEDGE_SEARCH = "/knowledge/search"
+TOPIC_SELECTOR = "/topic"   # a whole topic as a menu page: the chat page of the app follows only menus
 CHAT_SESSIONS = 8           # conversations kept; the oldest is forgotten first
 CHAT_BUDGET = 4096          # characters of a conversation sent to the model, for a 2048-token context
 CHAT_SHOWN = 100            # exchanges a conversation shows on its page
@@ -300,6 +301,13 @@ class Chat:
         else:
             out = (line("7", tr("Ask the next question"), f"{CHAT_SELECTOR}/{key}", "127.0.0.1", port)
                    + line("7", tr("Start a new conversation"), CHAT_SELECTOR, "127.0.0.1", port))
+        # After passages from a Knowledge Pack, the way to the whole of each
+        # topic. Menu items, because the chat page of the AI-2 Gopher app shows
+        # every other line of a conversation as plain text: a link inside the
+        # answer could not be clicked (RMM-PC, 2026-11-22).
+        last = (self.sessions.get(key) or [{}])[-1] if key else {}
+        for i, topic in enumerate(last.get("topics") or [], 1):
+            out += line("1", f"{tr('Read the complete topic')} [{i}]", f"{TOPIC_SELECTOR}/{topic}", "127.0.0.1", port)
         out += line("1", tr("Search Knowledge Packs"), KNOWLEDGE_SELECTOR, "127.0.0.1", port)
         if self.store and self.store.keys():
             out += line("1", tr("Earlier conversations"), CHATS_SELECTOR, "127.0.0.1", port)
@@ -378,10 +386,10 @@ class Chat:
             out(line("i", "", CHAT_STATUS))
             found = self._look_up(question)
             if found:
-                shown, text = found
+                shown, text, topics = found
                 out(shown)
                 history.append({"role": "user", "content": question})
-                history.append({"role": "assistant", "content": text, "from": FROM_KNOWLEDGE})
+                history.append({"role": "assistant", "content": text, "from": FROM_KNOWLEDGE, "topics": topics})
                 if self.store:
                     self.store.save(key, history)
                 out(info())
@@ -578,6 +586,20 @@ class Menus:
         return text_page("\n".join(header) + join_parts([r[0] for r in rows])
                          + "\n" + "\n".join(self.provenance(name, manifest, doc_name)))
 
+    def topic(self, name: str, doc_name: str) -> str:
+        """The whole of a document as a menu page of text lines, with where it
+        came from: what the chat's "Read the complete topic" opens."""
+        conn = self.lib.store(name)
+        if conn is None:
+            return error(f"No knowledge called {name!r} here")
+        rows = conn.execute("SELECT chunks.text FROM chunks JOIN docs ON docs.id = chunks.doc_id "
+                            "WHERE docs.name = ? ORDER BY chunks.ord", (doc_name,)).fetchall()
+        if not rows:
+            return error(f"No document called {doc_name!r} in {name}")
+        manifest = dict(self.lib.collections()).get(name)
+        body = join_parts([r[0] for r in rows]).split("\n") + self.provenance(name, manifest, doc_name)
+        return "".join(info(text) for text in body) + "." + CRLF
+
     def provenance(self, name: str, manifest: dict | None, doc_name: str | None = None) -> list[str]:
         """Where this text came from, the way `ai-2 doc search` and `doc ask`
         put it: the document's own source URL when the manifest has one, then
@@ -622,8 +644,9 @@ class Menus:
         return "".join(out) + "." + CRLF
 
     def _passage(self, i: int, hit: dict, stores: dict, manifests: dict, host: str,
-                 titled: bool) -> tuple[list[str], str]:
-        """One result as menu lines, and as the plain text a saved conversation keeps."""
+                 titled: bool, linked: bool = True) -> tuple[list[str], str]:
+        """One result as menu lines, and as the plain text a saved conversation
+        keeps. `linked` adds the link to the whole topic under it."""
         from . import pack
         name = hit["collection"]
         manifest = manifests.get(name)
@@ -636,7 +659,8 @@ class Menus:
         if url:
             out.append(info("    " + tr("source: {url}").format(url=url)))
             plain.append(tr("source: {url}").format(url=url))
-        out.append(line("0", "    " + tr("Read the complete topic"), f"/doc/{name}/{hit['doc']}", host, self.port))
+        if linked:
+            out.append(line("0", "    " + tr("Read the complete topic"), f"/doc/{name}/{hit['doc']}", host, self.port))
         out.append(info())
         return out, "\n".join(plain) + "\n"
 
@@ -666,8 +690,9 @@ class Menus:
         return per_group, omitted, reason
 
     def chat_passages(self, question: str):
-        """For the chat, before the model is asked: (menu lines, plain text) of
-        the passages that plainly match the question; False when the Knowledge
+        """For the chat, before the model is asked: (menu lines, plain text,
+        topics as "collection/document") of the passages that plainly match
+        the question; False when the Knowledge
         Packs were all searched and none does; None when that cannot be said
         (nothing installed, a search model that did not start, or too few
         parts for a standing)."""
@@ -694,12 +719,12 @@ class Menus:
                    "and a passage may not answer your question."), width=WRAP)] + [info()]
             plain = []
             for i, hit in enumerate(matches, 1):
-                shown, text = self._passage(i, hit, stores, manifests, "127.0.0.1", titled=True)
+                shown, text = self._passage(i, hit, stores, manifests, "127.0.0.1", titled=True, linked=False)
                 lines += shown
                 plain.append(text)
             for name in dict.fromkeys(hit["collection"] for hit in matches):
                 lines += [info(text) for text in self.provenance(name, manifests.get(name))]
-            return "".join(lines), "\n".join(plain)
+            return "".join(lines), "\n".join(plain), [f"{hit['collection']}/{hit['doc']}" for hit in matches]
         finally:
             for conn in stores.values():
                 conn.close()
@@ -764,6 +789,8 @@ class Menus:
             return self.search(parts[1], query, local)
         if len(parts) >= 3 and parts[0] == "doc":
             return self.document(parts[1], "/".join(parts[2:]))
+        if len(parts) >= 3 and parts[0] == "topic":
+            return self.topic(parts[1], "/".join(parts[2:]))
         return error(f"Nothing here called {selector!r}")
 
 
