@@ -366,8 +366,14 @@ def _doc_index(args, docmod) -> int:
         print(f"The documents index uses {model['label']} ({model['file_mb']} MB); downloading it first.")
         if runner._pull_model(model) != 0:
             return 1
-    url = runner._ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=args.wait)
+    # on whichever port this model is loaded, or beside or instead of the other
+    # one: a search may have left either model on either port
+    url = _ensure_embed(hw, model, wait=args.wait)
     if url is None:
+        if _loaded_embedders():
+            print("The search model could not be started: another one is loaded and busy, or it did not come up. "
+                  "If a document is being indexed, try again when it finishes; otherwise:  ai-2 stop",
+                  file=sys.stderr)
         return 1
     client = docmod.EmbedClient(url, model)
     if model_id is None:

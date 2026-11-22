@@ -1247,3 +1247,26 @@ def test_a_second_search_model_gets_its_own_port_when_memory_allows(monkeypatch)
     # nothing loaded: the first port
     stopped, started = _embed_slots(monkeypatch, {}, avail=100)
     assert knowledgecli._ensure_embed(None, english, wait=5) == "http://127.0.0.1:8081/" and stopped == []
+
+
+def test_doc_index_uses_its_model_on_whichever_port_it_is_loaded(tmp_path, monkeypatch, capsys):
+    """After a search, either model can be on either port. Indexing looked at
+    the first port only and gave up when its model was loaded on the second."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: next(
+        m for m in embedding_models() if m["id"] == "nomic-embed-text-v2-moe"))
+    monkeypatch.setattr(runtime, "find_model_file", lambda f: "/x/" + f)
+    monkeypatch.setattr(doc.EmbedClient, "embed_documents", lambda self, chunks, progress=None: [fake_vec(c) for c in chunks])
+    monkeypatch.setattr(doc.EmbedClient, "ntokens", lambda self, text: len(text.split()))
+    note = tmp_path / "nota.txt"
+    note.write_text("Madrid es la capital de España.")
+    stopped, started = _embed_slots(monkeypatch, {serverstate.EMBED: "nomic-embed-text-v1.5",
+                                                  serverstate.EMBED2: "nomic-embed-text-v2-moe"}, avail=50)
+    assert cli.main(["doc", "index", str(note)]) == 0
+    assert started == [("nomic-embed-text-v2-moe", 8082, serverstate.EMBED2)] and stopped == []
+    assert "1 parts indexed" in capsys.readouterr().out
+    # the other model is busy and there is no room: said plainly, nothing stopped
+    stopped, started = _embed_slots(monkeypatch, {serverstate.EMBED: "nomic-embed-text-v1.5"}, avail=50, busy=True)
+    assert cli.main(["doc", "index", str(note)]) == 1
+    assert "another one is loaded and busy" in capsys.readouterr().err and stopped == [] and started == []
