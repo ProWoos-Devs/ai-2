@@ -489,10 +489,17 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
     # parts of the same FAQ took two of Rafael's three slots (2026-09-18) and the
     # rest of any document is one keypress away. `doc ask` keeps every part: the
     # chat model may need two parts of one document to answer.
-    per_group: list[list[dict]] = []
+    order = pack_models + own_models
+    # The model already loaded is asked first, which saves loading it twice:
+    # with two models on the one port, the fixed order stopped the loaded one,
+    # started the other and then started the first again (on the 2011 laptop
+    # about 7.5 s of every search, against 1.9 to 5.6 s this way). What is
+    # shown does not depend on it: the groups are put back in `order` below.
+    loaded = (serverstate.read_server(serverstate.EMBED) or {}).get("model")
+    found: dict[str, list[dict]] = {}
     searched: list[str] = []
     last_error = None
-    for model_id in pack_models + own_models:
+    for model_id in sorted(order, key=lambda model: model != loaded):
         emb = runner._catalog_entry(model_id)
         if emb is None:
             last_error = (f"error: {', '.join(groups[model_id])} was built with {model_id}, "
@@ -511,8 +518,9 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
         group = {n: stores[n] for n in groups[model_id]}
         hits = (docmod.closest_documents(group, qvec, top=args.top) if distinct
                 else docmod.search_collections(group, qvec, top=args.top, doc=args.doc))
-        per_group.append(hits)
-        searched.extend(groups[model_id])
+        found[model_id] = hits
+    per_group = [found[model_id] for model_id in order if model_id in found]
+    searched = [name for model_id in order if model_id in found for name in groups[model_id]]
     hits = docmod.interleave(per_group)[:args.top]
     if not hits:
         if not searched:
