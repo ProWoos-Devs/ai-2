@@ -453,7 +453,8 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
     --in names one. Collections built with different embedding models cannot
     share a question vector, so each group is searched in turn (Knowledge
     Packs first, then the person's own documents). Scores are not compared
-    across groups. None, with the reason printed, when there is nothing to
+    across groups; doc.interleave decides whose results come first. None,
+    with the reason printed, when there is nothing to
     search or no server for any group."""
     from . import pack as packmod
     names = docmod.list_collections()

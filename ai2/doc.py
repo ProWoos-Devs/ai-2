@@ -283,20 +283,35 @@ def _hit(conn: sqlite3.Connection, row: tuple) -> dict:
             "page": page, "page_end": page_end}
 
 
-def search(conn: sqlite3.Connection, qvec, top: int = TOP_K, doc: str | None = None) -> list[dict]:
+def _tallied(rows, tally: list | None):
+    """The rows as they come, adding each score to tally ([sum, count]): what
+    an ordinary part scores against this question, for free, since a search
+    reads every part anyway. See stand()."""
+    if tally is None:
+        yield from rows
+        return
+    for row in rows:
+        tally[0] += row[0]
+        tally[1] += 1
+        yield row
+
+
+def search(conn: sqlite3.Connection, qvec, top: int = TOP_K, doc: str | None = None,
+           tally: list | None = None) -> list[dict]:
     """The `top` chunks closest to qvec (cosine), each with its document name,
     position and score. A few thousand chunks is a fraction of a second in
     plain Python; that is the whole vector store. Equal scores keep their order
     in the store."""
-    best = heapq.nsmallest(top, enumerate(_scored(conn, qvec, doc)), key=lambda pair: (-pair[1][0], pair[0]))
+    best = heapq.nsmallest(top, enumerate(_tallied(_scored(conn, qvec, doc), tally)),
+                           key=lambda pair: (-pair[1][0], pair[0]))
     return [_hit(conn, row) for _, row in best]
 
 
-def best_per_document(conn: sqlite3.Connection, qvec, top: int = TOP_K) -> list[dict]:
+def best_per_document(conn: sqlite3.Connection, qvec, top: int = TOP_K, tally: list | None = None) -> list[dict]:
     """The closest part of each of the `top` closest documents. However many
     parts of one long document match, the others keep their places."""
     best: dict[str, tuple] = {}
-    for row in _scored(conn, qvec):
+    for row in _tallied(_scored(conn, qvec), tally):
         if row[3] not in best or row[0] > best[row[3]][0]:
             best[row[3]] = row
     return [_hit(conn, row) for row in sorted(best.values(), key=lambda row: -row[0])[:top]]
@@ -467,13 +482,13 @@ def search_collections(stores: dict[str, sqlite3.Connection], qvec, top: int = T
                        doc: str | None = None) -> list[dict]:
     """search() over several stores built with the same embedding model (so
     their scores compare), merged; each hit names its collection."""
-    hits = []
+    hits, tally = [], [0.0, 0]
     for name, conn in stores.items():
-        for h in search(conn, qvec, top=top, doc=doc):
+        for h in search(conn, qvec, top=top, doc=doc, tally=tally):
             h["collection"] = name
             hits.append(h)
     hits.sort(key=lambda h: -h["score"])
-    return hits[:top]
+    return stand(hits[:top], tally)
 
 
 def group_by_model(models: dict[str, str]) -> dict[str, list[str]]:
@@ -485,26 +500,83 @@ def group_by_model(models: dict[str, str]) -> dict[str, list[str]]:
     return groups
 
 
-def interleave(groups: list[list[dict]]) -> list[dict]:
-    """One from each group in turn. Scores from two embedding models do not
-    compare, so neither group may crowd the other out of the top results."""
+# A group's results can only be weighed against another group's when enough
+# parts were read to know what an ordinary part scores.
+STANDING_MIN_PARTS = 50
+# A group whose best result stands below this share of the best group's waits
+# until that group has shown everything it found. In the measurement stand()
+# describes, a group with nothing on the subject reached at most 0.81 of the
+# other, and two groups that both held the answer were at 0.88 or closer.
+STANDING_KEEPS_PACE = 0.85
+
+
+def stand(hits: list[dict], tally: list) -> list[dict]:
+    """Gives each hit its `standing`: how far its score rises above what an
+    ordinary part of these collections scores against the same question
+    (tally, from _tallied), as a share of the room there was to rise. Raw
+    scores of two embedding models do not compare, this does well enough to
+    tell a group that found the answer from one that found nothing. Measured
+    on the 4 GB reference laptop on 2026-11-22 with 27 questions in Spanish
+    and English over 2,600 parts: the right document stood at 0.40 to 0.68,
+    the best part of a group with nothing on the subject at 0.13 to 0.40,
+    and in every question the group holding the answer stood highest. With
+    few parts there is no ordinary score to speak of, and the hits get none."""
+    total, count = tally
+    if count < STANDING_MIN_PARTS:
+        return hits
+    ordinary = total / count
+    if ordinary >= 1.0:
+        return hits
+    for h in hits:
+        h["standing"] = (h["score"] - ordinary) / (1.0 - ordinary)
+    return hits
+
+
+def _in_turn(groups: list[list[dict]]) -> list[dict]:
     merged = []
     for i in range(max((len(g) for g in groups), default=0)):
         merged.extend(g[i] for g in groups if i < len(g))
     return merged
 
 
+def interleave(groups: list[list[dict]]) -> list[dict]:
+    """One from each group in turn. Scores from two embedding models do not
+    compare, so neither group may crowd the other out of the top results.
+    The exception is a group that plainly found nothing: a question in
+    Spanish put to the packs of the English model used to take the first
+    place, and every other one, with whatever stood nearest (the secret key
+    of a wallet, for a question about the encomienda, 2026-11-22). When the
+    hits carry a standing (see stand()), the group standing highest goes
+    first, and a group whose best stands well below it comes after all of
+    the others' results. A group with no standing takes its turn as before."""
+    groups = [g for g in groups if g]
+    leads = [g[0].get("standing") for g in groups]
+    known = [s for s in leads if s is not None]
+    best = max(known, default=0.0)
+    if best <= 0.0:
+        return _in_turn(groups)
+    front, back = [], []
+    for g, s in zip(groups, leads):
+        if s is None or s >= STANDING_KEEPS_PACE * best:
+            front.append((best if s is None else s, g))
+        else:
+            back.append((s, g))
+    front.sort(key=lambda pair: -pair[0])        # stable: equal standings keep their order
+    back.sort(key=lambda pair: -pair[0])
+    return _in_turn([g for _, g in front]) + _in_turn([g for _, g in back])
+
+
 def closest_documents(stores: dict[str, sqlite3.Connection], qvec, top: int = TOP_K) -> list[dict]:
     """best_per_document() over several stores built with the same embedding
     model, merged: for a person reading results, because the rest of a document
     is one step away and its parts would fill every slot."""
-    hits = []
+    hits, tally = [], [0.0, 0]
     for name, conn in stores.items():
-        for h in best_per_document(conn, qvec, top=top):
+        for h in best_per_document(conn, qvec, top=top, tally=tally):
             h["collection"] = name
             hits.append(h)
     hits.sort(key=lambda h: -h["score"])
-    return hits[:top]
+    return stand(hits[:top], tally)
 
 
 def pick_embedder_group(models: dict[str, list[str]], preferred: str | None,

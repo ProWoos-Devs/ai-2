@@ -1123,3 +1123,55 @@ def test_search_returns_the_closest_parts_in_store_order_on_ties(tmp_path):
     assert [h["text"] for h in doc.search(conn, [1.0, 0.0], top=3)] == ["long 0", "long 1", "long 2"]
     assert [h["text"] for h in doc.search(conn, [1.0, 0.0], top=2, doc="b.txt")] == ["b two", "b one"]
 
+
+
+def _hits(collection, *standings):
+    return [{"collection": collection, "doc": f"{collection}-{i}", "score": 0.5,
+             **({} if s is None else {"standing": s})} for i, s in enumerate(standings)]
+
+
+def test_a_group_that_found_nothing_waits_for_the_one_that_found_the_answer():
+    """Rafael, 2026-11-22: «¿Era la encomienda esclavitud?» showed the secret
+    key of a wallet first, from the packs of the English model, and the
+    encomienda fourth, out of the three results on screen."""
+    english = _hits("english", 0.37, 0.36, 0.35)
+    history = _hits("history", 0.54, 0.50, 0.49)
+    merged = doc.interleave([english, history])
+    assert [h["collection"] for h in merged] == ["history"] * 3 + ["english"] * 3
+
+
+def test_groups_that_both_found_something_still_take_turns_the_best_first():
+    one = _hits("one", 0.57, 0.55)
+    two = _hits("two", 0.65, 0.56)
+    assert [h["doc"] for h in doc.interleave([one, two])] == ["two-0", "one-0", "two-1", "one-1"]
+
+
+def test_a_group_with_no_standing_keeps_its_turn_and_its_place():
+    """A person's own short document has too few parts to say what an
+    ordinary part scores, so it is never sent to the back."""
+    packs = _hits("packs", 0.6, 0.5, 0.5)
+    mine = _hits("mine", None)
+    assert [h["collection"] for h in doc.interleave([packs, mine])] == ["packs", "mine", "packs", "packs"]
+    assert [h["collection"] for h in doc.interleave([mine, packs])] == ["mine", "packs", "packs", "packs"]
+    assert doc.interleave([[], mine]) == mine and doc.interleave([]) == []
+
+
+def test_standing_needs_enough_parts_and_measures_the_rise_above_the_ordinary():
+    few = doc.stand([{"score": 0.9}], [10.0, 20])
+    assert "standing" not in few[0]
+    many = doc.stand([{"score": 0.75}, {"score": 0.5}], [50.0, 100])       # an ordinary part scores 0.5
+    assert [round(h["standing"], 3) for h in many] == [0.5, 0.0]
+
+
+def test_a_search_over_many_parts_gives_its_hits_a_standing(tmp_path):
+    conn = doc.open_store(str(tmp_path / "big.sqlite"))
+    doc.set_store_model(conn, "m", 8)
+    texts = ["La capital es Madrid."] + [f"otra cosa {i}" for i in range(doc.STANDING_MIN_PARTS)]
+    doc.add_document(conn, "big.txt", "/big.txt", texts, [fake_vec(t) for t in texts], words=len(texts))
+    for found in (doc.closest_documents({"big": conn}, fake_vec("Madrid"), top=1),
+                  doc.search_collections({"big": conn}, fake_vec("Madrid"), top=1)):
+        assert found[0]["text"] == "La capital es Madrid." and 0.5 < found[0]["standing"] <= 1.0
+    small = doc.open_store(str(tmp_path / "small.sqlite"))
+    doc.set_store_model(small, "m", 8)
+    doc.add_document(small, "s.txt", "/s.txt", ["Madrid."], [fake_vec("Madrid")], words=1)
+    assert "standing" not in doc.closest_documents({"small": small}, fake_vec("Madrid"), top=1)[0]
