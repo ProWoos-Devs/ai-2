@@ -42,6 +42,12 @@ import zipfile
 from .models import RAM_HEADROOM_MIB, embedding_models, fit_for_ram
 
 EMBED_PORT = 8081          # the chat server has 8080
+EMBED_PORT2 = 8082         # the second search model, when both stay loaded
+EMBED_PORTS = (EMBED_PORT, EMBED_PORT2)   # in the order of serverstate.EMBED_SLOTS
+# A second search model is started beside the first only when this much memory
+# would still be free after its own peak: room for the chat model and the
+# desktop. A 2 GB computer never has it, so there the two keep taking turns.
+EMBED_SECOND_RESERVE_MIB = 1024
 EMBED_IDLE_S = 600         # the embedding server never stays resident, even on persistent tiers
 CHUNK_WORDS = 110
 OVERLAP_WORDS = 20

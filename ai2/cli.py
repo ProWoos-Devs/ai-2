@@ -14,7 +14,7 @@ from .benchmark import STAR_LABELS, measure
 from .detect import detect
 from .models import benchmark_model, is_starter, load_catalog, recommend
 from . import runner, serverstate
-from .knowledgecli import cmd_doc, cmd_knowledge, _ensure_embed, _mention_knowledge_packs
+from .knowledgecli import cmd_doc, cmd_knowledge, _ensure_embed, _loaded_embedders, _mention_knowledge_packs
 from . import runtime
 from .runtime import (download_model, download_preflight, find_benchmark_model, installed_models,
                       model_dir, run_llama_bench, runtime_package, sampling_args, serve,
@@ -518,7 +518,9 @@ def cmd_serve(args) -> int:
         idle_arg = defaults["idle_timeout_s"] if args.idle_timeout is None else args.idle_timeout
         ctx = args.ctx or defaults["ctx"]
     idle = None if idle_arg == 0 else idle_arg
-    record = serverstate.EMBED if embedding else serverstate.CHAT
+    record = serverstate.CHAT
+    if embedding:
+        record = serverstate.EMBED2 if args.port == docmod.EMBED_PORT2 else serverstate.EMBED
     api_key = args.api_key or os.environ.get("AI2_API_KEY")
     if args.host not in ("127.0.0.1", "localhost", "::1") and not api_key and not args.insecure:
         print(f"error: binding to {args.host} exposes the AI to the network. Give it "
@@ -904,7 +906,7 @@ def cmd_gopher(args) -> int:
                               everything=args.all, advertise=advertise, workers=args.workers,
                               chat_reply=chat_reply, chat_store=Store(),
                               chat_budget=context * CHARS_PER_CONTEXT_TOKEN,
-                              resident=lambda: (serverstate.read_server(serverstate.EMBED) or {}).get("model"))
+                              resident=lambda: (_loaded_embedders() or [None])[0])
     except OSError as exc:
         print(f"error: cannot listen on {args.host}:{args.port} ({exc})", file=sys.stderr)
         return 1
@@ -1140,7 +1142,8 @@ def cmd_stop(args) -> int:
     """Stop the on-demand servers started by serve/chat/doc and free their RAM."""
     stopped = 0
     for name, what in ((serverstate.GOPHER, "the chat menu"), (serverstate.CHAT, "the AI"),
-                       (serverstate.EMBED, "the document index server")):
+                       (serverstate.EMBED, "the document index server"),
+                       (serverstate.EMBED2, "the second document index server")):
         running = serverstate.read_server(name)
         if not running:
             continue

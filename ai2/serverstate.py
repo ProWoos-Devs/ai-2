@@ -15,8 +15,10 @@ import sys
 
 CHAT = "server"
 EMBED = "embed"
+EMBED2 = "embed2"            # a second search model beside the first, when memory allows (doc.EMBED_PORT2)
+EMBED_SLOTS = (EMBED, EMBED2)
 GOPHER = "gopher"
-LOG_NAMES = {CHAT: "serve.log", EMBED: "embed.log", GOPHER: "gopher.log"}
+LOG_NAMES = {CHAT: "serve.log", EMBED: "embed.log", EMBED2: "embed2.log", GOPHER: "gopher.log"}
 
 
 def state_dir() -> str:

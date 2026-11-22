@@ -1200,3 +1200,50 @@ def test_doc_search_asks_the_loaded_model_first_and_shows_the_same(tmp_path, mon
         if loaded:
             assert asked[0] == loaded
     assert shown[0] == shown[1] == shown[2]
+
+
+def _embed_slots(monkeypatch, loaded: dict, avail: int, busy: bool = False):
+    """_ensure_embed with these models in the slots and this much free memory.
+    Returns what it stopped and what it started."""
+    from ai2 import sysinfo
+    stopped, started = [], []
+    monkeypatch.setattr(serverstate, "read_server",
+                        lambda name=serverstate.CHAT: {"model": loaded[name], "pid": 1} if loaded.get(name) else None)
+    monkeypatch.setattr(serverstate, "stop_server",
+                        lambda name=serverstate.CHAT, **kw: stopped.append(name) or loaded.pop(name, None))
+    monkeypatch.setattr(sysinfo, "mem_available_mib", lambda *a: avail)
+    monkeypatch.setattr(knowledgecli, "_server_busy", lambda url, timeout=2.0: busy)
+    monkeypatch.setattr(runner, "_ensure_server",
+                        lambda hw, model, port, record, **kw: started.append((model["id"], port, record)) or f"http://127.0.0.1:{port}/")
+    return stopped, started
+
+
+def test_a_second_search_model_gets_its_own_port_when_memory_allows(monkeypatch):
+    """Two models taking turns on one port cost the 2011 laptop 1.8 to 5.6 s of
+    every question in stopping one and starting the other."""
+    english = {"id": "nomic-embed-text-v1.5", "ram_peak_mb": 300}
+    spanish = {"id": "nomic-embed-text-v2-moe", "ram_peak_mb": 1100}
+    # room: the other model stays, this one starts beside it
+    stopped, started = _embed_slots(monkeypatch, {serverstate.EMBED: spanish["id"]}, avail=2600)
+    assert knowledgecli._ensure_embed(None, english, wait=5) == "http://127.0.0.1:8082/"
+    assert stopped == [] and started == [(english["id"], 8082, serverstate.EMBED2)]
+    # both loaded: each is found on its own port, whatever slot it is in
+    stopped, started = _embed_slots(monkeypatch, {serverstate.EMBED: spanish["id"], serverstate.EMBED2: english["id"]}, avail=50)
+    assert knowledgecli._ensure_embed(None, english, wait=5) == "http://127.0.0.1:8082/"
+    assert knowledgecli._ensure_embed(None, spanish, wait=5) == "http://127.0.0.1:8081/"
+    assert stopped == []
+    assert knowledgecli._loaded_embedders() == [spanish["id"], english["id"]]
+    # a 2 GB computer: no room, so they take turns on the first port as before
+    stopped, started = _embed_slots(monkeypatch, {serverstate.EMBED: english["id"]}, avail=1200)
+    assert knowledgecli._ensure_embed(None, spanish, wait=5) == "http://127.0.0.1:8081/"
+    assert stopped == [serverstate.EMBED] and started == [(spanish["id"], 8081, serverstate.EMBED)]
+    # no room and the other model is indexing: left alone, nothing started
+    stopped, started = _embed_slots(monkeypatch, {serverstate.EMBED: english["id"]}, avail=1200, busy=True)
+    assert knowledgecli._ensure_embed(None, spanish, wait=5) is None and stopped == [] and started == []
+    # the only one loaded sits in the second slot and there is no room: it goes, the first port is used
+    stopped, started = _embed_slots(monkeypatch, {serverstate.EMBED2: english["id"]}, avail=1200)
+    assert knowledgecli._ensure_embed(None, spanish, wait=5) == "http://127.0.0.1:8081/"
+    assert stopped == [serverstate.EMBED2] and started == [(spanish["id"], 8081, serverstate.EMBED)]
+    # nothing loaded: the first port
+    stopped, started = _embed_slots(monkeypatch, {}, avail=100)
+    assert knowledgecli._ensure_embed(None, english, wait=5) == "http://127.0.0.1:8081/" and stopped == []

@@ -432,19 +432,44 @@ def _server_busy(url: str, timeout: float = 2.0) -> bool:
     return any(isinstance(s, dict) and s.get("is_processing") for s in slots or [])
 
 
+def _loaded_embedders() -> list[str]:
+    """The search models loaded now, at most one per slot."""
+    return [m for m in ((serverstate.read_server(slot) or {}).get("model") for slot in serverstate.EMBED_SLOTS) if m]
+
+
+def _room_beside(model: dict) -> bool:
+    """Whether this search model can be loaded beside the one already there."""
+    from . import doc as docmod
+    from .sysinfo import mem_available_mib
+    avail = mem_available_mib()
+    return avail is not None and avail >= int(model.get("ram_peak_mb", 0)) + docmod.EMBED_SECOND_RESERVE_MIB
+
+
 def _ensure_embed(hw, model: dict, wait: int, idle_timeout: int | None = None):
     """The embedding server for this model. Scores only compare inside one
-    model, so a search that covers two groups swaps the server between them
-    (one port). A server busy with another model, an `ai-2 doc index` in
-    progress, is left alone: stopping it would kill the indexing."""
+    model, so a search that covers two groups asks two servers. With memory
+    to spare each model keeps its own port and both stay loaded: taking turns
+    on one port cost the 2011 laptop 1.8 to 5.6 s of every question. Without
+    it they take turns as before: the other model is stopped first, unless it
+    is busy (an `ai-2 doc index` in progress, which stopping would kill)."""
     from . import doc as docmod
-    running = serverstate.read_server(serverstate.EMBED)
-    if running and running.get("model") and running["model"] != model["id"]:
-        if _server_busy(f"http://127.0.0.1:{docmod.EMBED_PORT}/"):
+    slots = list(zip(serverstate.EMBED_SLOTS, docmod.EMBED_PORTS))
+    running = {slot: serverstate.read_server(slot) for slot, _ in slots}
+    for slot, port in slots:
+        if (running[slot] or {}).get("model") == model["id"]:
+            return runner._ensure_server(hw, model, port, slot, wait=wait, idle_timeout=idle_timeout)
+    others = [(slot, port) for slot, port in slots if (running[slot] or {}).get("model")]
+    free = [(slot, port) for slot, port in slots if not running[slot]]
+    if others and not (free and _room_beside(model)):
+        slot, port = others[0]
+        if _server_busy(f"http://127.0.0.1:{port}/"):
             return None
-        serverstate.stop_server(name=serverstate.EMBED)
-    return runner._ensure_server(hw, model, docmod.EMBED_PORT, serverstate.EMBED, wait=wait,
-                                 idle_timeout=idle_timeout)
+        serverstate.stop_server(name=slot)
+        free = sorted(free + [(slot, port)], key=slots.index)
+    if not free:
+        return None
+    slot, port = free[0]
+    return runner._ensure_server(hw, model, port, slot, wait=wait, idle_timeout=idle_timeout)
 
 
 def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[dict] | None:
@@ -495,11 +520,11 @@ def _doc_hits(args, docmod, hw, question: str, distinct: bool = False) -> list[d
     # started the other and then started the first again (on the 2011 laptop
     # about 7.5 s of every search, against 1.9 to 5.6 s this way). What is
     # shown does not depend on it: the groups are put back in `order` below.
-    loaded = (serverstate.read_server(serverstate.EMBED) or {}).get("model")
+    loaded = _loaded_embedders()
     found: dict[str, list[dict]] = {}
     searched: list[str] = []
     last_error = None
-    for model_id in sorted(order, key=lambda model: model != loaded):
+    for model_id in sorted(order, key=lambda model: model not in loaded):
         emb = runner._catalog_entry(model_id)
         if emb is None:
             last_error = (f"error: {', '.join(groups[model_id])} was built with {model_id}, "
@@ -1026,7 +1051,8 @@ def _doc_ask(args, docmod) -> int:
             print("Note: a remote AI would be faster:  ai-2 remote set <url>")
         avail = mem_available_mib()
         if avail is not None and avail < int(chat_model.get("ram_peak_mb", 0)):
-            serverstate.stop_server(name=serverstate.EMBED)   # make room, it restarts on demand
+            for slot in serverstate.EMBED_SLOTS:              # make room, they restart on demand
+                serverstate.stop_server(name=slot)
         base = runner._ensure_server(hw, chat_model, args.port, serverstate.CHAT, wait=args.wait)
         if base is None:
             return 1
