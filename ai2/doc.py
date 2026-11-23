@@ -749,11 +749,15 @@ def interleave(groups: list[list[dict]]) -> list[dict]:
     return _in_turn([g for _, g in front]) + _in_turn([g for _, g in back])
 
 
-def closest_documents(stores: dict[str, sqlite3.Connection], qvec, top: int = TOP_K) -> list[dict]:
+def closest_documents(stores: dict[str, sqlite3.Connection], qvec, top: int = TOP_K,
+                      tally: list | None = None) -> list[dict]:
     """best_per_document() over several stores built with the same embedding
     model, merged: for a person reading results, because the rest of a document
-    is one step away and its parts would fill every slot."""
-    hits, tally = [], [0.0, 0]
+    is one step away and its parts would fill every slot. A caller that wants
+    to know what every part scored passes `tally`, a list [0.0, 0], and finds
+    in it the sum of the scores and how many parts were read."""
+    hits = []
+    tally = [0.0, 0] if tally is None else tally
     for name, conn in stores.items():
         for h in best_per_document(conn, qvec, top=top, tally=tally):
             h["collection"] = name

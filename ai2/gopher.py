@@ -722,10 +722,13 @@ class Menus:
         out.append(info())
         return out, "\n".join(plain) + "\n"
 
-    def _closest(self, query: str, titles: dict, stores: dict) -> tuple[list[list[dict]], list[str], str] | None:
+    def _closest(self, query: str, titles: dict,
+                 stores: dict) -> tuple[list[list[dict]], list[str], str, dict[str, tuple]] | None:
         """The closest topics of each group of Knowledge Packs (one group per
-        embedding model), the titles of the ones that could not be searched and
-        why. None when no Knowledge Pack here has anything in it."""
+        embedding model), the titles of the ones that could not be searched,
+        why, and what was asked. That last one holds, for every search model a
+        question vector was computed with, (the vector, the sum of the scores
+        of the parts read, how many parts). None when no Knowledge Pack here has anything in it."""
         models = {name: doc.store_model(conn) for name, conn in stores.items()}
         usable = {name: model for name, model in models.items() if model and doc.list_documents(stores[name])}
         if not usable:
@@ -734,18 +737,20 @@ class Menus:
         # The model already loaded goes first, which saves loading it again.
         # What is shown does not depend on it: see per_group below.
         loaded = self.resident() if self.resident else None
-        found, reason = {}, ""
+        found, reason, asked = {}, "", {}
         for model_id in sorted(groups, key=lambda model: model != loaded):
             try:
                 vector = self.embed_query(model_id, query)
             except Exception as exc:               # the embedding server, not the client
                 reason = str(exc)
                 continue
+            tally = [0.0, 0]
             found[model_id] = doc.closest_documents({name: stores[name] for name in groups[model_id]},
-                                                    vector, top=KNOWLEDGE_HITS)
+                                                    vector, top=KNOWLEDGE_HITS, tally=tally)
+            asked[model_id] = (vector, tally[0], tally[1])
         per_group = [found[model_id] for model_id in groups if model_id in found]
         omitted = [titles[name] for model_id in groups if model_id not in found for name in groups[model_id]]
-        return per_group, omitted, reason
+        return per_group, omitted, reason, asked
 
     def chat_passages(self, question: str):
         """For the chat, before the model is asked: (menu lines, plain text,
@@ -760,7 +765,7 @@ class Menus:
             closest = self._closest(question, titles, stores)
             if closest is None:
                 return None
-            per_group, omitted, _ = closest
+            per_group, omitted, _, _ = closest
             hits = doc.interleave(per_group)[:CHAT_PASSAGES]
             if not hits or hits[0].get("standing") is None:
                 return None
@@ -807,7 +812,7 @@ class Menus:
             closest = self._closest(query, titles, stores)
             if closest is None:
                 return self.knowledge(local)
-            per_group, omitted, reason = closest
+            per_group, omitted, reason, _ = closest
             if not per_group:
                 return (line("3", tr("Search is unavailable right now ({reason})").format(reason=reason))
                         + line("1", tr("Knowledge Packs"), KNOWLEDGE_SELECTOR, self._link_host(local), self.port)

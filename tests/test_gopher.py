@@ -861,6 +861,32 @@ def test_two_embedding_models_get_their_own_vector_and_take_turns(library):
     assert order == sorted(order)                              # turns, not one model's scores first
 
 
+def test_a_search_hands_back_each_question_vector_and_what_the_parts_scored(library):
+    """For every search model that gave a vector it hands back that vector,
+    the sum of the scores of the parts of that model and how many there
+    were. A model that did not start is not in it."""
+    two_models(library)
+
+    def embed(model_id, text):
+        if model_id == "model-b":
+            raise RuntimeError("did not start")
+        return vec("capital")
+
+    menus = menus_for(embed)
+    titles = {name: menus.lib.title(name, manifest) for name, manifest in menus.lib.knowledge_packs()}
+    stores = {name: doc.open_store(doc.read_index_path(name)) for name in titles}
+    try:
+        per_group, omitted, reason, asked = menus._closest("capital", titles, stores)
+        assert list(asked) == ["model-a"] and omitted == ["Beta"] and reason == "did not start"
+        vector, total, count = asked["model-a"]
+        scores = [row[0] for row in doc._scored(stores["aa"], vec("capital"))]
+        assert vector == vec("capital") and count == 2 and total == pytest.approx(sum(scores))
+        assert [h["doc"] for h in per_group[0]] == ["a1.txt", "a2.txt"]
+    finally:
+        for conn in stores.values():
+            conn.close()
+
+
 def test_the_loaded_model_goes_first_and_the_page_stays_the_same(library):
     two_models(library)
     asked = []

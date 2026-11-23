@@ -1230,6 +1230,19 @@ def test_closest_documents_merges_stores_and_names_them(tmp_path):
     assert [(h["collection"], h["doc"]) for h in hits] == [("one", "long.txt"), ("one", "b.txt")]
 
 
+def test_closest_documents_hands_back_what_every_part_scored(tmp_path):
+    """The caller's tally holds the sum of the scores and the number of parts
+    read, over every store, and the hits are the ones it gets without one."""
+    conn = _store_with_long_document(tmp_path)
+    plain = doc.closest_documents({"one": conn}, [1.0, 0.0], top=2)
+    tally = [0.0, 0]
+    assert doc.closest_documents({"one": conn}, [1.0, 0.0], top=2, tally=tally) == plain
+    scores = [row[0] for row in doc._scored(conn, [1.0, 0.0])]
+    assert tally[1] == len(scores) > 2 and tally[0] == pytest.approx(sum(scores))
+    doc.closest_documents({"one": conn, "again": conn}, [1.0, 0.0], top=2, tally=tally)
+    assert tally[1] == 3 * len(scores) and tally[0] == pytest.approx(3 * sum(scores))
+
+
 def test_search_returns_the_closest_parts_in_store_order_on_ties(tmp_path):
     conn = _store_with_long_document(tmp_path)
     assert [h["text"] for h in doc.search(conn, [1.0, 0.0], top=3)] == ["long 0", "long 1", "long 2"]
