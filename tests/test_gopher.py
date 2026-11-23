@@ -1141,6 +1141,27 @@ def test_the_search_page_still_shows_the_closest_passage(short_library):
     assert "frozen.txt, SHORT ANSWER" not in out
 
 
+def test_ask_this_collection_shows_the_short_answer_or_the_fact_further_down(short_library):
+    """Ask this collection is the chat's way into one collection, so a match
+    at the top of a topic gets its short answer there too. Search Knowledge
+    Packs keeps the closest passages (the test above)."""
+    server = gopher.serve(lambda model, question: vec(question), host="127.0.0.1", port=0,
+                          chat_reply=lambda _: pytest.fail("a collection search started the chat model"))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        top = talk(server, "/search/@everyday\tmy program is frozen")
+        assert top.count("frozen.txt, SHORT ANSWER\t") == 1 and "[1] Everyday Reference: frozen.txt" in top
+        assert "[2] Everyday Reference: spain.txt" in top           # numbered on after the one shown
+        assert "i    It is busy, not broken. Wait a minute before closing it. [S1]\t" in top
+        assert "Search terms: frozen, program, stuck." not in said(top)
+        down = talk(server, "/search/@everyday\twhy is the disk slow")
+        assert "[1] Everyday Reference: frozen.txt, part 3 of 3\t" in down
+        assert "1. Reading a slow disk can hold a window still for a while." in said(down)
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_the_chat_says_when_the_answer_has_no_source_and_the_model_does_not_reread_passages(big_library):
     asked = []
     server = chat_server(lambda history: asked.append(history) or iter(["A poem."]))

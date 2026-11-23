@@ -655,8 +655,19 @@ class Menus:
         out.append(info())
         if not hits:
             out += [info(tr("No passages were returned.")), info()]
-        for i, hit in enumerate(hits, 1):
-            out += self._passage(i, hit, stores, manifests, host, titled)[0]
+        # Ask this collection shows a topic's short answer, as the chat does.
+        # Its search returns every close part, not one per topic, so two
+        # parts of one short answer would show it twice; it is shown once.
+        answered, i = set(), 0
+        for hit in hits:
+            topic = (hit["collection"], hit["doc"])
+            short = self.collection_view and self._in_short_answer(stores, hit)
+            if short and topic in answered:
+                continue
+            if short:
+                answered.add(topic)
+            i += 1
+            out += self._passage(i, hit, stores, manifests, host, titled, short=self.collection_view)[0]
         for name in dict.fromkeys(hit["collection"] for hit in hits):
             out += [info(text) for text in self.provenance(name, manifests.get(name))]
         out.append(info())
@@ -666,6 +677,12 @@ class Menus:
         else:
             out.append(line("1", tr("Knowledge Packs"), KNOWLEDGE_SELECTOR, host, self.port))
         return "".join(out) + "." + CRLF
+
+    @staticmethod
+    def _in_short_answer(stores: dict, hit: dict) -> dict | None:
+        """The topic's short answer when the hit lies at or before its end."""
+        answer = doc.short_answer(stores[hit["collection"]], hit["doc"])
+        return answer if answer is not None and hit["ord"] <= answer["last"] else None
 
     def _passage(self, i: int, hit: dict, stores: dict, manifests: dict, host: str,
                  titled: bool, linked: bool = True, short: bool = False) -> tuple[list[str], str]:
@@ -679,9 +696,7 @@ class Menus:
         from . import pack
         name = hit["collection"]
         manifest = manifests.get(name)
-        answer = doc.short_answer(stores[name], hit["doc"]) if short else None
-        if answer is not None and hit["ord"] > answer["last"]:
-            answer = None
+        answer = self._in_short_answer(stores, hit) if short else None
         cited = doc.cite(dict(hit, section=answer["heading"])) if answer else doc.cite(hit)
         label = f"{self.lib.title(name, manifest)}: {cited}" if titled else cited
         out = [info(text) for text in textwrap.wrap(f"[{i}] {label}", width=WRAP)]
