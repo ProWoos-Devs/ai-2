@@ -1618,11 +1618,22 @@ def test_a_store_from_an_older_version_gains_checkpoints_and_resumes(resume, cap
 
 def test_a_read_only_store_without_checkpoint_tables_still_lists(tmp_path, monkeypatch, capsys):
     """A Knowledge Pack that came with AI-2 is opened read-only and its schema
-    is never touched, so it has no checkpoint tables at all."""
+    is never touched, and one made by `ai-2 knowledge export` has no
+    checkpoint tables at all."""
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
     _system_pack(tmp_path, monkeypatch)
-    conn = doc.open_store(doc.read_index_path("ai2-help"))
+    path = doc.read_index_path("ai2-help")
+    os.chmod(path, 0o644)                   # drop the tables as export_pack does
+    raw = sqlite3.connect(path)
+    raw.execute("DROP TABLE checkpoint_parts")
+    raw.execute("DROP TABLE index_checkpoints")
+    raw.commit()
+    assert not {"checkpoint_parts", "index_checkpoints"} & {
+        r[0] for r in raw.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    raw.close()
+    os.chmod(path, 0o444)
+    conn = doc.open_store(path)
     assert doc.unfinished_imports(conn) == [] and doc.checkpoint_for(conn, "help.txt", "x") == (None, False)
     assert doc.discard_checkpoint(conn, "help.txt") == 0
     conn.close()
@@ -1817,3 +1828,66 @@ def test_doc_list_says_when_the_file_of_a_stopped_import_is_gone(resume, capsys)
     out = capsys.readouterr().out
     assert f"the file is no longer at {f}, ai-2 doc forget ley.txt drops it" in out
 
+
+def test_a_stopped_pdf_resumes_with_its_pages_and_word_count(resume, capsys, monkeypatch):
+    cli, f = resume["cli"], resume["file"]
+    pages = [_long_text(), _long_text(1500), _long_text(1000)]
+    monkeypatch.setattr(doc, "extract_pages", lambda *a, **kw: (list(pages), True))
+    words = sum(len(p.split()) for p in pages)
+    assert cli.main(["doc", "index", "--in", "whole", str(f)]) == 0
+    whole, _ = _rows("whole")
+    resume["batches"].clear()
+    resume["stop_at"] = 2
+    assert cli.main(["doc", "index", str(f)]) == 130
+    resume["stop_at"] = None
+    assert cli.main(["doc", "index", str(f)]) == 0
+    rows, left = _rows()
+    assert rows == whole and left == 0
+    assert all(r[3] is not None and r[4] is not None for r in rows) and rows[-1][4] == 3
+    assert _docs() == _docs("whole") == [("ley.txt", words, len(rows))]
+
+
+def test_a_stored_vector_is_the_servers_vector_made_unit_length(resume, capsys):
+    """Not only the same bytes as an uninterrupted run, which goes through the
+    same code: the bytes the server's vector gives."""
+    cli, f = resume["cli"], resume["file"]
+    resume["stop_at"] = 2
+    assert cli.main(["doc", "index", str(f)]) == 130
+    resume["stop_at"] = None
+    assert cli.main(["doc", "index", str(f)]) == 0
+    rows, _ = _rows()
+    assert rows and all(vec == doc.to_blob(fake_vec(text) + [float(len(text))]) for _, text, vec, _, _ in rows)
+
+
+def test_an_incomplete_batch_keeps_what_was_saved(resume, capsys):
+    cli, f = resume["cli"], resume["file"]
+    embed = resume["client"].embed_documents
+
+    def one_short(texts, progress=None):
+        vectors = embed(texts, progress)
+        return vectors[:-1] if len(resume["batches"]) == 3 else vectors
+
+    resume["client"].embed_documents = one_short
+    assert cli.main(["doc", "index", str(f)]) == 1
+    err = capsys.readouterr().err
+    assert "skipped ley.txt" in err and "incomplete batch" in err
+    conn = doc.open_store()
+    assert doc.unfinished_imports(conn)[0]["done"] == 8
+    assert conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
+    resume["client"].embed_documents = embed
+    assert cli.main(["doc", "index", str(f)]) == 0 and "resuming, 8 of" in capsys.readouterr().out
+
+
+def test_minutes_left_after_a_resume_count_only_this_run(resume, capsys, monkeypatch):
+    import time
+    cli, f = resume["cli"], resume["file"]
+    resume["stop_at"] = 2
+    assert cli.main(["doc", "index", str(f)]) == 130
+    total = doc.unfinished_imports(doc.open_store())[0]["total"]
+    resume["stop_at"] = None
+    clock = iter(range(0, 60 * 1000, 60))
+    monkeypatch.setattr(time, "monotonic", lambda: next(clock))
+    capsys.readouterr()
+    assert cli.main(["doc", "index", str(f)]) == 0
+    left = int(60 / 4 * (total - 12) / 60) + 1
+    assert f"12/{total} parts, 60 s, about {left} min left" in capsys.readouterr().out
