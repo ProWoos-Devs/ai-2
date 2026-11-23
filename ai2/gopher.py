@@ -207,13 +207,19 @@ class Chat:
     a small model answers a question it knows nothing about as surely as one
     it does («Sí, era una forma de esclavitud que se practicaba en América
     del Norte», about the encomienda, 2026-11-22), so what the Knowledge
-    Packs hold is shown in its place, and what they do not hold is said."""
+    Packs hold is shown in its place, and what they do not hold is said.
+    When the lookup names a Knowledge Pack of the catalog that is not on the
+    computer, the chat says how to get it, above the model's answer.
+    `installed()` gives the ids of the Knowledge Packs on the computer now
+    (Menus.installed_ids), so a saved conversation stops telling the person
+    to install one they have since installed."""
 
-    def __init__(self, reply, store=None, budget: int = CHAT_BUDGET, lookup=None):
+    def __init__(self, reply, store=None, budget: int = CHAT_BUDGET, lookup=None, installed=None):
         self.reply = reply
         self.store = store
         self.budget = budget
         self.lookup = lookup
+        self.installed = installed
         self.sessions: collections.OrderedDict[str, list[dict]] = collections.OrderedDict()
         self.starts: dict[str, int] = {}   # where the model's part of each conversation begins
         self.lane = threading.Lock()
@@ -249,10 +255,59 @@ class Chat:
         return "".join(info(f"> {text}") for text in textwrap.wrap(question, width=WRAP)) + info()
 
     @staticmethod
-    def _from_memory() -> str:
-        return "".join(info(text) for text in textwrap.wrap(
-            tr("No Knowledge Pack on this computer covers this. What follows comes from the memory "
-               "of the AI model, has no source and may be wrong."), width=WRAP)) + info()
+    def _suggested(found) -> dict | None:
+        """The Knowledge Pack a lookup or a saved message names, as {"id",
+        "title"}, or None for anything that is not one. The id goes into a
+        command the person is told to type, so only an id `ai-2 knowledge
+        install` would take is shown."""
+        suggest = found.get("suggest") if isinstance(found, dict) else None
+        if not isinstance(suggest, dict):
+            return None
+        pid, title = suggest.get("id"), suggest.get("title")
+        if not isinstance(pid, str) or not doc.valid_collection(pid):
+            return None
+        title = " ".join(title.split()) if isinstance(title, str) else ""
+        return {"id": pid, "title": title or pid}
+
+    @staticmethod
+    def _from_memory(suggest: dict | None = None, prompt: bool = True) -> str:
+        """The lines above an answer the model gave from its memory. With
+        `suggest`, a Knowledge Pack of the catalog that may cover the question
+        ({"id", "title"}), they say how to get it, the command on a line of
+        its own. `prompt` off leaves that part out, for a Knowledge Pack that
+        has been installed since, because where the answer came from has not
+        changed."""
+        def wrapped(text: str) -> str:
+            # A menu path is not broken at its ">", because a line that began
+            # with one would look like the lines of the person's own question.
+            rows = textwrap.wrap(text.replace(" > ", "\xa0>\xa0"), width=WRAP, break_on_hyphens=False)
+            return "".join(info(row.replace("\xa0>\xa0", " > ")) for row in rows)
+
+        if suggest is None:
+            return "".join(info(text) for text in textwrap.wrap(
+                tr("No Knowledge Pack on this computer covers this. What follows comes from the memory "
+                   "of the AI model, has no source and may be wrong."), width=WRAP)) + info()
+        none_found = tr("I couldn't find a matching passage in your installed Knowledge Packs.")
+        memory = tr("What follows comes from the memory of the AI model, has no source and may be wrong.")
+        if not prompt:
+            return wrapped(none_found + " " + memory) + info()
+        return (wrapped(none_found) + info()
+                + wrapped(tr('The Knowledge Pack "{title}" may cover it. It is not installed on this computer. '
+                             "To get it, open Applications > AI-2 > Knowledge Packs, or type this in a "
+                             "terminal:").format(title=suggest["title"]))
+                + info("    ai-2 knowledge install " + suggest["id"])
+                + wrapped(tr("It needs an internet connection.")) + info()
+                + wrapped(memory) + info())
+
+    def _have(self) -> set:
+        """The ids of the Knowledge Packs on the computer now. Not knowing is
+        the same as none, so a pointer to a Knowledge Pack is then still shown."""
+        if self.installed is None:
+            return set()
+        try:
+            return set(self.installed())
+        except Exception:                  # a page of the conversation must not fail over this
+            return set()
 
     @staticmethod
     def _for_model(history: list[dict]) -> list[dict]:
@@ -278,12 +333,18 @@ class Chat:
 
     def _shown(self, history: list[dict]) -> str:
         out = []
+        have = None                        # asked for once, and only when a message names a Knowledge Pack
         for m in history[-2 * CHAT_SHOWN:]:
             if m["role"] == "user":
                 out.append(self._asked(m["content"]))
             else:
                 if m.get("from") == FROM_MEMORY:
-                    out.append(self._from_memory())
+                    suggest = self._suggested(m)
+                    if suggest is not None and have is None:
+                        have = self._have()
+                    # Installed since, the way to get it goes, the answer and
+                    # the line that says it came from the model's memory stay.
+                    out.append(self._from_memory(suggest, prompt=suggest is None or suggest["id"] not in have))
                 wrap = LineWrap()
                 out.extend(info(text) for text in wrap.feed(m["content"]) + wrap.tail())
                 out.append(info())
@@ -390,7 +451,7 @@ class Chat:
             out(line("i", tr("Processing ..."), CHAT_STATUS))
             out(line("i", "", CHAT_STATUS))
             found = self._look_up(question)
-            if found:
+            if found and isinstance(found, tuple):
                 shown, text, topics = found
                 out(shown)
                 history.append({"role": "user", "content": question})
@@ -400,9 +461,13 @@ class Chat:
                 out(info())
                 out(self._items(key, port) + "." + CRLF)
                 return
-            unsourced = found is False     # asked, and the Knowledge Packs hold nothing on it
+            # A Knowledge Pack of the catalog that may cover it, named before
+            # the model is asked, so on a slow computer the person reads how to
+            # get it while the model reads the question.
+            suggest = self._suggested(found)
+            unsourced = found is False or suggest is not None     # asked, and the Knowledge Packs hold nothing on it
             if unsourced:
-                out(self._from_memory())
+                out(self._from_memory(suggest))
             history.append({"role": "user", "content": question})
             self.starts[key] = fit_start(history, self.starts.get(key, 0), self.budget)
             parts: list[str] = []
@@ -448,7 +513,8 @@ class Chat:
                 out(info(tr("The AI stopped before it finished. Try asking again.")))
             elif "".join(parts).strip():
                 history.append({"role": "assistant", "content": "".join(parts),
-                                **({"from": FROM_MEMORY} if unsourced else {})})
+                                **({"from": FROM_MEMORY} if unsourced else {}),
+                                **({"suggest": suggest} if suggest else {})})
                 if self.store:
                     self.store.save(key, history)
             else:
@@ -752,20 +818,61 @@ class Menus:
         omitted = [titles[name] for model_id in groups if model_id not in found for name in groups[model_id]]
         return per_group, omitted, reason, asked
 
+    def installed_ids(self) -> set[str]:
+        """The ids of the Knowledge Packs on this computer, read afresh. The
+        id in the manifest, not the name of the collection, since a Knowledge Pack
+        installed under another name is still that Knowledge Pack."""
+        return self._ids(self.lib.knowledge_packs())
+
+    @staticmethod
+    def _ids(packs: list[tuple[str, dict]]) -> set[str]:
+        return {str(manifest.get("id") or name) for name, manifest in packs}
+
+    def _suggest(self, asked: dict, installed: set[str]) -> dict | None:
+        """The Knowledge Pack of the catalog to name for a question no
+        installed one matched, as {"id", "title"}: one that is not on this
+        computer and whose best part would stand at CHAT_MATCH or higher
+        beside the installed ones, by the rounding margin packsig.recommend
+        adds for what a signature loses, so the chat would show a passage
+        from it once it is installed. Only search models that
+        already gave a question vector count, nothing is computed for this.
+        `installed` holds the ids of the Knowledge Packs the search has just
+        read, so their manifests are not read a second time for every
+        question.
+        Never from Ask this collection, which searches the one collection the
+        person chose. Any fault means no Knowledge Pack is named, since this must
+        never cost the person the line that says the answer has no source."""
+        if self.collection_view:
+            return None
+        try:
+            from . import pack, packsig
+            entry = packsig.recommend(pack.load_catalog(), installed, asked, CHAT_MATCH)
+            if entry is None:
+                return None
+            pid = entry["id"]
+            if not isinstance(pid, str) or not doc.valid_collection(pid):
+                return None
+            return {"id": pid, "title": " ".join(str(entry.get("title") or "").split()) or pid}
+        except Exception:
+            return None
+
     def chat_passages(self, question: str):
         """For the chat, before the model is asked: (menu lines, plain text,
         topics as "collection/document") of the passages that plainly match
         the question; False when the Knowledge
-        Packs were all searched and none does; None when that cannot be said
+        Packs were all searched and none does; {"suggest": {"id", "title"}}
+        when none does and a Knowledge Pack of the catalog that is not on
+        this computer would (see _suggest); None when that cannot be said
         (nothing installed, a search model that did not start, or too few
         parts for a standing)."""
-        titles = {name: self.lib.title(name, manifest) for name, manifest in self.lib.knowledge_packs()}
+        packs = self.lib.knowledge_packs()
+        titles = {name: self.lib.title(name, manifest) for name, manifest in packs}
         stores = {name: doc.open_store(doc.read_index_path(name)) for name in titles}
         try:
             closest = self._closest(question, titles, stores)
             if closest is None:
                 return None
-            per_group, omitted, _, _ = closest
+            per_group, omitted, _, asked = closest
             hits = doc.interleave(per_group)[:CHAT_PASSAGES]
             if not hits or hits[0].get("standing") is None:
                 return None
@@ -775,7 +882,10 @@ class Menus:
                     break
                 matches.append(hit)
             if not matches:
-                return None if omitted else False
+                if omitted:
+                    return None
+                suggest = self._suggest(asked, self._ids(packs))
+                return {"suggest": suggest} if suggest else False
             manifests = dict(self.lib.collections())
             lines = [info(text) for text in textwrap.wrap(
                 tr("From the Knowledge Packs on this computer. The AI model wrote none of this, "
@@ -1035,7 +1145,8 @@ def serve(embed_query, host: str = "127.0.0.1", port: int = PORT, everything: bo
     on the chat item, see Chat; `resident()` names the embedding model loaded now."""
     menus = Menus(Library(everything), embed_query, advertise or host, port, None, resident)
     if chat_reply:
-        menus.chat = Chat(chat_reply, chat_store, chat_budget, lookup=menus.chat_passages)
+        menus.chat = Chat(chat_reply, chat_store, chat_budget, lookup=menus.chat_passages,
+                          installed=menus.installed_ids)
     workers = max(1, int(workers))
     if workers == 1:
         server = Sequential((host, port), Handler)

@@ -1258,3 +1258,373 @@ def test_ask_this_collection_from_chat_reads_only_the_selected_collection(librar
     finally:
         server.shutdown()
         server.server_close()
+
+
+# ------------------- the chat names a Knowledge Pack that is not on the computer
+
+LAPTOP = {"id": "laptop-care", "title": "Looking After a Laptop", "revision": 1, "sha256": "a" * 64,
+          "embedder": "nomic-embed-text-v1.5", "parts": 4}
+RECIPES = {"id": "recipes", "title": "Recipes", "revision": 1, "sha256": "b" * 64,
+           "embedder": "nomic-embed-text-v1.5", "parts": 2}
+EVERYDAY = {"id": "everyday", "title": "Everyday Reference", "revision": 1, "sha256": "c" * 64,
+            "embedder": "nomic-embed-text-v1.5", "parts": 2}
+NONE_FOUND = "I couldn't find a matching passage in your installed Knowledge Packs."
+OLD_LINE = ("No Knowledge Pack on this computer covers this. What follows comes from the memory of the AI "
+            "model, has no source and may be wrong.")
+DISK = "the disk is slow, what can I do"     # no installed Knowledge Pack matches; Looking After a Laptop would
+POEM = "write me a poem about a frozen program"       # nothing installed and nothing in the catalog matches
+
+
+def write_sig(folder, entry, texts):
+    """The signature of a cataloged Knowledge Pack whose parts have the
+    vectors of `texts`, as tools/build-pack-signatures.py writes one."""
+    import array
+    import json
+    import math
+    units = []
+    for text in texts:
+        length = math.sqrt(sum(x * x for x in vec(text)))
+        units.append([x / length for x in vec(text)])
+    scale = max(abs(x) for v in units for x in v)
+    ints = [array.array("b", (int(round(x / scale * 127)) for x in v)) for v in units]
+    norms = array.array("f", (math.sqrt(sum(x * x for x in v)) for v in ints))
+    head = {"format": 1, "id": entry["id"], "revision": entry["revision"], "pack_sha256": entry["sha256"],
+            "model": entry["embedder"], "dims": 8, "count": len(ints)}
+    folder.mkdir(exist_ok=True)
+    (folder / (entry["id"] + ".sig")).write_bytes(
+        json.dumps(head, separators=(",", ":")).encode() + b"\n" + norms.tobytes() + b"".join(v.tobytes() for v in ints))
+
+
+@pytest.fixture
+def catalog(big_library, monkeypatch):
+    """big_library, and a catalog of three Knowledge Packs with their
+    signatures. One is installed, one is about disks and one is about
+    nothing anybody asks here."""
+    from ai2 import pack, packsig
+    monkeypatch.setattr(pack, "load_catalog", lambda: [EVERYDAY, RECIPES, LAPTOP])
+    monkeypatch.setattr(packsig, "SIG_DIR", big_library / "sigs")
+    write_sig(big_library / "sigs", EVERYDAY, ["madrid capital", "euro"])
+    write_sig(big_library / "sigs", RECIPES, ["x", "y"])
+    write_sig(big_library / "sigs", LAPTOP, ["disk", "disk x", "x", "y"])
+    return big_library
+
+
+def chat_for(menus, reply, store=None):
+    """The chat wired to the Knowledge Packs the way serve() wires it."""
+    return gopher.Chat(reply, store, lookup=menus.chat_passages, installed=menus.installed_ids)
+
+
+def ask(chat, key, question):
+    sent = []
+    chat.answer(key, question, sent.append, 7070)
+    reply = "".join(sent)
+    return reply, next(reversed(chat.sessions)) if chat.sessions else None
+
+
+def test_the_chat_recommends_a_cataloged_knowledge_pack_when_none_installed_covers_the_question(catalog, tmp_path):
+    asked = []
+    store = chatstore.Store(str(tmp_path / "chats"))
+    menus = menus_for()
+    assert menus.chat_passages(DISK) == {"suggest": {"id": "laptop-care", "title": "Looking After a Laptop"}}
+    chat = chat_for(menus, lambda history: asked.append(history) or iter(["Maybe it is full."]), store)
+    reply, key = ask(chat, "", DISK)
+    rows = [l[1:].split("\t")[0] for l in reply.splitlines() if l.startswith("i")]
+    block = rows[rows.index(NONE_FOUND):rows.index("Maybe it is full.")]
+    assert block == [
+        NONE_FOUND,
+        "",
+        'The Knowledge Pack "Looking After a Laptop" may cover it. It is not',
+        "installed on this computer. To get it, open",
+        "Applications > AI-2 > Knowledge Packs, or type this in a terminal:",
+        "    ai-2 knowledge install laptop-care",
+        "It needs an internet connection.",
+        "",
+        "What follows comes from the memory of the AI model, has no source and",
+        "may be wrong.",
+        "",
+    ]
+    assert "No Knowledge Pack on this computer covers this." not in said(reply)
+    assert asked == [[{"role": "user", "content": DISK}]]                 # the model still answers
+    want = {"role": "assistant", "content": "Maybe it is full.", "from": gopher.FROM_MEMORY,
+            "suggest": {"id": "laptop-care", "title": "Looking After a Laptop"}}
+    assert chat.sessions[key][1] == want and store.load(key)[1] == want
+    page = chat.page(key, 7070)
+    assert "i    ai-2 knowledge install laptop-care\t" in page and page.count("may be wrong") == 1
+    # another server, from the disk, shows the same block and the answer under it
+    again = chat_for(menus, lambda history: iter(["Otra."]), store).page(key, 7070)
+    flat = said(again)
+    assert "i    ai-2 knowledge install laptop-care\t" in again and '"Looking After a Laptop" may cover it' in flat
+    assert flat.index(NONE_FOUND) < flat.index("may be wrong") < flat.index("Maybe it is full.")
+    # asked again in the same conversation, it is said in full again
+    reply, _ = ask(chat, key, DISK)
+    assert reply.count("i    ai-2 knowledge install laptop-care\t") == 2 and said(reply).count("may cover it") == 2
+
+
+def test_serve_gives_the_chat_the_knowledge_packs_and_what_is_installed(catalog):
+    server = chat_server(lambda history: iter(["Maybe it is full."]))
+    try:
+        first = talk(server, f"/chat\t{DISK}")
+        assert "i    ai-2 knowledge install laptop-care\t" in first and "Maybe it is full." in first
+        key = items(first)[0][1].split("/")[-1]
+        add_pack(catalog, "laptop-care", "Looking After a Laptop", {"disk.txt": [("Disks.", vec("x"))]})
+        page = talk(server, f"/chat/{key}")
+        assert "knowledge install" not in page and "Maybe it is full." in page
+    finally:
+        server.shutdown()
+
+
+def test_no_recommendation_leaves_the_line_as_it_was(catalog):
+    menus = menus_for()
+    assert menus.chat_passages(POEM) is False
+    chat = chat_for(menus, lambda history: iter(["A poem."]))
+    reply, key = ask(chat, "", POEM)
+    rows = [l[1:].split("\t")[0] for l in reply.splitlines() if l.startswith("i")]
+    assert " ".join(rows[rows.index("") + 1:rows.index("A poem.") - 1]).endswith(OLD_LINE)
+    assert OLD_LINE in said(reply) and "knowledge install" not in reply and NONE_FOUND not in said(reply)
+    assert chat.sessions[key][1] == {"role": "assistant", "content": "A poem.", "from": gopher.FROM_MEMORY}
+    assert OLD_LINE in said(chat.page(key, 7070))
+
+
+def test_a_recommendation_is_not_redrawn_once_the_pack_is_installed(catalog, tmp_path):
+    """The way to get the Knowledge Pack goes. The answer stays, and so does
+    the line that says it came from the model's memory, because installing it
+    later does not change where that answer came from."""
+    store = chatstore.Store(str(tmp_path / "chats"))
+    menus = menus_for()
+    chat = chat_for(menus, lambda history: iter(["Maybe it is full."]), store)
+    _, key = ask(chat, "", DISK)
+    assert "knowledge install laptop-care" in chat.page(key, 7070)          # not installed yet, so redrawn
+    # installed under another name (--as), and the id in the manifest is what counts
+    add_pack(catalog, "my-copy", "Looking After a Laptop", {"disk.txt": [("Disks.", vec("x"))]}, id="laptop-care")
+    assert menus.installed_ids() == {"everyday", "laptop-care"}
+    for page in (chat.page(key, 7070), chat_for(menus, lambda history: iter([]), store).page(key, 7070)):
+        flat = said(page)
+        assert "knowledge install" not in page and "may cover it" not in flat and "internet connection" not in flat
+        assert NONE_FOUND + " What follows comes from the memory of the AI model, has no source and may be wrong." in flat
+        assert flat.index("may be wrong") < flat.index("Maybe it is full.") and flat.count("may be wrong") == 1
+    assert store.load(key)[1]["suggest"]["id"] == "laptop-care"             # the saved conversation is not rewritten
+    # not knowing what is installed shows it
+    for installed in (None, lambda: 1 / 0):
+        unsure = gopher.Chat(lambda history: iter([]), store, installed=installed)
+        assert "i    ai-2 knowledge install laptop-care\t" in unsure.page(key, 7070)
+
+
+def test_nothing_is_recommended_when_the_search_could_not_tell(library, monkeypatch):
+    """Too few parts for a standing, or a search model that did not start,
+    gives no line at all, and the catalog is not even looked at."""
+    from ai2 import pack, packsig
+    monkeypatch.setattr(pack, "load_catalog", lambda: [LAPTOP])
+    monkeypatch.setattr(packsig, "SIG_DIR", library / "sigs")
+    write_sig(library / "sigs", LAPTOP, ["disk", "disk x", "x", "y"])
+    looked = []
+    real = packsig.recommend
+    monkeypatch.setattr(packsig, "recommend", lambda *a: looked.append(a) or real(*a))
+    menus = menus_for()
+    assert menus.chat_passages(DISK) is None and looked == []               # too few parts
+    filler = [(f"Something else entirely, number {i}.", vec("z")) for i in range(doc.STANDING_MIN_PARTS)]
+    add_pack(library, "big", "Big", {"other.txt": filler})
+    assert menus.chat_passages(DISK) == {"suggest": {"id": "laptop-care", "title": "Looking After a Laptop"}}
+    catalog, installed, asked, line = looked[-1]
+    assert line == gopher.CHAT_MATCH and installed == {"everyday", "big"}      # the chat's own line, no second one
+    assert list(asked) == ["nomic-embed-text-v1.5"] and asked["nomic-embed-text-v1.5"][2] == 2 + doc.STANDING_MIN_PARTS
+    add_pack(library, "es", "Otro", {"otro.txt": [("Otro.", vec("y"))]}, model="another-model")
+    looked.clear()
+
+    def embed(model_id, text):
+        if model_id == "another-model":
+            raise RuntimeError("did not start")
+        return vec(text)
+    assert menus_for(embed).chat_passages(DISK) is None and looked == []    # one Knowledge Pack was not searched
+    chat = chat_for(menus_for(embed), lambda history: iter(["Hola."]))
+    reply, _ = ask(chat, "", DISK)
+    assert "Hola." in reply and "may be wrong" not in reply and "knowledge install" not in reply
+
+
+def test_the_line_a_cataloged_pack_must_reach_is_the_chats_own(catalog, monkeypatch):
+    """One line and never a second. Whatever CHAT_MATCH is when the question
+    is asked is what the catalog is measured against."""
+    from ai2 import packsig
+    lines = []
+    real = packsig.recommend
+    monkeypatch.setattr(packsig, "recommend", lambda *a: lines.append(a[3]) or real(*a))
+    menus = menus_for()
+    for line in (0.61, 0.97):
+        monkeypatch.setattr(gopher, "CHAT_MATCH", line)
+        menus.chat_passages(DISK)
+        assert lines[-1] == line and len(lines) == 1 + (line == 0.97)
+
+
+def test_a_question_reads_the_installed_manifests_once(catalog, monkeypatch):
+    """Naming a Knowledge Pack works from the list the search has just read.
+    It was read a second time for every unanswered question."""
+    menus = menus_for()
+    read = []
+    real = menus.lib.knowledge_packs
+    monkeypatch.setattr(menus.lib, "knowledge_packs", lambda: read.append(1) or real())
+    assert menus.chat_passages(DISK) == {"suggest": {"id": "laptop-care", "title": "Looking After a Laptop"}}
+    assert len(read) == 1
+    # installed under another name, the id in the manifest is still what counts
+    add_pack(catalog, "my-copy", "Looking After a Laptop", {"disk.txt": [("Disks.", vec("x"))]}, id="laptop-care")
+    read.clear()
+    assert menus.chat_passages(DISK) is False and len(read) == 1
+
+
+def test_a_matched_question_gets_no_recommendation(catalog, monkeypatch):
+    from ai2 import packsig
+    monkeypatch.setattr(packsig, "recommend", lambda *a: pytest.fail("a matched question looked at the catalog"))
+    menus = menus_for()
+    assert isinstance(menus.chat_passages("what is the capital, madrid?"), tuple)
+    chat = chat_for(menus, lambda history: pytest.fail("the model was asked"))
+    reply, key = ask(chat, "", "what is the capital, madrid?")
+    assert "The capital of Spain is Madrid." in reply and "knowledge install" not in reply
+    assert "suggest" not in chat.sessions[key][1]
+
+
+def test_a_fault_in_the_recommendation_never_costs_the_no_source_line(catalog, monkeypatch):
+    """Whatever goes wrong while looking for a Knowledge Pack to name, the
+    search still found nothing, and the person is still told the answer has
+    no source."""
+    from ai2 import pack, packsig
+    menus = menus_for()
+
+    def broken(*a):
+        raise RuntimeError("boom")
+    with monkeypatch.context() as patch:
+        patch.setattr(packsig, "recommend", broken)
+        assert menus.chat_passages(DISK) is False
+        reply, _ = ask(chat_for(menus, lambda history: iter(["Maybe."])), "", DISK)
+        assert OLD_LINE in said(reply) and "knowledge install" not in reply
+    with monkeypatch.context() as patch:
+        patch.setattr(pack, "load_catalog", broken)
+        assert menus.chat_passages(DISK) is False
+    for entry in ({**LAPTOP, "id": "laptop care"}, {**LAPTOP, "id": "x\tevil\r\n"}, {**LAPTOP, "id": 7}, "junk"):
+        with monkeypatch.context() as patch:           # an id nobody could install is not put in a command
+            patch.setattr(packsig, "recommend", lambda *a, entry=entry: entry)
+            assert menus.chat_passages(DISK) is False
+    assert menus.chat_passages(DISK) == {"suggest": {"id": "laptop-care", "title": "Looking After a Laptop"}}
+
+
+def test_a_signature_behind_the_catalog_names_nothing(catalog, monkeypatch):
+    from ai2 import pack
+    monkeypatch.setattr(pack, "load_catalog", lambda: [EVERYDAY, {**LAPTOP, "sha256": "d" * 64}])
+    assert menus_for().chat_passages(DISK) is False
+
+
+def test_the_model_never_reads_the_recommendation(catalog):
+    asked = []
+    chat = chat_for(menus_for(), lambda history: asked.append(history) or iter(["Maybe it is full."]))
+    _, key = ask(chat, "", DISK)
+    ask(chat, key, POEM)
+    assert asked[1] == [{"role": "user", "content": DISK}, {"role": "assistant", "content": "Maybe it is full."},
+                        {"role": "user", "content": POEM}]
+
+
+def test_a_broken_answer_saves_no_recommendation(catalog, tmp_path):
+    store = chatstore.Store(str(tmp_path / "chats"))
+
+    def stops(history):
+        yield "Half an"
+        raise OSError("the model went away")
+    for reply in (stops, lambda history: iter([]), lambda history: iter(["  "])):
+        chat = chat_for(menus_for(), reply, store)
+        shown, key = ask(chat, "", DISK)
+        assert "i    ai-2 knowledge install laptop-care\t" in shown        # it was said before the model was asked
+        assert chat.sessions[key] == [] and store.keys() == []
+        assert "knowledge install" not in chat.page(key, 7070)
+
+    def full(history):
+        raise gopher.ContextFull("too long")
+    chat = chat_for(menus_for(), full, store)
+    _, key = ask(chat, "", DISK)
+    assert chat.sessions[key] == [] and store.keys() == []
+
+
+def test_a_saved_recommendation_that_is_not_one_is_shown_as_no_recommendation():
+    """A conversation file is the person's own and may have been edited, so only
+    an id `ai-2 knowledge install` would take is put in a command."""
+    for suggest in ({"id": "x; rm -rf ~", "title": "T"}, {"id": "a\r\niEvil\t", "title": "T"}, {"title": "T"},
+                    "first-aid", ["first-aid"], {"id": 5, "title": "T"}):
+        chat = gopher.Chat(lambda history: iter([]))
+        chat.sessions["k"] = [{"role": "user", "content": "q"},
+                              {"role": "assistant", "content": "An answer.", "from": gopher.FROM_MEMORY,
+                               "suggest": suggest}]
+        page = chat.page("k", 7070)
+        assert OLD_LINE in said(page) and "knowledge install" not in page and "An answer." in page
+    chat.sessions["k"][1]["suggest"] = {"id": "first-aid", "title": "First\tAid\r\n3x"}
+    page = chat.page("k", 7070)
+    assert '"First Aid 3x" may cover it' in said(page) and "i    ai-2 knowledge install first-aid\t" in page
+
+
+def test_the_recommendation_lines_have_spanish_and_german(monkeypatch):
+    """gopher.py is not among the files the translation check reads, so the
+    four keys are pinned here, and that the chat really asks for them."""
+    from ai2 import i18n, pack
+    keys = [NONE_FOUND,
+            'The Knowledge Pack "{title}" may cover it. It is not installed on this computer. To get it, open '
+            "Applications > AI-2 > Knowledge Packs, or type this in a terminal:",
+            "It needs an internet connection.",
+            "What follows comes from the memory of the AI model, has no source and may be wrong."]
+    def tight(text):                   # a line may be wrapped at a hyphen, as in KI-Modells
+        return text.replace(" ", "")
+
+    # the wording the owner settled, word for word
+    final = {"es": ["En tus Paquetes de Conocimiento instalados no he encontrado ningún pasaje que coincida con tu "
+                    "pregunta.",
+                    "Puede que el Paquete de Conocimiento «{title}» trate este tema. No está instalado en este "
+                    "ordenador. Para instalarlo, abre Aplicaciones > AI-2 > Paquetes de Conocimiento o escribe este "
+                    "comando en un terminal:",
+                    "Para descargarlo hace falta conexión a internet.",
+                    "La siguiente respuesta procede de la memoria del modelo de IA. No cita ninguna fuente y puede "
+                    "ser incorrecta."],
+             "de": ["Ich habe in deinen installierten Wissenspaketen keine passende Textstelle gefunden.",
+                    "Das Wissenspaket „{title}“ könnte zu deiner Frage passen. Es ist auf diesem Computer noch nicht "
+                    "installiert. Öffne zum Installieren Anwendungen > AI-2 > Wissenspakete oder gib diesen Befehl "
+                    "im Terminal ein:",
+                    "Zum Herunterladen brauchst du eine Internetverbindung.",
+                    "Die folgende Antwort stammt aus dem Gedächtnis des KI-Modells. Sie nennt keine Quelle und kann "
+                    "falsch sein."]}
+
+    english = gopher.Chat._from_memory({"id": "first-aid", "title": "First Aid"})
+    for key in keys:
+        assert key.format(title="First Aid") in said(english)
+    longest = max(pack.load_catalog(), key=lambda entry: len(entry["id"]))
+    for lang in ("es", "de"):
+        table = i18n.load_catalog(lang)
+        assert [table[key] for key in keys] == final[lang]
+        for key in keys:
+            assert table.get(key) and table[key] != key and ("{title}" in table[key]) == ("{title}" in key)
+        assert OLD_LINE in table                                    # the line without a recommendation is kept
+        monkeypatch.setattr(i18n, "_catalog", table)
+        for entry in pack.load_catalog() + [longest]:
+            suggest = {"id": entry["id"], "title": entry["title"]}
+            shown = gopher.Chat._from_memory(suggest)
+            for key in keys:
+                assert tight(table[key].format(title=entry["title"])) in tight(said(shown))
+                assert key.format(title="x") not in said(shown)
+            rows = [l[1:].split("\t")[0] for l in shown.splitlines()]
+            assert "    ai-2 knowledge install " + entry["id"] in rows          # the command is never translated or wrapped
+            assert max(len(row) for row in rows) <= gopher.WRAP
+            assert not [row for row in rows if row.startswith(">")]         # that is how a question is drawn
+            hidden = said(gopher.Chat._from_memory(suggest, prompt=False))
+            assert tight(table[keys[0]] + " " + table[keys[3]]) in tight(hidden) and "knowledge install" not in hidden
+
+
+def test_ask_this_collection_names_no_knowledge_pack(catalog):
+    """Ask this collection searches the one collection the person chose and
+    shows its closest passages. It never points to the catalog, and it has no
+    line about the model's memory, since no model answers there."""
+    scoped = gopher.Menus(gopher.Library(everything=True), lambda model_id, text: vec(text), "127.0.0.1", 7070,
+                          collection_view=True)
+    assert menus_for().chat_passages(DISK) == {"suggest": {"id": "laptop-care", "title": "Looking After a Laptop"}}
+    assert scoped.chat_passages(DISK) is False
+    server = gopher.serve(lambda model, question: vec(question), host="127.0.0.1", port=0,
+                          chat_reply=lambda _: pytest.fail("a collection search started the chat model"))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        assert server.collection_menus.chat is None
+        result = talk(server, f"/search/@everyday\t{DISK}")
+        assert "[1] Everyday Reference:" in result
+        assert "knowledge install" not in result and "may cover it" not in said(result) and "may be wrong" not in said(result)
+    finally:
+        server.shutdown()
+        server.server_close()
