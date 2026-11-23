@@ -478,6 +478,8 @@ def cite(hit: dict, with_collection: bool = False) -> str:
     (or pages) when the document has them, else the part number; prefixed with
     the collection when several were searched."""
     name = f"{hit['collection']}/{hit['doc']}" if with_collection and hit.get("collection") else hit["doc"]
+    if hit.get("section"):          # what is shown is a section of the topic, under its own heading
+        return f"{name}, {hit['section']}"
     page, end = hit.get("page"), hit.get("page_end")
     if page:
         return f"{name}, page {page}" if not end or end == page else f"{name}, pages {page}-{end}"
@@ -653,6 +655,56 @@ def _tokens(text: str) -> list[list]:
 
 _ENDS_SENTENCE = re.compile(r"[.!?…:][\"'”’»)\]]*$")
 FINISH_WORDS = 60
+# The heading a topic of a Knowledge Pack may put over its short answer. All
+# of them are tried on every Knowledge Pack, whatever its language: one may
+# hold topics in more than one.
+SHORT_ANSWER_HEADINGS = {"en": "SHORT ANSWER", "es": "RESPUESTA CORTA", "de": "KURZE ANTWORT"}
+SHORT_ANSWER_WORDS = 150   # above this it is not a short answer; the longest published one has 124
+HEADING_WORDS = 12
+
+
+def is_heading(paragraph: str) -> bool:
+    """A heading the way the Knowledge Packs write one: a paragraph of its
+    own, in capitals, a few words, with no full stop at the end."""
+    return (any(c.isalpha() for c in paragraph) and paragraph == paragraph.upper()
+            and len(paragraph.split()) <= HEADING_WORDS
+            and not paragraph.rstrip().endswith((".", ":", ";", ",")))
+
+
+def _joined(parts: list[str],
+            max_overlap: int = 40) -> tuple[list[str], list[tuple[int, int]], list[tuple[int, int]]]:
+    """join_paragraphs(), keeping where everything lies: the paragraphs, the
+    (first, last) word of each paragraph and the (first, last) word of each
+    part, words counted over the joined text."""
+    toks: list[list] = []
+    part_spans: list[tuple[int, int]] = []
+    for part in parts:
+        new = _tokens(part)
+        start = len(toks)
+        if toks:
+            for n in range(min(max_overlap, len(toks), len(new)), 0, -1):
+                if [t[0] for t in toks[-n:]] == [t[0] for t in new[:n]]:
+                    for i in range(n):
+                        toks[-n + i][1] = toks[-n + i][1] or new[i][1]
+                    new = new[n:]
+                    start = len(toks) - n
+                    break
+        toks += new
+        part_spans.append((start, len(toks) - 1))
+    out: list[str] = []
+    spans: list[tuple[int, int]] = []
+    current: list[str] = []
+    begin = 0
+    for i, (word, begins) in enumerate(toks):
+        if begins and current:
+            out.append(" ".join(current))
+            spans.append((begin, i - 1))
+            current, begin = [], i
+        current.append(word)
+    if current:
+        out.append(" ".join(current))
+        spans.append((begin, len(toks) - 1))
+    return out, spans, part_spans
 
 
 def join_paragraphs(parts: list[str], max_overlap: int = 40) -> list[str]:
@@ -662,27 +714,7 @@ def join_paragraphs(parts: list[str], max_overlap: int = 40) -> list[str]:
     the seam rather than printed twice. Whether the first word of a part began
     a paragraph is not stored with that part, but the part before it holds the
     same word mid-text with its break, so the two are merged."""
-    toks: list[list] = []
-    for part in parts:
-        new = _tokens(part)
-        if toks:
-            for n in range(min(max_overlap, len(toks), len(new)), 0, -1):
-                if [t[0] for t in toks[-n:]] == [t[0] for t in new[:n]]:
-                    for i in range(n):
-                        toks[-n + i][1] = toks[-n + i][1] or new[i][1]
-                    new = new[n:]
-                    break
-        toks += new
-    out: list[str] = []
-    current: list[str] = []
-    for word, begins in toks:
-        if begins and current:
-            out.append(" ".join(current))
-            current = []
-        current.append(word)
-    if current:
-        out.append(" ".join(current))
-    return out
+    return _joined(parts, max_overlap)[0]
 
 
 def join_parts(parts: list[str], max_overlap: int = 40, width: int = 70) -> str:
@@ -707,6 +739,34 @@ def parts_around(conn: sqlite3.Connection, doc_name: str, ord_: int, radius: int
     else:
         first, last = max(0, ord_ - radius), min(total - 1, ord_ + radius)
     return [text for o, text in rows if first <= o <= last], first, last, total
+
+
+def short_answer(conn: sqlite3.Connection, doc_name: str, max_words: int = SHORT_ANSWER_WORDS) -> dict | None:
+    """The short answer a topic carries under its own heading (see
+    SHORT_ANSWER_HEADINGS), or None: {"heading", "text" (its paragraphs, a
+    blank line between them), "first", "last" (the parts the heading and its
+    text lie in, counted from 0)}. It runs to the next heading or to the end
+    of the topic. Parts are cut by word count, so the section is found in the
+    topic joined back together, not in any one part. None when the topic has
+    no such heading, has it more than once, has nothing under it, or what is
+    under it is longer than max_words: then nothing can be said to be the
+    short answer, and the caller shows what it showed before."""
+    rows = conn.execute("SELECT chunks.text FROM chunks JOIN docs ON docs.id = chunks.doc_id "
+                        "WHERE docs.name = ? ORDER BY chunks.ord", (doc_name,)).fetchall()
+    paras, spans, part_spans = _joined([r[0] for r in rows])
+    at = [i for i, p in enumerate(paras) if p in SHORT_ANSWER_HEADINGS.values()]
+    if len(at) != 1:
+        return None
+    start = at[0]
+    end = start + 1
+    while end < len(paras) and not is_heading(paras[end]):
+        end += 1
+    body = paras[start + 1:end]
+    if not body or sum(len(p.split()) for p in body) > max_words:
+        return None
+    first_word, last_word = spans[start][0], spans[end - 1][1]
+    touched = [k for k, (a, b) in enumerate(part_spans) if a <= last_word and b >= first_word]
+    return {"heading": paras[start], "text": PARAGRAPH.join(body), "first": touched[0], "last": touched[-1]}
 
 
 def finish_sentence(conn: sqlite3.Connection, hit: dict) -> str:

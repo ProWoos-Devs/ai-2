@@ -1096,6 +1096,92 @@ def test_a_sentence_that_runs_on_is_left_alone(tmp_path):
     assert doc.finish_sentence(conn, {"text": "Start of it", "doc": "d.txt", "ord": 0}) == "Start of it"
 
 
+# ------------------------------------------------- a topic's short answer
+
+TOPIC = "Title?\n\nSearch terms: a, b.\n\nSHORT ANSWER\n\nYes, it was. [S1]\n\nTHE FACTS\n\n1. One."
+
+
+def test_a_short_answer_is_found_whole_when_parts_cut_through_it(tmp_path):
+    """Parts are cut by word count: the heading can end one part and its text
+    begin the next, so the section is read from the topic joined together."""
+    whole = doc.short_answer(_parts(tmp_path / "a", [TOPIC]), "d.txt")
+    assert whole == {"heading": "SHORT ANSWER", "text": "Yes, it was. [S1]", "first": 0, "last": 0}
+    cut = _parts(tmp_path / "b", ["Title?\n\nSearch terms: a, b.\n\nSHORT", "terms: a, b.\n\nSHORT ANSWER\n\nYes, it",
+                                  "ANSWER\n\nYes, it was. [S1]\n\nTHE FACTS", "[S1]\n\nTHE FACTS\n\n1. One."])
+    assert doc.short_answer(cut, "d.txt") == {"heading": "SHORT ANSWER", "text": "Yes, it was. [S1]",
+                                              "first": 0, "last": 3}
+    # the parts before the heading and after the next one are not part of it
+    later = _parts(tmp_path / "c", ["Title?\n\nSearch terms: a, b.", "terms: a, b.\n\nSHORT ANSWER\n\nYes, it was. [S1]"
+                                    "\n\nTHE FACTS", "THE FACTS\n\n1. One.\n\n2. Two.", "2. Two.\n\n3. Three."])
+    found = doc.short_answer(later, "d.txt")
+    assert (found["first"], found["last"]) == (1, 1)
+
+
+def test_a_topic_without_the_heading_has_no_short_answer(tmp_path):
+    assert doc.short_answer(_parts(tmp_path / "a", ["Title\n\nText here.\n\nMORE\n\nText."]), "d.txt") is None
+    assert doc.short_answer(_parts(tmp_path / "b", ["Title\n\nShort answer\n\nYes.\n\nMORE"]), "d.txt") is None
+    inside = _parts(tmp_path / "c", ["Title\n\nThe SHORT ANSWER is no.\n\nMORE\n\nText."])
+    assert doc.short_answer(inside, "d.txt") is None
+    assert doc.short_answer(inside, "no-such-topic.txt") is None
+
+
+def test_a_heading_twice_or_with_nothing_under_it_is_no_short_answer(tmp_path):
+    twice = _parts(tmp_path / "a", ["SHORT ANSWER\n\nYes.\n\nSHORT ANSWER\n\nNo."])
+    assert doc.short_answer(twice, "d.txt") is None
+    empty = _parts(tmp_path / "b", ["Title\n\nSHORT ANSWER\n\nTHE FACTS\n\n1. One."])
+    assert doc.short_answer(empty, "d.txt") is None
+    assert doc.short_answer(_parts(tmp_path / "c", ["Title\n\nSHORT ANSWER"]), "d.txt") is None
+
+
+def test_a_short_answer_longer_than_the_guard_is_left_alone(tmp_path):
+    def topic(words):
+        return "SHORT ANSWER\n\n" + "word " * words + "\n\nTHE FACTS"
+    kept = doc.short_answer(_parts(tmp_path / "a", [topic(doc.SHORT_ANSWER_WORDS)]), "d.txt")
+    assert len(kept["text"].split()) == doc.SHORT_ANSWER_WORDS == 150
+    assert doc.short_answer(_parts(tmp_path / "b", [topic(doc.SHORT_ANSWER_WORDS + 1)]), "d.txt") is None
+
+
+def test_the_short_answer_ends_at_the_next_heading_or_the_end_of_the_topic(tmp_path):
+    to_the_end = _parts(tmp_path / "a", ["Title\n\nSHORT ANSWER\n\nYes.\n\nBut see below."])
+    assert doc.short_answer(to_the_end, "d.txt")["text"] == "Yes.\n\nBut see below."
+    # a sentence that opens in capitals, or an answer of one word, is not the next heading
+    capitals = _parts(tmp_path / "b", ["SHORT ANSWER\n\nUSB is a plug. It is common.\n\nWHAT TO DO\n\nPlug it in."])
+    assert doc.short_answer(capitals, "d.txt")["text"] == "USB is a plug. It is common."
+    assert doc.short_answer(_parts(tmp_path / "c", ["SHORT ANSWER\n\nNO.\n\nTHE FACTS\n\n1."]), "d.txt")["text"] == "NO."
+    assert doc.is_heading("THE FACTS") and doc.is_heading("1. LOS HECHOS")
+    assert not doc.is_heading("NO.") and not doc.is_heading("The facts") and not doc.is_heading("1.")
+    assert not doc.is_heading(" ".join(["WORD"] * (doc.HEADING_WORDS + 1)))
+
+
+def test_the_heading_is_known_in_english_spanish_and_german(tmp_path):
+    assert doc.SHORT_ANSWER_HEADINGS == {"en": "SHORT ANSWER", "es": "RESPUESTA CORTA", "de": "KURZE ANTWORT"}
+    spanish = doc.short_answer(_parts(tmp_path / "es", ["Título\n\nRESPUESTA CORTA\n\nSí.\n\nLOS HECHOS\n\n1. Uno."]), "d.txt")
+    assert (spanish["heading"], spanish["text"]) == ("RESPUESTA CORTA", "Sí.")
+    german = doc.short_answer(_parts(tmp_path / "de", ["Titel\n\nKURZE ANTWORT\n\nJa.\n\nDIE FAKTEN"]), "d.txt")
+    assert (german["heading"], german["text"]) == ("KURZE ANTWORT", "Ja.")
+
+
+def test_join_paragraphs_is_unchanged():
+    """short_answer() needs to know where each part lies in the joined text,
+    so the joining moved into _joined(). What join_paragraphs returns is what
+    it returned in 0.29.5 for the same parts."""
+    parts = ["Title here\n\nFirst paragraph runs on and", "runs on and ends here.\n\nA HEADING\n\nSecond one",
+             "A HEADING\n\nSecond one is short.", "Nothing shared.\n\nLast."]
+    assert doc.join_paragraphs(parts) == ["Title here", "First paragraph runs on and ends here.", "A HEADING",
+                                          "Second one is short. Nothing shared.", "Last."]
+    assert doc.join_paragraphs(parts, max_overlap=2) == [
+        "Title here", "First paragraph runs on and runs on and ends here.", "A HEADING", "Second one A HEADING",
+        "Second one is short. Nothing shared.", "Last."]
+    assert doc.join_paragraphs([]) == [] and doc.join_paragraphs(["", "one"]) == ["one"]
+
+
+def test_cite_names_the_section_shown():
+    hit = {"doc": "x.txt", "ord": 0, "of": 3, "section": "SHORT ANSWER"}
+    assert doc.cite(hit) == "x.txt, SHORT ANSWER"
+    assert doc.cite(dict(hit, collection="pack"), with_collection=True) == "pack/x.txt, SHORT ANSWER"
+    assert doc.cite(dict(hit, section=None)) == "x.txt, part 1 of 3"
+
+
 def _store_with_long_document(tmp_path):
     conn = doc.open_store(str(tmp_path / "index.sqlite"))
     doc.set_store_model(conn, "m", 2)
