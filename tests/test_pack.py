@@ -51,7 +51,10 @@ def test_export_writes_two_members_and_leaves_paths_out(home):
     assert m["embedder"]["id"] == V2 and len(m["embedder"]["sha256"]) == 64
     assert m["index"]["documents"] == 1 and m["index"]["parts"] == 3
     assert m["index"]["sha256"] == pack.sha256_file(str(home / "x" / "index.sqlite"))
-    paths = [r[0] for r in sqlite3.connect(home / "x" / "index.sqlite").execute("SELECT path FROM docs")]
+    exported = sqlite3.connect(home / "x" / "index.sqlite")
+    assert exported.execute("SELECT name FROM sqlite_master WHERE name='index_fingerprints'").fetchone() is None
+    paths = [r[0] for r in exported.execute("SELECT path FROM docs")]
+    exported.close()
     assert paths == ["c.pdf"]                                    # not /home/someone/private/c.pdf
     # the collection itself is untouched
     assert doc.list_documents(doc.open_store(doc.index_path("constitucion")))[0]["path"].startswith("/home/someone")

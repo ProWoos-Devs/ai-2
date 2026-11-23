@@ -1378,7 +1378,55 @@ def test_doc_index_uses_its_model_on_whichever_port_it_is_loaded(tmp_path, monke
     assert cli.main(["doc", "index", str(note)]) == 0
     assert started == [("nomic-embed-text-v2-moe", 8082, serverstate.EMBED2)] and stopped == []
     assert "1 parts indexed" in capsys.readouterr().out
+    note.write_text("A changed document needs the embedding server again.")
     # the other model is busy and there is no room: said plainly, nothing stopped
     stopped, started = _embed_slots(monkeypatch, {serverstate.EMBED: "nomic-embed-text-v1.5"}, avail=50, busy=True)
     assert cli.main(["doc", "index", str(note)]) == 1
     assert "another one is loaded and busy" in capsys.readouterr().err and stopped == [] and started == []
+
+
+def test_repeated_import_skips_all_model_work_and_failed_replacement_retries(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    model = next(m for m in embedding_models() if m["id"] == "nomic-embed-text-v1.5")
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram: model)
+    starts = []
+    client = doc.EmbedClient("http://unused", model)
+
+    def start(*args):
+        starts.append(True)
+        return client
+
+    monkeypatch.setattr(knowledgecli, "_index_client", start)
+    monkeypatch.setattr(client, "ntokens", lambda text: len(text.split()))
+    monkeypatch.setattr(client, "embed_documents", lambda texts, **kw: [fake_vec(t) for t in texts])
+    path = tmp_path / "lesson.txt"
+    path.write_text("Madrid is the capital.")
+    args = ["doc", "index", str(path)]
+    assert cli.main(args) == 0
+    with monkeypatch.context() as m:
+        m.setattr(doc, "extract_pages", lambda *a, **kw: pytest.fail("unchanged file extracted again"))
+        assert cli.main(args) == 0
+    assert len(starts) == 1 and "unchanged" in capsys.readouterr().out
+    assert cli.main([*args, "--force"]) == 0 and len(starts) == 2
+    path.write_text("A changed lesson.")
+
+    def fail(*a, **kw):
+        raise OSError("engine stopped")
+
+    with monkeypatch.context() as m:
+        m.setattr(client, "embed_documents", fail)
+        assert cli.main(args) == 1
+    conn = doc.open_store()
+    assert conn.execute("SELECT text FROM chunks").fetchone()[0] == "Madrid is the capital."
+    assert cli.main(args) == 0 and len(starts) == 4
+    assert conn.execute("SELECT text FROM chunks").fetchone()[0] == "A changed lesson."
+    # Pre-fingerprint indexes acquire the metadata the next time they are imported.
+    conn.execute("DROP TABLE index_fingerprints")
+    conn.commit()
+    conn.close()
+    assert cli.main(args) == 0 and len(starts) == 5
+    assert cli.main(args) == 0 and len(starts) == 5
+    model = dict(model, ctx=model["ctx"] // 2)
+    monkeypatch.setattr(runner, "_catalog_entry", lambda model_id: model)
+    assert cli.main(args) == 0 and len(starts) == 6

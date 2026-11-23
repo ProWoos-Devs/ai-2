@@ -139,6 +139,7 @@ def export_pack(collection: str, out_path: str, template: dict | None = None) ->
         dst = sqlite3.connect(copy)
         live.backup(dst)                    # a consistent copy even while the store is open elsewhere
         live.close()
+        dst.execute("DROP TABLE IF EXISTS index_fingerprints")  # local import metadata
         dst.execute("UPDATE docs SET path = name")
         dst.commit()
         docs = doc.list_documents(dst)

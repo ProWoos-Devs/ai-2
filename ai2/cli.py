@@ -1486,6 +1486,7 @@ def main(argv: list[str] | None = None) -> int:
     d_sub = p_docs.add_subparsers(dest="doc_cmd", metavar="action")
     p_d_index = d_sub.add_parser("index", help="read files into the index (text, PDF, DOCX, images through OCR)")
     p_d_index.add_argument("files", nargs="+", help="files to add (a file of the same name replaces the old one)")
+    p_d_index.add_argument("--force", action="store_true", help="rebuild even an unchanged document")
     p_d_index.add_argument("--lang", default="eng", help="OCR language for scans, a tesseract code: eng, spa, deu")
     p_d_index.add_argument("--in", dest="collection", metavar="NAME",
                            help="the collection to add them to (default: documents); a new name starts a new one")

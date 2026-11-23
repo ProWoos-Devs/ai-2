@@ -193,6 +193,9 @@ def open_store(path: str | None = None) -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS docs (
             id INTEGER PRIMARY KEY, name TEXT UNIQUE, path TEXT, added TEXT,
             words INTEGER, chunks INTEGER);
+        CREATE TABLE IF NOT EXISTS index_fingerprints (
+            doc_id INTEGER PRIMARY KEY REFERENCES docs(id) ON DELETE CASCADE,
+            fingerprint TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS chunks (
             id INTEGER PRIMARY KEY, doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
             ord INTEGER, text TEXT, vec BLOB, page INTEGER, page_end INTEGER);
@@ -232,19 +235,36 @@ def from_blob(blob: bytes) -> array.array:
     return a
 
 
+def already_indexed(conn: sqlite3.Connection, path: str, fingerprint: str) -> bool:
+    row = conn.execute("SELECT 1 FROM docs JOIN index_fingerprints ON doc_id = docs.id "
+                       "WHERE name = ? AND path = ? AND fingerprint = ?",
+                       (os.path.basename(path), os.path.abspath(path), fingerprint)).fetchone()
+    return row is not None
+
+
 def add_document(conn: sqlite3.Connection, name: str, path: str, chunks: list[str],
-                 vectors: list, words: int, pages: list | None = None) -> int:
+                 vectors: list, words: int, pages: list | None = None, *,
+                 fingerprint: str | None = None, model: dict | None = None) -> int:
     """Replace any document of the same name; returns its id. `pages` holds a
     (first, last) page pair per chunk, or None for a document without pages."""
-    conn.execute("DELETE FROM docs WHERE name = ?", (name,))
-    cur = conn.execute("INSERT INTO docs (name, path, added, words, chunks) VALUES (?, ?, ?, ?, ?)",
-                       (name, path, time.strftime("%Y-%m-%d %H:%M"), words, len(chunks)))
-    doc_id = cur.lastrowid
-    spans = pages or [None] * len(chunks)
-    conn.executemany("INSERT INTO chunks (doc_id, ord, text, vec, page, page_end) VALUES (?, ?, ?, ?, ?, ?)",
-                     [(doc_id, i, text, to_blob(vec), *(span or (None, None)))
-                      for i, (text, vec, span) in enumerate(zip(chunks, vectors, spans))])
-    conn.commit()
+    if len(chunks) != len(vectors):
+        raise ValueError("the embedding server returned an incomplete batch")
+    with conn:
+        if model is not None:
+            conn.execute("INSERT OR IGNORE INTO meta VALUES ('model', ?)", (model["id"],))
+            if store_model(conn) != model["id"]:
+                raise ValueError("the collection changed embedding model while indexing")
+            conn.execute("INSERT OR IGNORE INTO meta VALUES ('dims', ?)", (str(model["dims"]),))
+        conn.execute("DELETE FROM docs WHERE name = ?", (name,))
+        cur = conn.execute("INSERT INTO docs (name, path, added, words, chunks) VALUES (?, ?, ?, ?, ?)",
+                           (name, path, time.strftime("%Y-%m-%d %H:%M"), words, len(chunks)))
+        doc_id = cur.lastrowid
+        spans = pages or [None] * len(chunks)
+        conn.executemany("INSERT INTO chunks (doc_id, ord, text, vec, page, page_end) VALUES (?, ?, ?, ?, ?, ?)",
+                         [(doc_id, i, text, to_blob(vec), *(span or (None, None)))
+                          for i, (text, vec, span) in enumerate(zip(chunks, vectors, spans))])
+        if fingerprint is not None:
+            conn.execute("INSERT INTO index_fingerprints VALUES (?, ?)", (doc_id, fingerprint))
     return doc_id
 
 

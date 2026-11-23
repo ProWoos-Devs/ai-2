@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import stat
 import sys
 import textwrap
 
@@ -344,12 +345,35 @@ def _doc_embedder(docmod, hw, wanted: str | None, model_id: str | None, collecti
     return model
 
 
+def _index_client(docmod, hw, model: dict, wait: int):
+    if runtime.find_model_file(model["file"]) is None:
+        print(f"The documents index uses {model['label']} ({model['file_mb']} MB); downloading it first.")
+        if runner._pull_model(model) != 0:
+            return None
+    # on whichever port this model is loaded, or beside or instead of the other
+    # one: a search may have left either model on either port
+    url = _ensure_embed(hw, model, wait=wait)
+    if url is None:
+        if _loaded_embedders():
+            print("The search model could not be started: another one is loaded and busy, or it did not come up. "
+                  "If a document is being indexed, try again when it finishes; otherwise:  ai-2 stop",
+                  file=sys.stderr)
+        return None
+    return docmod.EmbedClient(url, model)
+
+
+def _file_version(path: str) -> tuple:
+    st = os.stat(path)
+    if not stat.S_ISREG(st.st_mode):
+        raise OSError("expected a regular file")
+    return st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns
+
+
 def _doc_index(args, docmod) -> int:
     import subprocess
     import time
     import zipfile
     from . import pack as packmod
-    hw = detect()
     collection = args.collection or docmod.DEFAULT_COLLECTION
     if docmod.is_system(collection):
         print(f"{collection} is a Knowledge Pack that comes with AI-2, and its documents are not yours to "
@@ -359,30 +383,26 @@ def _doc_index(args, docmod) -> int:
     conn = docmod.open_store(None if collection == docmod.DEFAULT_COLLECTION
                              else docmod.index_path(collection))
     model_id = docmod.store_model(conn)
+    # A repeat import can use the recorded model without probing the hardware.
+    hw = None if model_id else detect()
     model = _doc_embedder(docmod, hw, getattr(args, "embedder", None), model_id, collection)
     if model is None:
         return 1
-    if runtime.find_model_file(model["file"]) is None:
-        print(f"The documents index uses {model['label']} ({model['file_mb']} MB); downloading it first.")
-        if runner._pull_model(model) != 0:
-            return 1
-    # on whichever port this model is loaded, or beside or instead of the other
-    # one: a search may have left either model on either port
-    url = _ensure_embed(hw, model, wait=args.wait)
-    if url is None:
-        if _loaded_embedders():
-            print("The search model could not be started: another one is loaded and busy, or it did not come up. "
-                  "If a document is being indexed, try again when it finishes; otherwise:  ai-2 stop",
-                  file=sys.stderr)
-        return 1
-    client = docmod.EmbedClient(url, model)
-    if model_id is None:
-        docmod.set_store_model(conn, model["id"], int(model["dims"]))
+    client = None
     rc = 0
     prefix = model.get("prefix_document", "")
     for path in args.files:
         name = os.path.basename(path)
         try:
+            version = _file_version(path)
+            # Bump the recipe version when extraction, chunking or normalization changes.
+            recipe = [1, model["id"], model["sha256"], model["dims"], model["ctx"], prefix,
+                      docmod.CHUNK_WORDS, docmod.OVERLAP_WORDS,
+                      args.lang if os.path.splitext(name)[1].lower() in docmod.IMAGE_SUFFIXES else None]
+            fingerprint = json.dumps([packmod.sha256_file(path), recipe])
+            if not args.force and docmod.already_indexed(conn, path, fingerprint) and _file_version(path) == version:
+                print(f"{name}: unchanged, already indexed")
+                continue
             pages, paged = docmod.extract_pages(path, lang=args.lang)
         except (RuntimeError, subprocess.CalledProcessError, OSError, zipfile.BadZipFile, KeyError) as exc:
             print(f"  skipped {name}: {exc}", file=sys.stderr)
@@ -393,6 +413,10 @@ def _doc_index(args, docmod) -> int:
                   file=sys.stderr)
             rc = 1
             continue
+        if client is None:
+            client = _index_client(docmod, hw or detect(), model, args.wait)
+            if client is None:
+                return 1
         chunks, spans, words = docmod.make_chunks(pages, paged, lambda c: client.ntokens(prefix + c),
                                                   client.token_limit())
         print(f"{name}: {words} words in {len(chunks)} parts, indexing with {model['label']} "
@@ -410,7 +434,15 @@ def _doc_index(args, docmod) -> int:
         except OSError as exc:
             print(f"\n  error: the embedding server went away ({exc}); run the command again", file=sys.stderr)
             return 1
-        docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, words, pages=spans)
+        try:
+            if _file_version(path) != version:
+                raise ValueError("file changed while indexing; run the command again")
+            docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, words,
+                                pages=spans, fingerprint=fingerprint, model=model)
+        except (OSError, ValueError) as exc:
+            print(f"  skipped {name}: {exc}", file=sys.stderr)
+            rc = 1
+            continue
         print(f"\r  {name}: {len(chunks)} parts indexed in {time.monotonic() - t0:.0f} s" + " " * 12)
     print('Ask about them:  ai-2 doc ask "your question"'
           + ("" if collection == docmod.DEFAULT_COLLECTION else f"   (or only these: --in {collection})"))
