@@ -630,6 +630,37 @@ def _tool(name):
     return module
 
 
+def test_every_cataloged_pack_has_its_signature():
+    """The chat tells from ai2/data/signatures/ whether a Knowledge Pack that
+    is not on the computer would show a passage for a question. A file made
+    from another pack file than the one the catalog names (an older revision,
+    or none at all) would point people at the wrong Knowledge Pack or at
+    nothing, so each file is pinned to the hash of its catalog entry, and the
+    package build refuses to go on without that."""
+    import hashlib
+    import importlib.resources
+    import json
+    import pathlib
+    folder = importlib.resources.files("ai2").joinpath("data/signatures")
+    catalog = pack.load_catalog()
+    for e in catalog:
+        raw = folder.joinpath(e["id"] + ".sig").read_bytes()
+        cut = raw.index(b"\n") + 1
+        assert json.loads(raw[:cut]) == {
+            "format": 1, "id": e["id"], "revision": e["revision"], "pack_sha256": e["sha256"],
+            "model": e["embedder"], "dims": 768, "count": e["parts"],
+            "body_sha256": hashlib.sha256(raw[cut:]).hexdigest(),
+        }, f"{e['id']}: run tools/build-pack-signatures.py"
+        assert len(raw) == cut + 4 * e["parts"] + 768 * e["parts"], f"{e['id']}: length"
+    assert sorted(f.name for f in folder.iterdir() if f.name.endswith(".sig")) == sorted(
+        e["id"] + ".sig" for e in catalog)
+    assert _tool("build-pack-signatures").problems(catalog) == []
+    build = pathlib.Path("packaging/build-packages.sh").read_text()
+    assert 'build-pack-signatures.py" --check' in build
+    assert "refusing to build ai-2 with stale Knowledge Pack signatures" in build
+    assert '"data/signatures/*.sig"' in pathlib.Path("pyproject.toml").read_text()
+
+
 def _a_pack_file(home, name, texts, model="nomic-embed-text-v1.5"):
     """A file with the index of a Knowledge Pack in it, and its catalog entry."""
     make_collection(name, {"b.txt": texts[1:], "a.txt": texts[:1]}, model=model)
@@ -788,3 +819,41 @@ def test_the_signature_tool_exits_with_what_the_build_goes_by(home, monkeypatch,
     (home / "packs.yml").write_text(yaml.safe_dump({"version": 1, "packs": [{"id": "tiny", "revision": 1}]}))
     assert sig.main(["--check"]) == 1 and "the catalog entry has no" in capsys.readouterr().out
     assert sig.main([str(home / "packs")]) == 1 and (out / "tiny.sig").read_bytes() == whole
+
+
+def test_the_catalog_sync_ends_by_making_the_signatures(home, monkeypatch):
+    """One command before a release makes the catalog copy and the signatures
+    pinned to it. From a working copy the pack files are the ones beside the
+    catalog; --check writes nothing and makes nothing. When the signatures
+    could not be made the command fails with the code of that step."""
+    sync = _tool("sync-pack-catalog")
+    source = home / "ai2-knowledge" / "catalog"
+    source.mkdir(parents=True)
+    (source / "community.yml").write_text(yaml.safe_dump({"version": 1, "packs": [{"id": "tiny"}]}))
+    (source / "categories.yml").write_text(yaml.safe_dump({"version": 1, "categories": [{"code": "01", "en": "x"}]}))
+    monkeypatch.setattr(sync, "TARGET", str(home / "packs.yml"))
+    monkeypatch.setattr(sync, "CATEGORIES_TARGET", str(home / "pack-categories.yml"))
+    ran = []
+
+    class Done:
+        returncode = 0
+
+    class Failed:
+        returncode = 1
+
+    monkeypatch.setattr(sync.subprocess, "run", lambda command, **kw: ran.append(command) or Failed())
+    monkeypatch.setattr(sync.sys, "argv", ["sync-pack-catalog.py", str(source / "community.yml")])
+    assert sync.main() == 1 and len(ran) == 1
+    ran.clear()
+    monkeypatch.setattr(sync.subprocess, "run", lambda command, **kw: ran.append(command) or Done())
+    monkeypatch.setattr(sync.sys, "argv", ["sync-pack-catalog.py", str(source / "community.yml")])
+    assert sync.main() == 0
+    assert yaml.safe_load((home / "packs.yml").read_text())["packs"] == [{"id": "tiny"}]
+    assert len(ran) == 1 and ran[0][1].endswith("tools/build-pack-signatures.py")
+    assert ran[0][2:] == [str(home / "ai2-knowledge" / "packs")]
+    monkeypatch.setattr(sync.sys, "argv", ["sync-pack-catalog.py", "--check", str(source / "community.yml")])
+    assert sync.main() == 0 and len(ran) == 1
+    # a catalog that could not be written makes no signatures either
+    (source / "community.yml").write_text(yaml.safe_dump({"version": 2, "packs": []}))
+    monkeypatch.setattr(sync.sys, "argv", ["sync-pack-catalog.py", str(source / "community.yml")])
+    assert sync.main() == 1 and len(ran) == 1

@@ -68,6 +68,10 @@ if printf '%s\n' "${pkgs[@]}" | grep -qx ai-2; then
   python3 "$REPO/www/ai-2/tools/sync-pack-catalog.py" --check
   rc=$?
   [ "$rc" = 1 ] && { echo "refusing to build ai-2 with a stale pack catalog"; exit 1; }
+  # The signatures the chat reads (ai2/data/signatures/) are made from the pack
+  # files and pinned to the hashes in the catalog. No network, no pack file.
+  python3 "$REPO/www/ai-2/tools/build-pack-signatures.py" --check \
+    || { echo "refusing to build ai-2 with stale Knowledge Pack signatures"; exit 1; }
 fi
 
 for p in "${pkgs[@]}"; do

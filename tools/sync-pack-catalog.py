@@ -17,8 +17,16 @@ before every ai-2 release, read the diff, and commit it.
 catalog ships packs nobody can install by name yet, and that is invisible
 until somebody tries. Exit 0 current, 1 behind, 2 could not be checked (no
 network, which never fails a build).
+
+When the copy was written, the last step runs tools/build-pack-signatures.py,
+which rewrites ai2/data/signatures/ from the pack files. They are read from
+the `packs` folder of the working copy when one was given and downloaded
+otherwise. When that step fails this command fails with it.
+The signatures are pinned to the hashes in the catalog, so the two are
+committed together.
 """
 import os
+import subprocess
 import sys
 import urllib.request
 
@@ -90,7 +98,17 @@ def main() -> int:
             print(f"could not read the catalog ({exc}); not checked")
             return 2
         raise
-    return max(rc, packs_step(text, check))
+    rc = max(rc, packs_step(text, check))
+    if check or rc:
+        return rc
+    return signatures(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(args[0]))), "packs") if args else None)
+
+
+def signatures(packs_dir: str | None) -> int:
+    """Rewrite the signature files for the catalog just written."""
+    command = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "build-pack-signatures.py")]
+    sys.stdout.flush()
+    return subprocess.run(command + ([packs_dir] if packs_dir else [])).returncode
 
 
 def packs_step(text: str, check: bool) -> int:
