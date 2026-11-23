@@ -188,6 +188,19 @@ def open_store(path: str | None = None) -> sqlite3.Connection:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     conn = sqlite3.connect(path)
     conn.execute("PRAGMA foreign_keys = ON")
+    try:
+        _ensure_schema(conn)
+    except sqlite3.OperationalError as exc:
+        if "readonly" not in str(exc):
+            raise
+        # a store the person made read-only, perhaps from before a table was
+        # added: read it as it is (a missing table reads as empty)
+        conn.close()
+        return sqlite3.connect(pathlib.Path(path).as_uri() + "?mode=ro", uri=True)
+    return conn
+
+
+def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
         CREATE TABLE IF NOT EXISTS docs (
@@ -214,7 +227,6 @@ def open_store(path: str | None = None) -> sqlite3.Connection:
         if col not in have:
             conn.execute(f"ALTER TABLE chunks ADD COLUMN {col} INTEGER")
     conn.commit()
-    return conn
 
 
 def store_model(conn: sqlite3.Connection) -> str | None:
@@ -255,9 +267,12 @@ def already_indexed(conn: sqlite3.Connection, path: str, fingerprint: str) -> bo
 
 def add_document(conn: sqlite3.Connection, name: str, path: str, chunks: list[str],
                  vectors: list, words: int, pages: list | None = None, *,
-                 fingerprint: str | None = None, model: dict | None = None) -> int:
+                 fingerprint: str | None = None, model: dict | None = None,
+                 checkpoint: int | None = None) -> int:
     """Replace any document of the same name; returns its id. `pages` holds a
-    (first, last) page pair per chunk, or None for a document without pages."""
+    (first, last) page pair per chunk, or None for a document without pages.
+    `checkpoint` is the id of the unfinished import these parts come from; when
+    it is gone (forgotten, or finished by another run), nothing is replaced."""
     if len(chunks) != len(vectors):
         raise ValueError("the embedding server returned an incomplete batch")
     with conn:
@@ -268,6 +283,9 @@ def add_document(conn: sqlite3.Connection, name: str, path: str, chunks: list[st
             conn.execute("INSERT OR IGNORE INTO meta VALUES ('dims', ?)", (str(model["dims"]),))
         # The import is complete, so its checkpoint goes in the same transaction,
         # first, so that the parts written next can take the pages it frees.
+        if checkpoint is not None and not conn.execute(
+                "DELETE FROM index_checkpoints WHERE id = ?", (checkpoint,)).rowcount:
+            raise ValueError(DROPPED)
         conn.execute("DELETE FROM index_checkpoints WHERE name = ?", (name,))
         conn.execute("DELETE FROM docs WHERE name = ?", (name,))
         cur = conn.execute("INSERT INTO docs (name, path, added, words, chunks) VALUES (?, ?, ?, ?, ?)",
@@ -295,6 +313,7 @@ def add_document(conn: sqlite3.Connection, name: str, path: str, chunks: list[st
 # discards it.
 
 EMBED_BATCH = 4     # see EmbedClient.embed_documents
+DROPPED = "its stopped import was dropped or finished by another run, so nothing was changed"
 
 
 def _checkpoint_row(conn: sqlite3.Connection, name: str):
@@ -367,8 +386,10 @@ def embed_pending(conn: sqlite3.Connection, cp: dict, client, progress=None) -> 
         if len(vectors) != len(batch):
             raise ValueError("the embedding server returned an incomplete batch")
         with conn:
-            conn.executemany("UPDATE checkpoint_parts SET vec = ? WHERE checkpoint_id = ? AND ord = ?",
-                             [(to_blob(vec), cp["id"], ord_) for (ord_, _), vec in zip(batch, vectors)])
+            cur = conn.executemany("UPDATE checkpoint_parts SET vec = ? WHERE checkpoint_id = ? AND ord = ?",
+                                   [(to_blob(vec), cp["id"], ord_) for (ord_, _), vec in zip(batch, vectors)])
+            if cur.rowcount != len(batch):
+                raise ValueError(DROPPED)
         done += len(batch)
         cp["done"] = done
         if progress:
@@ -380,6 +401,8 @@ def checkpoint_parts(conn: sqlite3.Connection, cp: dict) -> tuple[list[str], lis
     of a finished checkpoint, ready for add_document."""
     rows = conn.execute("SELECT text, vec, page, page_end FROM checkpoint_parts WHERE checkpoint_id = ? "
                         "ORDER BY ord", (cp["id"],)).fetchall()
+    if len(rows) != cp["total"]:
+        raise ValueError(DROPPED)
     if any(vec is None for _, vec, _, _ in rows):
         raise ValueError("some parts have not been embedded yet")
     spans = [(page, end) for _, _, page, end in rows] if cp["paged"] else None
@@ -389,12 +412,12 @@ def checkpoint_parts(conn: sqlite3.Connection, cp: dict) -> tuple[list[str], lis
 def unfinished_imports(conn: sqlite3.Connection) -> list[dict]:
     """The imports that were stopped before the end: name, parts done, parts."""
     try:
-        rows = conn.execute("SELECT name, COUNT(vec), COUNT(checkpoint_parts.ord) FROM index_checkpoints "
+        rows = conn.execute("SELECT name, COUNT(vec), COUNT(checkpoint_parts.ord), path FROM index_checkpoints "
                             "LEFT JOIN checkpoint_parts ON checkpoint_id = index_checkpoints.id "
                             "GROUP BY index_checkpoints.id ORDER BY name").fetchall()
     except sqlite3.OperationalError:        # a read-only store from before checkpoints
         return []
-    return [{"name": n, "done": d, "total": t} for n, d, t in rows]
+    return [{"name": n, "done": d, "total": t, "path": p} for n, d, t, p in rows]
 
 
 def list_documents(conn: sqlite3.Connection) -> list[dict]:

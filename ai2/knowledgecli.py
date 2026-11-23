@@ -57,12 +57,15 @@ def cmd_doc(args) -> int:
         manifest = packmod.manifest_of(name)
         what = (f"pack {manifest.get('title')}, version {manifest.get('version')}, license {manifest.get('license')}"
                 if manifest else docmod.read_index_path(name))
-        print(f"\n  {name}  (embedder {docmod.store_model(conn)}, {what})")
+        model_id = docmod.store_model(conn)     # None until a first import ends
+        print(f"\n  {name}  (" + (f"embedder {model_id}, " if model_id else "") + f"{what})")
         for d in docmod.list_documents(conn):
             print(f"    {d['name']:<40} {d['words']:>7} words  {d['chunks']:>5} parts  added {d['added']}")
         for u in docmod.unfinished_imports(conn):
-            print(f"    {u['name']:<40} import stopped at {u['done']} of {u['total']} parts: the same "
-                  f"ai-2 doc index carries on, ai-2 doc forget {u['name']} drops it")
+            how = ("the same ai-2 doc index carries on" if os.path.isfile(u["path"])
+                   else f"the file is no longer at {u['path']}")
+            print(f"    {u['name']:<40} import stopped at {u['done']} of {u['total']} parts: {how}, "
+                  f"ai-2 doc forget {u['name']} drops it")
     print('\nAsk:  ai-2 doc ask "your question"    Passages only:  ai-2 doc search "..."    Remove:  ai-2 doc forget NAME')
     return 0
 
@@ -378,6 +381,7 @@ def _file_version(path: str) -> tuple:
 
 
 def _doc_index(args, docmod) -> int:
+    import sqlite3
     import subprocess
     import time
     import zipfile
@@ -411,6 +415,8 @@ def _doc_index(args, docmod) -> int:
             if args.force:
                 docmod.discard_checkpoint(conn, name)
             elif docmod.already_indexed(conn, path, fingerprint) and _file_version(path) == version:
+                # a stopped import of another version of the file is of no use now
+                docmod.checkpoint_for(conn, name, fingerprint)
                 print(f"{name}: unchanged, already indexed")
                 continue
             # An import of this same file and recipe that was stopped before
@@ -436,7 +442,20 @@ def _doc_index(args, docmod) -> int:
                     return 1
             chunks, spans, words = docmod.make_chunks(pages, paged, lambda c: client.ntokens(prefix + c),
                                                       client.token_limit())
-            cp = docmod.start_checkpoint(conn, name, os.path.abspath(path), fingerprint, chunks, spans, words)
+            try:
+                # the parts saved below must be the text the fingerprint was taken from
+                if _file_version(path) != version:
+                    raise ValueError("file changed while reading; run the command again")
+                cp = docmod.start_checkpoint(conn, name, os.path.abspath(path), fingerprint, chunks, spans, words)
+            except (OSError, ValueError) as exc:
+                print(f"  skipped {name}: {exc}", file=sys.stderr)
+                rc = 1
+                continue
+            except sqlite3.OperationalError as exc:
+                print(f"  skipped {name}: its parts could not be saved ({exc}); free some disk space and "
+                      "run the same command again", file=sys.stderr)
+                rc = 1
+                continue
             print(f"{name}: {words} words in {len(chunks)} parts, indexing with {model['label']} "
                   "(slow on an old CPU; you can leave it running) ...", flush=True)
         else:
@@ -468,6 +487,11 @@ def _doc_index(args, docmod) -> int:
             print(f"\n  skipped {name}: {exc}", file=sys.stderr)
             rc = 1
             continue
+        except sqlite3.OperationalError as exc:
+            print(f"\n  skipped {name}: the parts could not be saved ({exc}); {cp['done']} of {cp['total']} "
+                  "parts are saved, and running the same command again carries on from there", file=sys.stderr)
+            rc = 1
+            continue
         except KeyboardInterrupt:
             print(f"\n  Stopped. {cp['done']} of {cp['total']} parts are saved; running the same command "
                   "again carries on from there.", file=sys.stderr)
@@ -477,8 +501,8 @@ def _doc_index(args, docmod) -> int:
                 raise ValueError("file changed while indexing; run the command again")
             chunks, spans, vectors = docmod.checkpoint_parts(conn, cp)
             docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, cp["words"],
-                                pages=spans, fingerprint=fingerprint, model=model)
-        except (OSError, ValueError) as exc:
+                                pages=spans, fingerprint=fingerprint, model=model, checkpoint=cp["id"])
+        except (OSError, ValueError, sqlite3.OperationalError) as exc:
             print(f"  skipped {name}: {exc}", file=sys.stderr)
             rc = 1
             continue

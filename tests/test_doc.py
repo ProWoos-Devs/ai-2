@@ -1499,7 +1499,8 @@ def test_a_stopped_import_carries_on_and_ends_as_an_uninterrupted_one(resume, ca
     resume["stop_at"] = 2                                   # Ctrl+C during the third batch
     assert cli.main(["doc", "index", str(f)]) == 130
     assert "8 of %d parts are saved" % total in capsys.readouterr().err
-    assert doc.unfinished_imports(doc.open_store()) == [{"name": "ley.txt", "done": 8, "total": total}]
+    assert doc.unfinished_imports(doc.open_store()) == [{"name": "ley.txt", "done": 8, "total": total,
+                                                         "path": str(f)}]
     done_before = [t for b in resume["batches"] for t in b]
     resume["batches"].clear()
     resume["stop_at"] = None
@@ -1635,3 +1636,184 @@ def test_parts_are_cut_the_same_way_every_time():
     pages = [_long_text(700), _long_text(500)]
     count = lambda c: len(c.split())                                  # noqa: E731
     assert doc.make_chunks(pages, True, count, 60) == doc.make_chunks(list(pages), True, count, 60)
+
+
+# ------------------------------------- a stopped import that goes wrong
+
+def _docs(collection=None):
+    conn = doc.open_store(None if collection is None else doc.index_path(collection))
+    rows = conn.execute("SELECT name, words, chunks FROM docs ORDER BY name").fetchall()
+    conn.close()
+    return rows
+
+
+def test_a_stopped_import_forgotten_while_it_runs_writes_no_empty_document(resume, capsys):
+    """`ai-2 doc forget` in another terminal while the import is going: the
+    import stops saying so, and no document of 0 parts is left to be called
+    unchanged afterwards."""
+    cli, f = resume["cli"], resume["file"]
+    embed = resume["client"].embed_documents
+
+    def forget_in_third_batch(texts, progress=None):
+        if len(resume["batches"]) == 2:
+            assert cli.main(["doc", "forget", "ley.txt"]) == 0
+        return embed(texts, progress)
+
+    resume["client"].embed_documents = forget_in_third_batch
+    assert cli.main(["doc", "index", str(f)]) == 1
+    captured = capsys.readouterr()
+    assert "Dropped the stopped import of ley.txt." in captured.out
+    assert "dropped or finished by another run" in captured.err and "parts indexed" not in captured.out
+    assert _docs() == [] and _rows() == ([], 0)
+    resume["client"].embed_documents = embed
+    assert cli.main(["doc", "index", str(f)]) == 0
+    assert "unchanged" not in capsys.readouterr().out and len(_rows()[0]) == _docs()[0][2] > 0
+
+
+def test_a_stopped_import_finished_by_another_run_is_left_as_that_run_wrote_it(resume, capsys):
+    cli, f = resume["cli"], resume["file"]
+    assert cli.main(["doc", "index", "--in", "whole", str(f)]) == 0
+    whole, _ = _rows("whole")
+    resume["batches"].clear()
+    resume["stop_at"] = 2
+    assert cli.main(["doc", "index", str(f)]) == 130
+    resume["stop_at"] = None
+    embed = resume["client"].embed_documents
+    other = {"ran": False}
+
+    def second_run_inside(texts, progress=None):
+        if not other["ran"]:                # a second doc index of the same file finishes first
+            other["ran"] = True
+            assert cli.main(["doc", "index", str(f)]) == 0
+        return embed(texts, progress)
+
+    resume["client"].embed_documents = second_run_inside
+    assert cli.main(["doc", "index", str(f)]) == 1
+    err = capsys.readouterr().err
+    assert "dropped or finished by another run" in err
+    rows, left = _rows()
+    assert rows == whole and left == 0 and _docs() == [("ley.txt", 2000, len(whole))]
+    resume["client"].embed_documents = embed
+    assert cli.main(["doc", "index", str(f)]) == 0 and "unchanged" in capsys.readouterr().out
+
+
+def test_a_file_saved_while_it_is_read_leaves_no_stopped_import(resume, capsys, monkeypatch):
+    """The parts saved for a resume must be the text the fingerprint was taken
+    from; an editor saving the file between the two would otherwise store the
+    edited text under the old fingerprint."""
+    cli, f = resume["cli"], resume["file"]
+    original = f.read_text(encoding="utf-8")
+    assert cli.main(["doc", "index", "--in", "whole", str(f)]) == 0
+    whole, _ = _rows("whole")
+    extract = doc.extract_pages
+
+    def saved_meanwhile(path, lang="eng"):
+        f.write_text("EDITED " + original, encoding="utf-8")
+        return extract(path, lang=lang)
+
+    with pytest.MonkeyPatch.context() as m:
+        m.setattr(doc, "extract_pages", saved_meanwhile)
+        assert cli.main(["doc", "index", str(f)]) == 1
+    assert "file changed while reading" in capsys.readouterr().err
+    assert doc.unfinished_imports(doc.open_store()) == []
+    f.write_text(original, encoding="utf-8")
+    assert cli.main(["doc", "index", str(f)]) == 0
+    assert "resuming" not in capsys.readouterr().out and _rows() == (whole, 0)
+
+
+def test_a_file_put_back_to_its_indexed_version_drops_its_stopped_import(resume, capsys):
+    cli, f = resume["cli"], resume["file"]
+    original = f.read_text(encoding="utf-8")
+    assert cli.main(["doc", "index", str(f)]) == 0
+    f.write_text(_long_text(2100), encoding="utf-8")
+    resume["stop_at"] = len(resume["batches"]) + 1
+    assert cli.main(["doc", "index", str(f)]) == 130
+    f.write_text(original, encoding="utf-8")
+    capsys.readouterr()
+    assert cli.main(["doc", "index", str(f)]) == 0 and "unchanged" in capsys.readouterr().out
+    assert doc.unfinished_imports(doc.open_store()) == []
+    assert cli.main(["doc", "list"]) == 0
+    out = capsys.readouterr().out
+    assert out.count("ley.txt") == 1 and "import stopped" not in out
+
+
+def test_a_full_disk_says_what_is_saved_and_goes_on_with_the_next_file(resume, capsys, tmp_path):
+    cli, f = resume["cli"], resume["file"]
+    other = tmp_path / "otra.txt"
+    other.write_text(_long_text(300), encoding="utf-8")
+    embed = resume["client"].embed_documents
+
+    def full_once(texts, progress=None):
+        if len(resume["batches"]) == 2 and not resume.get("full"):
+            resume["full"] = True               # the vectors of batch 3 do not fit
+            raise sqlite3.OperationalError("database or disk is full")
+        return embed(texts, progress)
+
+    resume["client"].embed_documents = full_once
+    assert cli.main(["doc", "index", str(f), str(other)]) == 1
+    captured = capsys.readouterr()
+    assert "8 of" in captured.err and "parts are saved" in captured.err and "Traceback" not in captured.err
+    assert "otra.txt: " in captured.out and "parts indexed" in captured.out
+    resume["client"].embed_documents = embed
+    assert cli.main(["doc", "index", str(f)]) == 0
+    assert "resuming, 8 of" in capsys.readouterr().out and _rows()[1] == 0
+
+
+def test_a_full_disk_before_the_first_part_is_saved_is_said_plainly(resume, capsys, monkeypatch):
+    cli, f = resume["cli"], resume["file"]
+    open_store = doc.open_store
+
+    def full(path=None):
+        conn = open_store(path)
+        conn.execute("PRAGMA max_page_count = %d" % conn.execute("PRAGMA page_count").fetchone()[0])
+        return conn
+
+    with pytest.MonkeyPatch.context() as m:
+        m.setattr(doc, "open_store", full)
+        assert cli.main(["doc", "index", str(f)]) == 1
+    assert "could not be saved" in capsys.readouterr().err
+    assert doc.unfinished_imports(doc.open_store()) == []
+    assert cli.main(["doc", "index", str(f)]) == 0 and _rows()[1] == 0
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root writes to a read-only file")
+def test_a_read_only_store_from_before_checkpoints_still_opens(tmp_path, monkeypatch, capsys):
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    path = doc.index_path("viejo")
+    os.makedirs(os.path.dirname(path))
+    old = sqlite3.connect(path)
+    old.executescript("""
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE docs (id INTEGER PRIMARY KEY, name TEXT UNIQUE, path TEXT, added TEXT, words INTEGER, chunks INTEGER);
+        CREATE TABLE index_fingerprints (doc_id INTEGER PRIMARY KEY REFERENCES docs(id) ON DELETE CASCADE,
+                                         fingerprint TEXT NOT NULL);
+        CREATE TABLE chunks (id INTEGER PRIMARY KEY, doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
+                             ord INTEGER, text TEXT, vec BLOB, page INTEGER, page_end INTEGER);
+        INSERT INTO meta VALUES ('model', 'nomic-embed-text-v1.5'), ('dims', '9');
+        INSERT INTO docs VALUES (1, 'old.txt', '/old.txt', '2026-09-14 10:00', 3, 1);
+    """)
+    old.execute("INSERT INTO chunks VALUES (1, 1, 0, 'Madrid es la capital.', ?, NULL, NULL)",
+                (doc.to_blob(fake_vec("madrid")),))
+    old.commit()
+    old.close()
+    os.chmod(path, 0o444)
+    conn = doc.open_store(path)
+    assert [d["name"] for d in doc.list_documents(conn)] == ["old.txt"] and doc.unfinished_imports(conn) == []
+    conn.close()
+    assert cli.main(["doc", "list"]) == 0 and "old.txt" in capsys.readouterr().out
+
+
+def test_doc_list_says_when_the_file_of_a_stopped_import_is_gone(resume, capsys):
+    cli, f = resume["cli"], resume["file"]
+    resume["stop_at"] = 2
+    assert cli.main(["doc", "index", "--in", "nueva", str(f)]) == 130
+    capsys.readouterr()
+    assert cli.main(["doc", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "the same ai-2 doc index carries on" in out and "embedder None" not in out
+    f.rename(f.with_name("otro.txt"))
+    assert cli.main(["doc", "list"]) == 0
+    out = capsys.readouterr().out
+    assert f"the file is no longer at {f}, ai-2 doc forget ley.txt drops it" in out
+
