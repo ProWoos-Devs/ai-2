@@ -474,9 +474,10 @@ def wrap_paragraphs(text: str, width: int, indent: str = "") -> str:
 
 
 def cite(hit: dict, with_collection: bool = False) -> str:
-    """Where an excerpt comes from, the way a person looks it up: the PDF page
-    (or pages) when the document has them, else the part number; prefixed with
-    the collection when several were searched."""
+    """Where an excerpt comes from, the way a person looks it up: the section's
+    heading when the hit names one, else the PDF page (or pages) when the
+    document has them, else the part number; prefixed with the collection when
+    several were searched."""
     name = f"{hit['collection']}/{hit['doc']}" if with_collection and hit.get("collection") else hit["doc"]
     if hit.get("section"):          # what is shown is a section of the topic, under its own heading
         return f"{name}, {hit['section']}"
@@ -656,8 +657,8 @@ def _tokens(text: str) -> list[list]:
 _ENDS_SENTENCE = re.compile(r"[.!?…:][\"'”’»)\]]*$")
 FINISH_WORDS = 60
 # The heading a topic of a Knowledge Pack may put over its short answer. All
-# of them are tried on every Knowledge Pack, whatever its language: one may
-# hold topics in more than one.
+# of them are tried on every Knowledge Pack, whatever its language, because
+# one may hold topics in more than one.
 SHORT_ANSWER_HEADINGS = {"en": "SHORT ANSWER", "es": "RESPUESTA CORTA", "de": "KURZE ANTWORT"}
 SHORT_ANSWER_WORDS = 150   # above this it is not a short answer; the longest published one has 124
 HEADING_WORDS = 12
@@ -666,28 +667,35 @@ HEADING_WORDS = 12
 def is_heading(paragraph: str) -> bool:
     """A heading the way the Knowledge Packs write one: a paragraph of its
     own, in capitals, a few words, with no full stop at the end."""
-    return (any(c.isalpha() for c in paragraph) and paragraph == paragraph.upper()
+    letters = paragraph.replace("ß", "")    # German capitals may keep it, and its upper() is "SS"
+    return (any(c.isalpha() for c in paragraph) and letters == letters.upper()
             and len(paragraph.split()) <= HEADING_WORDS
             and not paragraph.rstrip().endswith((".", ":", ";", ",")))
 
 
-def _joined(parts: list[str],
-            max_overlap: int = 40) -> tuple[list[str], list[tuple[int, int]], list[tuple[int, int]]]:
+def _joined(parts: list[str], max_overlap: int = 40
+            ) -> tuple[list[str], list[tuple[int, int]], list[tuple[int, int]], list[int]]:
     """join_paragraphs(), keeping where everything lies: the paragraphs, the
-    (first, last) word of each paragraph and the (first, last) word of each
-    part, words counted over the joined text."""
+    (first, last) word of each paragraph, the (first, last) word of each part,
+    and the first word of each part that shares no words with the part before
+    it, words counted over the joined text. At such a word nothing says
+    whether a paragraph began there, and it is joined to the one before."""
     toks: list[list] = []
     part_spans: list[tuple[int, int]] = []
+    blind: list[int] = []
     for part in parts:
         new = _tokens(part)
         start = len(toks)
         if toks:
+            if new:
+                blind.append(start)
             for n in range(min(max_overlap, len(toks), len(new)), 0, -1):
                 if [t[0] for t in toks[-n:]] == [t[0] for t in new[:n]]:
                     for i in range(n):
                         toks[-n + i][1] = toks[-n + i][1] or new[i][1]
                     new = new[n:]
                     start = len(toks) - n
+                    blind.pop()
                     break
         toks += new
         part_spans.append((start, len(toks) - 1))
@@ -704,7 +712,7 @@ def _joined(parts: list[str],
     if current:
         out.append(" ".join(current))
         spans.append((begin, len(toks) - 1))
-    return out, spans, part_spans
+    return out, spans, part_spans, blind
 
 
 def join_paragraphs(parts: list[str], max_overlap: int = 40) -> list[str]:
@@ -748,12 +756,14 @@ def short_answer(conn: sqlite3.Connection, doc_name: str, max_words: int = SHORT
     text lie in, counted from 0)}. It runs to the next heading or to the end
     of the topic. Parts are cut by word count, so the section is found in the
     topic joined back together, not in any one part. None when the topic has
-    no such heading, has it more than once, has nothing under it, or what is
-    under it is longer than max_words: then nothing can be said to be the
-    short answer, and the caller shows what it showed before."""
+    no such heading, has it more than once, has nothing under it, what is
+    under it is longer than max_words, or a part that shares no words with the
+    part before it begins inside it (the next heading may be hidden there).
+    Nothing can then be said to be the short answer, and the caller shows what
+    it showed before."""
     rows = conn.execute("SELECT chunks.text FROM chunks JOIN docs ON docs.id = chunks.doc_id "
                         "WHERE docs.name = ? ORDER BY chunks.ord", (doc_name,)).fetchall()
-    paras, spans, part_spans = _joined([r[0] for r in rows])
+    paras, spans, part_spans, blind = _joined([r[0] for r in rows])
     at = [i for i, p in enumerate(paras) if p in SHORT_ANSWER_HEADINGS.values()]
     if len(at) != 1:
         return None
@@ -765,6 +775,8 @@ def short_answer(conn: sqlite3.Connection, doc_name: str, max_words: int = SHORT
     if not body or sum(len(p.split()) for p in body) > max_words:
         return None
     first_word, last_word = spans[start][0], spans[end - 1][1]
+    if any(first_word < word <= last_word for word in blind):
+        return None
     touched = [k for k, (a, b) in enumerate(part_spans) if a <= last_word and b >= first_word]
     return {"heading": paras[start], "text": PARAGRAPH.join(body), "first": touched[0], "last": touched[-1]}
 

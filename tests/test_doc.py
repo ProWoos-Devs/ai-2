@@ -1102,8 +1102,8 @@ TOPIC = "Title?\n\nSearch terms: a, b.\n\nSHORT ANSWER\n\nYes, it was. [S1]\n\nT
 
 
 def test_a_short_answer_is_found_whole_when_parts_cut_through_it(tmp_path):
-    """Parts are cut by word count: the heading can end one part and its text
-    begin the next, so the section is read from the topic joined together."""
+    """Parts are cut by word count, so the heading can end one part and its
+    text begin the next. The section is read from the topic joined together."""
     whole = doc.short_answer(_parts(tmp_path / "a", [TOPIC]), "d.txt")
     assert whole == {"heading": "SHORT ANSWER", "text": "Yes, it was. [S1]", "first": 0, "last": 0}
     cut = _parts(tmp_path / "b", ["Title?\n\nSearch terms: a, b.\n\nSHORT", "terms: a, b.\n\nSHORT ANSWER\n\nYes, it",
@@ -1117,10 +1117,28 @@ def test_a_short_answer_is_found_whole_when_parts_cut_through_it(tmp_path):
     assert (found["first"], found["last"]) == (1, 1)
 
 
+def test_a_part_without_overlap_inside_the_short_answer_leaves_it_unknown(tmp_path):
+    """A long window is cut in halves that share no words (fit_ranges), and a
+    part does not say whether its first word began a paragraph. The next
+    heading is then joined to the answer, and the rest of the topic with it."""
+    hidden = _parts(tmp_path / "a", ["Title?\n\nSearch terms: a, b.\n\nSHORT ANSWER\n\nYes, it was.",
+                                     "THE FACTS\n\n1. One.\n\n2. Two."])
+    assert doc.join_paragraphs(["SHORT ANSWER\n\nYes, it was.", "THE FACTS\n\n1. One."])[1] == "Yes, it was. THE FACTS"
+    assert doc.short_answer(hidden, "d.txt") is None
+    midway = _parts(tmp_path / "b", ["Title?\n\nSHORT ANSWER\n\nYes, it", "was. [S1]\n\nTHE FACTS\n\n1. One."])
+    assert doc.short_answer(midway, "d.txt") is None
+    # such a seam before the heading or below the next one hides nothing of the answer
+    outside = _parts(tmp_path / "c", ["Title?\n\nSearch terms: a,", "b.\n\nSHORT ANSWER\n\nYes, it was. [S1]\n\nTHE FACTS"
+                                      "\n\n1. One.", "2. Two.\n\n3. Three."])
+    assert doc.short_answer(outside, "d.txt") == {"heading": "SHORT ANSWER", "text": "Yes, it was. [S1]",
+                                                  "first": 1, "last": 1}
+
+
 def test_a_topic_without_the_heading_has_no_short_answer(tmp_path):
     assert doc.short_answer(_parts(tmp_path / "a", ["Title\n\nText here.\n\nMORE\n\nText."]), "d.txt") is None
     assert doc.short_answer(_parts(tmp_path / "b", ["Title\n\nShort answer\n\nYes.\n\nMORE"]), "d.txt") is None
-    inside = _parts(tmp_path / "c", ["Title\n\nThe SHORT ANSWER is no.\n\nMORE\n\nText."])
+    # text under the sentence, or None would come back for having nothing under it
+    inside = _parts(tmp_path / "c", ["Title\n\nThe SHORT ANSWER is no.\n\nIt was never one.\n\nMORE\n\nText."])
     assert doc.short_answer(inside, "d.txt") is None
     assert doc.short_answer(inside, "no-such-topic.txt") is None
 
@@ -1151,6 +1169,14 @@ def test_the_short_answer_ends_at_the_next_heading_or_the_end_of_the_topic(tmp_p
     assert doc.is_heading("THE FACTS") and doc.is_heading("1. LOS HECHOS")
     assert not doc.is_heading("NO.") and not doc.is_heading("The facts") and not doc.is_heading("1.")
     assert not doc.is_heading(" ".join(["WORD"] * (doc.HEADING_WORDS + 1)))
+    # a paragraph without letters is in no capitals
+    assert not doc.is_heading("1898") and not doc.is_heading("* * *")
+    year = _parts(tmp_path / "d", ["SHORT ANSWER\n\nIt ended in\n\n1898\n\nTHE FACTS\n\n1. One."])
+    assert doc.short_answer(year, "d.txt")["text"] == "It ended in\n\n1898"
+    # German capitals may keep the ß, which has no capital of one letter in upper()
+    assert doc.is_heading("DIE GRÖßE") and doc.is_heading("DIE GRÖSSE") and not doc.is_heading("Die Größe")
+    eszett = _parts(tmp_path / "e", ["KURZE ANTWORT\n\nJa.\n\nDIE GRÖßE\n\nEins zwei drei."])
+    assert doc.short_answer(eszett, "d.txt")["text"] == "Ja."
 
 
 def test_the_heading_is_known_in_english_spanish_and_german(tmp_path):
