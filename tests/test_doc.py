@@ -1430,3 +1430,208 @@ def test_repeated_import_skips_all_model_work_and_failed_replacement_retries(tmp
     model = dict(model, ctx=model["ctx"] // 2)
     monkeypatch.setattr(runner, "_catalog_entry", lambda model_id: model)
     assert cli.main(args) == 0 and len(starts) == 6
+
+
+# --------------------------------------------- an import that was stopped
+# Each batch of four vectors is committed as it comes back, and the same
+# command carries on from the first part without one.
+
+class _Killed(BaseException):
+    """What a power cut or kill -9 looks like from inside: nothing after it
+    runs, no handler, no cleanup."""
+
+
+def _long_text(n_words=2000):
+    keys = ("Madrid", "castellano", "bandera", "monarquía", "dieciocho", "tortura", "religión")
+    return " ".join(f"{keys[i % len(keys)]}{i // 7}" if i % 13 else f"palabra{i}." for i in range(n_words))
+
+
+@pytest.fixture
+def resume(tmp_path, monkeypatch):
+    """`ai-2 doc index` with a fake embedding server that records every batch
+    and can be made to stop at a given batch."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    world = {"model": next(m for m in embedding_models() if m["id"] == "nomic-embed-text-v1.5"),
+             "batches": [], "stop_at": None, "stop_with": KeyboardInterrupt, "starts": 0}
+    monkeypatch.setattr(doc, "choose_embedder", lambda ram, catalog=None: world["model"])
+    monkeypatch.setattr(runner, "_catalog_entry", lambda model_id: world["model"])
+    client = doc.EmbedClient("http://unused", world["model"])
+
+    def start(*a):
+        world["starts"] += 1
+        client.model = world["model"]
+        return client
+
+    def embed(texts, progress=None):
+        if world["stop_at"] is not None and len(world["batches"]) == world["stop_at"]:
+            raise world["stop_with"]("stopped here")
+        world["batches"].append(list(texts))
+        return [fake_vec(t) + [float(len(t))] for t in texts]
+
+    monkeypatch.setattr(knowledgecli, "_index_client", start)
+    monkeypatch.setattr(knowledgecli, "detect", lambda: type("HW", (), {"ram_mib": 8000})())
+    monkeypatch.setattr(client, "ntokens", lambda text: len(text.split()))
+    monkeypatch.setattr(client, "embed_documents", embed)
+    f = tmp_path / "ley.txt"
+    f.write_text(_long_text(), encoding="utf-8")
+    world.update(cli=cli, file=f, client=client)
+    return world
+
+
+def _rows(collection=None):
+    conn = doc.open_store(None if collection is None else doc.index_path(collection))
+    rows = conn.execute("SELECT chunks.ord, chunks.text, chunks.vec, chunks.page, chunks.page_end FROM chunks "
+                        "JOIN docs ON docs.id = chunks.doc_id ORDER BY chunks.ord").fetchall()
+    left = conn.execute("SELECT COUNT(*) FROM index_checkpoints").fetchone()[0] + \
+        conn.execute("SELECT COUNT(*) FROM checkpoint_parts").fetchone()[0]
+    conn.close()
+    return rows, left
+
+
+def test_a_stopped_import_carries_on_and_ends_as_an_uninterrupted_one(resume, capsys):
+    cli, f = resume["cli"], resume["file"]
+    assert cli.main(["doc", "index", "--in", "whole", str(f)]) == 0
+    whole, _ = _rows("whole")
+    total = len(whole)
+    assert total >= 20
+    resume["batches"].clear()
+    resume["stop_at"] = 2                                   # Ctrl+C during the third batch
+    assert cli.main(["doc", "index", str(f)]) == 130
+    assert "8 of %d parts are saved" % total in capsys.readouterr().err
+    assert doc.unfinished_imports(doc.open_store()) == [{"name": "ley.txt", "done": 8, "total": total}]
+    done_before = [t for b in resume["batches"] for t in b]
+    resume["batches"].clear()
+    resume["stop_at"] = None
+    with pytest.MonkeyPatch.context() as m:
+        m.setattr(doc, "extract_pages", lambda *a, **kw: pytest.fail("a resumed import read the file again"))
+        m.setattr(resume["client"], "ntokens", lambda text: pytest.fail("a resumed import cut the parts again"))
+        assert cli.main(["doc", "index", str(f)]) == 0
+    out = capsys.readouterr().out
+    assert f"resuming, 8 of {total} parts already done" in out
+    again = [t for b in resume["batches"] for t in b]
+    assert len(again) == total - 8 and not set(again) & set(done_before)
+    rows, left = _rows()
+    assert rows == whole and left == 0                      # byte for byte, and the checkpoint is gone
+    assert cli.main(["doc", "index", str(f)]) == 0 and "unchanged" in capsys.readouterr().out
+
+
+def test_a_kill_between_batches_keeps_the_batches_already_done(resume, capsys):
+    cli, f = resume["cli"], resume["file"]
+    resume["stop_at"], resume["stop_with"] = 3, _Killed
+    with pytest.raises(_Killed):
+        cli.main(["doc", "index", str(f)])
+    raw = sqlite3.connect(doc.index_path())                 # what the next process finds on disk
+    assert raw.execute("SELECT COUNT(vec), COUNT(*) FROM checkpoint_parts").fetchone()[0] == 12
+    assert raw.execute("SELECT COUNT(*) FROM chunks").fetchone()[0] == 0
+    raw.close()
+    # the embedding server dying is said plainly, and nothing is lost either
+    resume["stop_at"], resume["stop_with"] = 5, OSError
+    assert cli.main(["doc", "index", str(f)]) == 1
+    err = capsys.readouterr().err
+    assert "20 of" in err and "carries on from there" in err
+    resume["stop_at"] = None
+    assert cli.main(["doc", "index", str(f)]) == 0
+    assert "resuming, 20 of" in capsys.readouterr().out
+    rows, left = _rows()
+    assert len({r[1] for b in [rows] for r in b}) == len(rows) and left == 0
+    assert len([t for b in resume["batches"] for t in b]) == len(rows)    # every part embedded exactly once
+
+
+def test_a_changed_file_or_model_or_force_starts_again(resume, capsys):
+    cli, f = resume["cli"], resume["file"]
+    resume["stop_at"] = 1
+    assert cli.main(["doc", "index", str(f)]) == 130
+    resume["stop_at"] = None
+    f.write_text(_long_text(2100), encoding="utf-8")
+    resume["batches"].clear()
+    resume["stop_at"] = 1
+    assert cli.main(["doc", "index", str(f)]) == 130
+    assert "changed since its import was stopped" in capsys.readouterr().out
+    conn = doc.open_store()
+    assert conn.execute("SELECT COUNT(*) FROM index_checkpoints").fetchone()[0] == 1
+    assert doc.unfinished_imports(conn)[0]["done"] == 4
+    # another search model file (a new revision of the model) is another recipe
+    resume["model"] = dict(resume["model"], sha256="0" * 64)
+    resume["batches"].clear()
+    assert cli.main(["doc", "index", str(f)]) == 130
+    assert "changed since its import was stopped" in capsys.readouterr().out
+    # --force throws a checkpoint away even when it would fit
+    resume["stop_at"] = None
+    resume["batches"].clear()
+    assert cli.main(["doc", "index", "--force", str(f)]) == 0
+    out = capsys.readouterr().out
+    rows, left = _rows()
+    assert "resuming" not in out and len([t for b in resume["batches"] for t in b]) == len(rows) and left == 0
+
+
+def test_forget_and_removing_the_collection_leave_nothing_behind(resume, capsys):
+    cli, f = resume["cli"], resume["file"]
+    resume["stop_at"] = 2
+    assert cli.main(["doc", "index", "--in", "leyes", str(f)]) == 130
+    assert cli.main(["doc", "list"]) == 0
+    assert "import stopped at 8 of" in capsys.readouterr().out
+    assert cli.main(["doc", "forget", "ley.txt"]) == 0
+    assert "Dropped the stopped import of ley.txt. (collection leyes)" in capsys.readouterr().out
+    assert _rows("leyes") == ([], 0)
+    # a document that is indexed and whose newer version was stopped goes whole
+    resume["stop_at"] = None
+    assert cli.main(["doc", "index", "--in", "leyes", str(f)]) == 0
+    f.write_text(_long_text(2100), encoding="utf-8")
+    resume["stop_at"] = len(resume["batches"]) + 1
+    assert cli.main(["doc", "index", "--in", "leyes", str(f)]) == 130
+    assert cli.main(["doc", "forget", "ley.txt"]) == 0
+    assert "Forgot 1 document." in capsys.readouterr().out and _rows("leyes") == ([], 0)
+    assert cli.main(["doc", "index", "--in", "leyes", str(f)]) == 130
+    assert cli.main(["doc", "forget", "--all", "--in", "leyes"]) == 0
+    assert not os.path.exists(os.path.dirname(doc.index_path("leyes")))
+    # forget --all on a store keeps nothing of a stopped import either
+    conn = doc.open_store(doc.index_path("otra"))
+    doc.start_checkpoint(conn, "a.txt", "/a.txt", "fp", ["one", "two"], None, 2)
+    doc.forget(conn, everything=True)
+    assert conn.execute("SELECT COUNT(*) FROM checkpoint_parts").fetchone()[0] == 0
+
+
+def test_a_store_from_an_older_version_gains_checkpoints_and_resumes(resume, capsys):
+    cli, f = resume["cli"], resume["file"]
+    os.makedirs(os.path.dirname(doc.index_path()))
+    old = sqlite3.connect(doc.index_path())
+    old.executescript("""
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE docs (id INTEGER PRIMARY KEY, name TEXT UNIQUE, path TEXT, added TEXT, words INTEGER, chunks INTEGER);
+        CREATE TABLE chunks (id INTEGER PRIMARY KEY, doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
+                             ord INTEGER, text TEXT, vec BLOB);
+        INSERT INTO meta VALUES ('model', 'nomic-embed-text-v1.5'), ('dims', '9');
+        INSERT INTO docs VALUES (1, 'old.txt', '/old.txt', '2026-09-14 10:00', 3, 1);
+    """)
+    old.execute("INSERT INTO chunks VALUES (1, 1, 0, 'Madrid es la capital.', ?)", (doc.to_blob(fake_vec("madrid")),))
+    old.commit()
+    old.close()
+    resume["stop_at"] = 1
+    assert cli.main(["doc", "index", str(f)]) == 130
+    resume["stop_at"] = None
+    assert cli.main(["doc", "index", str(f)]) == 0
+    assert "resuming, 4 of" in capsys.readouterr().out
+    assert [d["name"] for d in doc.list_documents(doc.open_store())] == ["old.txt", "ley.txt"]
+
+
+def test_a_read_only_store_without_checkpoint_tables_still_lists(tmp_path, monkeypatch, capsys):
+    """A Knowledge Pack that came with AI-2 is opened read-only and its schema
+    is never touched, so it has no checkpoint tables at all."""
+    from ai2 import cli
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    _system_pack(tmp_path, monkeypatch)
+    conn = doc.open_store(doc.read_index_path("ai2-help"))
+    assert doc.unfinished_imports(conn) == [] and doc.checkpoint_for(conn, "help.txt", "x") == (None, False)
+    assert doc.discard_checkpoint(conn, "help.txt") == 0
+    conn.close()
+    assert cli.main(["doc", "list"]) == 0 and "help.txt" in capsys.readouterr().out
+
+
+def test_parts_are_cut_the_same_way_every_time():
+    """The checkpoint stores the parts, so a resume never depends on this, but
+    the parts of an uninterrupted import and of a resumed one come from the
+    same function with the same counter."""
+    pages = [_long_text(700), _long_text(500)]
+    count = lambda c: len(c.split())                                  # noqa: E731
+    assert doc.make_chunks(pages, True, count, 60) == doc.make_chunks(list(pages), True, count, 60)

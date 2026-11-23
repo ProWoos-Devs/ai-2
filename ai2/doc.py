@@ -200,6 +200,13 @@ def open_store(path: str | None = None) -> sqlite3.Connection:
             id INTEGER PRIMARY KEY, doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
             ord INTEGER, text TEXT, vec BLOB, page INTEGER, page_end INTEGER);
         CREATE INDEX IF NOT EXISTS chunks_doc ON chunks(doc_id);
+        CREATE TABLE IF NOT EXISTS index_checkpoints (
+            id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, path TEXT NOT NULL,
+            fingerprint TEXT NOT NULL, words INTEGER NOT NULL, paged INTEGER NOT NULL, started TEXT);
+        CREATE TABLE IF NOT EXISTS checkpoint_parts (
+            checkpoint_id INTEGER NOT NULL REFERENCES index_checkpoints(id) ON DELETE CASCADE,
+            ord INTEGER NOT NULL, text TEXT NOT NULL, vec BLOB, page INTEGER, page_end INTEGER,
+            PRIMARY KEY (checkpoint_id, ord));
     """)
     # stores made by 0.14/0.15 have no page columns; NULL reads as "no pages"
     have = {row[1] for row in conn.execute("PRAGMA table_info(chunks)")}
@@ -224,7 +231,11 @@ def set_store_model(conn: sqlite3.Connection, model_id: str, dims: int) -> None:
 
 
 def to_blob(vec) -> bytes:
-    """Unit-length float32 bytes, so cosine is a plain dot product later."""
+    """Unit-length float32 bytes, so cosine is a plain dot product later. A
+    vector that is already such bytes (from a checkpoint) is kept as it is, so
+    a resumed import stores exactly what an uninterrupted one would."""
+    if isinstance(vec, (bytes, memoryview)):
+        return bytes(vec)
     norm = math.sqrt(sum(x * x for x in vec)) or 1.0
     return array.array("f", (x / norm for x in vec)).tobytes()
 
@@ -255,6 +266,9 @@ def add_document(conn: sqlite3.Connection, name: str, path: str, chunks: list[st
             if store_model(conn) != model["id"]:
                 raise ValueError("the collection changed embedding model while indexing")
             conn.execute("INSERT OR IGNORE INTO meta VALUES ('dims', ?)", (str(model["dims"]),))
+        # The import is complete, so its checkpoint goes in the same transaction,
+        # first, so that the parts written next can take the pages it frees.
+        conn.execute("DELETE FROM index_checkpoints WHERE name = ?", (name,))
         conn.execute("DELETE FROM docs WHERE name = ?", (name,))
         cur = conn.execute("INSERT INTO docs (name, path, added, words, chunks) VALUES (?, ?, ?, ?, ?)",
                            (name, path, time.strftime("%Y-%m-%d %H:%M"), words, len(chunks)))
@@ -268,6 +282,121 @@ def add_document(conn: sqlite3.Connection, name: str, path: str, chunks: list[st
     return doc_id
 
 
+# ------------------------------------------------------- unfinished imports
+#
+# Embedding is the slow part of an import (10 to 20 seconds a part on the
+# reference laptops), and add_document writes everything at the end. So the
+# parts of a document are written to the store before the first one is
+# embedded, and each batch of vectors is committed as it comes back. An
+# import that is stopped, whatever stops it, loses at most the batch in
+# flight, and the same command carries on from there. A checkpoint belongs to
+# one document name and one fingerprint (the file's contents and the indexing
+# recipe, as for the skip of an unchanged document); any other fingerprint
+# discards it.
+
+EMBED_BATCH = 4     # see EmbedClient.embed_documents
+
+
+def _checkpoint_row(conn: sqlite3.Connection, name: str):
+    try:
+        return conn.execute("SELECT id, fingerprint, words, paged FROM index_checkpoints WHERE name = ?",
+                            (name,)).fetchone()
+    except sqlite3.OperationalError:        # a read-only store from before checkpoints
+        return None
+
+
+def _checkpoint(conn: sqlite3.Connection, cp_id: int, words: int, paged: int) -> dict:
+    done, total = conn.execute("SELECT COUNT(vec), COUNT(*) FROM checkpoint_parts WHERE checkpoint_id = ?",
+                               (cp_id,)).fetchone()
+    return {"id": cp_id, "words": words, "paged": bool(paged), "done": done, "total": total}
+
+
+def discard_checkpoint(conn: sqlite3.Connection, name: str) -> int:
+    """Remove the unfinished import of this document name, if any; returns
+    how many parts it held. SQLite reuses the space for the next writes."""
+    row = _checkpoint_row(conn, name)
+    if row is None:
+        return 0
+    with conn:
+        n = conn.execute("SELECT COUNT(*) FROM checkpoint_parts WHERE checkpoint_id = ?", (row[0],)).fetchone()[0]
+        conn.execute("DELETE FROM index_checkpoints WHERE id = ?", (row[0],))
+    return n
+
+
+def checkpoint_for(conn: sqlite3.Connection, name: str, fingerprint: str) -> tuple[dict | None, bool]:
+    """(the unfinished import of this document with this fingerprint, or None;
+    whether a checkpoint for another fingerprint was discarded on the way)."""
+    row = _checkpoint_row(conn, name)
+    if row is None:
+        return None, False
+    if row[1] != fingerprint:
+        discard_checkpoint(conn, name)
+        return None, True
+    return _checkpoint(conn, row[0], row[2], row[3]), False
+
+
+def start_checkpoint(conn: sqlite3.Connection, name: str, path: str, fingerprint: str,
+                     chunks: list[str], pages: list | None, words: int) -> dict:
+    """Write the parts of a document, none of them embedded yet, in one
+    transaction. The parts are stored rather than cut again on resume, so the
+    vectors always belong to exactly these texts, whatever the tokenizer of a
+    later run says."""
+    spans = pages or [None] * len(chunks)
+    with conn:
+        conn.execute("DELETE FROM index_checkpoints WHERE name = ?", (name,))
+        cur = conn.execute("INSERT INTO index_checkpoints (name, path, fingerprint, words, paged, started) "
+                           "VALUES (?, ?, ?, ?, ?, ?)",
+                           (name, path, fingerprint, words, int(pages is not None), time.strftime("%Y-%m-%d %H:%M")))
+        cp_id = cur.lastrowid
+        conn.executemany("INSERT INTO checkpoint_parts (checkpoint_id, ord, text, page, page_end) "
+                         "VALUES (?, ?, ?, ?, ?)",
+                         [(cp_id, i, text, *(span or (None, None))) for i, (text, span) in enumerate(zip(chunks, spans))])
+    return _checkpoint(conn, cp_id, words, int(pages is not None))
+
+
+def embed_pending(conn: sqlite3.Connection, cp: dict, client, progress=None) -> None:
+    """Embed the parts of a checkpoint that have no vector yet, EMBED_BATCH at
+    a time, committing each batch on its own. progress(done, total) counts the
+    parts done before this run too."""
+    pending = conn.execute("SELECT ord, text FROM checkpoint_parts WHERE checkpoint_id = ? AND vec IS NULL "
+                           "ORDER BY ord", (cp["id"],)).fetchall()
+    done = cp["total"] - len(pending)
+    for i in range(0, len(pending), EMBED_BATCH):
+        batch = pending[i:i + EMBED_BATCH]
+        vectors = client.embed_documents([text for _, text in batch])
+        if len(vectors) != len(batch):
+            raise ValueError("the embedding server returned an incomplete batch")
+        with conn:
+            conn.executemany("UPDATE checkpoint_parts SET vec = ? WHERE checkpoint_id = ? AND ord = ?",
+                             [(to_blob(vec), cp["id"], ord_) for (ord_, _), vec in zip(batch, vectors)])
+        done += len(batch)
+        cp["done"] = done
+        if progress:
+            progress(done, cp["total"])
+
+
+def checkpoint_parts(conn: sqlite3.Connection, cp: dict) -> tuple[list[str], list | None, list[bytes]]:
+    """The texts, page spans (None for a document without pages) and vectors
+    of a finished checkpoint, ready for add_document."""
+    rows = conn.execute("SELECT text, vec, page, page_end FROM checkpoint_parts WHERE checkpoint_id = ? "
+                        "ORDER BY ord", (cp["id"],)).fetchall()
+    if any(vec is None for _, vec, _, _ in rows):
+        raise ValueError("some parts have not been embedded yet")
+    spans = [(page, end) for _, _, page, end in rows] if cp["paged"] else None
+    return [r[0] for r in rows], spans, [r[1] for r in rows]
+
+
+def unfinished_imports(conn: sqlite3.Connection) -> list[dict]:
+    """The imports that were stopped before the end: name, parts done, parts."""
+    try:
+        rows = conn.execute("SELECT name, COUNT(vec), COUNT(checkpoint_parts.ord) FROM index_checkpoints "
+                            "LEFT JOIN checkpoint_parts ON checkpoint_id = index_checkpoints.id "
+                            "GROUP BY index_checkpoints.id ORDER BY name").fetchall()
+    except sqlite3.OperationalError:        # a read-only store from before checkpoints
+        return []
+    return [{"name": n, "done": d, "total": t} for n, d, t in rows]
+
+
 def list_documents(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute("SELECT name, path, added, words, chunks FROM docs ORDER BY added, name").fetchall()
     return [dict(zip(("name", "path", "added", "words", "chunks"), r)) for r in rows]
@@ -279,8 +408,10 @@ def forget(conn: sqlite3.Connection, name: str | None = None, everything: bool =
         n = conn.execute("SELECT COUNT(*) FROM docs").fetchone()[0]
         conn.execute("DELETE FROM docs")
         conn.execute("DELETE FROM meta")
+        conn.execute("DELETE FROM index_checkpoints")
     else:
         n = conn.execute("DELETE FROM docs WHERE name = ?", (name,)).rowcount
+        conn.execute("DELETE FROM index_checkpoints WHERE name = ?", (name,))
     conn.commit()
     return n
 
@@ -652,7 +783,7 @@ class EmbedClient:
         p = self.model.get("prefix_document", "")
         # flat(): paragraph breaks are for people. The model gets the same
         # string it always got, so a rebuilt pack has the same vectors.
-        return self.embed([p + flat(c) for c in chunks], batch=4, progress=progress)
+        return self.embed([p + flat(c) for c in chunks], batch=EMBED_BATCH, progress=progress)
 
     def embed_query(self, question: str) -> list[float]:
         return self.embed([self.model.get("prefix_query", "") + question])[0]

@@ -64,6 +64,33 @@ def test_export_writes_two_members_and_leaves_paths_out(home):
         pack.export_pack("ghost", out)
 
 
+def test_a_stopped_import_stays_on_this_computer(home):
+    """A checkpoint holds the parts and vectors of a document whose import was
+    stopped. It is not part of the collection, so a pack never carries it, and
+    the pack still passes check_index, which refuses any table it does not know."""
+    make_collection("constitucion", {"c.pdf": ["La capital es Madrid.", "El castellano."]})
+    conn = doc.open_store(doc.index_path("constitucion"))
+    cp = doc.start_checkpoint(conn, "private.pdf", "/home/someone/private/private.pdf", "fp",
+                              ["Mi carta privada.", "Otra parte."], [(1, 1), (2, 2)], 6)
+    doc.embed_pending(conn, cp, type("C", (), {"embed_documents": lambda self, t: [vec(x) for x in t]})())
+    conn.close()
+    out = str(home / "c.ai2pack")
+    m = pack.export_pack("constitucion", out, TEMPLATE)
+    assert m["index"]["documents"] == 1 and m["index"]["parts"] == 2
+    with zipfile.ZipFile(out) as z:
+        data = z.read("index.sqlite")
+    assert b"Mi carta privada" not in data and b"private.pdf" not in data
+    (home / "x").mkdir()
+    (home / "x" / "index.sqlite").write_bytes(data)
+    exported = sqlite3.connect(home / "x" / "index.sqlite")
+    names = {r[0] for r in exported.execute("SELECT name FROM sqlite_master")}
+    exported.close()
+    assert not {"index_checkpoints", "checkpoint_parts"} & names
+    assert pack.install_pack(out)[0] == "constitucion-es"
+    # the collection itself keeps its stopped import
+    assert doc.unfinished_imports(doc.open_store(doc.index_path("constitucion")))[0]["name"] == "private.pdf"
+
+
 def test_install_roundtrip_update_and_name_clashes(home):
     make_collection("constitucion", {"c.pdf": ["La capital es Madrid.", "El castellano."]})
     out = str(home / "c.ai2pack")

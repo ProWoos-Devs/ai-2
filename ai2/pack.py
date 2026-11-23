@@ -140,6 +140,8 @@ def export_pack(collection: str, out_path: str, template: dict | None = None) ->
         live.backup(dst)                    # a consistent copy even while the store is open elsewhere
         live.close()
         dst.execute("DROP TABLE IF EXISTS index_fingerprints")  # local import metadata
+        dst.execute("DROP TABLE IF EXISTS checkpoint_parts")    # unfinished imports stay on this computer
+        dst.execute("DROP TABLE IF EXISTS index_checkpoints")
         dst.execute("UPDATE docs SET path = name")
         dst.commit()
         docs = doc.list_documents(dst)

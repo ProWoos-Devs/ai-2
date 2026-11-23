@@ -47,7 +47,7 @@ def cmd_doc(args) -> int:
         return _doc_forget(args, docmod)
     names = docmod.list_collections()
     shown = [(n, docmod.open_store(docmod.read_index_path(n))) for n in names]
-    shown = [(n, c) for n, c in shown if docmod.list_documents(c)]
+    shown = [(n, c) for n, c in shown if docmod.list_documents(c) or docmod.unfinished_imports(c)]
     if not shown:
         print("No documents indexed yet. Add one with:  ai-2 doc index FILE   (text, PDF, DOCX or a scan)")
         return 0
@@ -60,6 +60,9 @@ def cmd_doc(args) -> int:
         print(f"\n  {name}  (embedder {docmod.store_model(conn)}, {what})")
         for d in docmod.list_documents(conn):
             print(f"    {d['name']:<40} {d['words']:>7} words  {d['chunks']:>5} parts  added {d['added']}")
+        for u in docmod.unfinished_imports(conn):
+            print(f"    {u['name']:<40} import stopped at {u['done']} of {u['total']} parts: the same "
+                  f"ai-2 doc index carries on, ai-2 doc forget {u['name']} drops it")
     print('\nAsk:  ai-2 doc ask "your question"    Passages only:  ai-2 doc search "..."    Remove:  ai-2 doc forget NAME')
     return 0
 
@@ -88,8 +91,12 @@ def _doc_forget(args, docmod) -> int:
     if not args.name:
         print("error: name a document (ai-2 doc list) or pass --all", file=sys.stderr)
         return 1
+    def held(conn) -> set:
+        return ({d["name"] for d in docmod.list_documents(conn)}
+                | {u["name"] for u in docmod.unfinished_imports(conn)})
+
     where = [n for n in ([args.collection] if args.collection else names)
-             if n in names and args.name in {d["name"] for d in docmod.list_documents(docmod.open_store(docmod.read_index_path(n)))}]
+             if n in names and args.name in held(docmod.open_store(docmod.read_index_path(n)))]
     if not where:
         print(f"No document named {args.name!r} (ai-2 doc list shows the names).")
         return 1
@@ -102,8 +109,9 @@ def _doc_forget(args, docmod) -> int:
               f"would only leave an empty copy of your own on top of it.\n"
               f"To stop searching it at all:  sudo pacman -R {packmod.package_of(where[0])}", file=sys.stderr)
         return 1
-    docmod.forget(docmod.open_store(docmod.index_path(where[0])), name=args.name)
-    print(f"Forgot 1 document." + ("" if where[0] == docmod.DEFAULT_COLLECTION else f" (collection {where[0]})"))
+    n = docmod.forget(docmod.open_store(docmod.index_path(where[0])), name=args.name)
+    print(("Forgot 1 document." if n else f"Dropped the stopped import of {args.name}.")
+          + ("" if where[0] == docmod.DEFAULT_COLLECTION else f" (collection {where[0]})"))
     return 0
 
 
@@ -400,44 +408,75 @@ def _doc_index(args, docmod) -> int:
                       docmod.CHUNK_WORDS, docmod.OVERLAP_WORDS,
                       args.lang if os.path.splitext(name)[1].lower() in docmod.IMAGE_SUFFIXES else None]
             fingerprint = json.dumps([packmod.sha256_file(path), recipe])
-            if not args.force and docmod.already_indexed(conn, path, fingerprint) and _file_version(path) == version:
+            if args.force:
+                docmod.discard_checkpoint(conn, name)
+            elif docmod.already_indexed(conn, path, fingerprint) and _file_version(path) == version:
                 print(f"{name}: unchanged, already indexed")
                 continue
-            pages, paged = docmod.extract_pages(path, lang=args.lang)
+            # An import of this same file and recipe that was stopped before
+            # the end carries on where it stopped, with no extraction or OCR.
+            cp, stale = docmod.checkpoint_for(conn, name, fingerprint)
+            if stale:
+                print(f"{name}: changed since its import was stopped, so that import starts again")
+            if cp is None:
+                pages, paged = docmod.extract_pages(path, lang=args.lang)
         except (RuntimeError, subprocess.CalledProcessError, OSError, zipfile.BadZipFile, KeyError) as exc:
             print(f"  skipped {name}: {exc}", file=sys.stderr)
             rc = 1
             continue
-        if not any(p.split() for p in pages):
-            print(f"  skipped {name}: no text found (a scanned PDF needs OCR: ai-2 workflow info documents)",
-                  file=sys.stderr)
-            rc = 1
-            continue
-        if client is None:
-            client = _index_client(docmod, hw or detect(), model, args.wait)
+        if cp is None:
+            if not any(p.split() for p in pages):
+                print(f"  skipped {name}: no text found (a scanned PDF needs OCR: ai-2 workflow info documents)",
+                      file=sys.stderr)
+                rc = 1
+                continue
             if client is None:
-                return 1
-        chunks, spans, words = docmod.make_chunks(pages, paged, lambda c: client.ntokens(prefix + c),
-                                                  client.token_limit())
-        print(f"{name}: {words} words in {len(chunks)} parts, indexing with {model['label']} "
-              "(slow on an old CPU; you can leave it running) ...", flush=True)
+                client = _index_client(docmod, hw or detect(), model, args.wait)
+                if client is None:
+                    return 1
+            chunks, spans, words = docmod.make_chunks(pages, paged, lambda c: client.ntokens(prefix + c),
+                                                      client.token_limit())
+            cp = docmod.start_checkpoint(conn, name, os.path.abspath(path), fingerprint, chunks, spans, words)
+            print(f"{name}: {words} words in {len(chunks)} parts, indexing with {model['label']} "
+                  "(slow on an old CPU; you can leave it running) ...", flush=True)
+        else:
+            print(f"{name}: resuming, {cp['done']} of {cp['total']} parts already done, indexing with "
+                  f"{model['label']} ...", flush=True)
         t0 = time.monotonic()
+        first = cp["done"]
 
         def progress(done, total):
+            # the speed of this run only: parts done before it took no time now
             elapsed = time.monotonic() - t0
-            left = elapsed / done * (total - done) if done else 0
+            now = done - first
+            left = elapsed / now * (total - done) if now else 0
             print(f"\r  {done}/{total} parts, {int(elapsed)} s, about {int(left / 60) + 1} min left   ",
                   end="", flush=True)
 
         try:
-            vectors = client.embed_documents(chunks, progress=progress)
+            if cp["done"] < cp["total"]:
+                if client is None:
+                    client = _index_client(docmod, hw or detect(), model, args.wait)
+                    if client is None:
+                        return 1
+                docmod.embed_pending(conn, cp, client, progress=progress)
         except OSError as exc:
-            print(f"\n  error: the embedding server went away ({exc}); run the command again", file=sys.stderr)
+            print(f"\n  error: the embedding server went away ({exc}); {cp['done']} of {cp['total']} parts "
+                  "are saved, and running the same command again carries on from there", file=sys.stderr)
             return 1
+        except ValueError as exc:
+            print(f"\n  skipped {name}: {exc}", file=sys.stderr)
+            rc = 1
+            continue
+        except KeyboardInterrupt:
+            print(f"\n  Stopped. {cp['done']} of {cp['total']} parts are saved; running the same command "
+                  "again carries on from there.", file=sys.stderr)
+            return 130
         try:
             if _file_version(path) != version:
                 raise ValueError("file changed while indexing; run the command again")
-            docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, words,
+            chunks, spans, vectors = docmod.checkpoint_parts(conn, cp)
+            docmod.add_document(conn, name, os.path.abspath(path), chunks, vectors, cp["words"],
                                 pages=spans, fingerprint=fingerprint, model=model)
         except (OSError, ValueError) as exc:
             print(f"  skipped {name}: {exc}", file=sys.stderr)
