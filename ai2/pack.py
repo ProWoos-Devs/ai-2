@@ -418,7 +418,11 @@ def load_catalog() -> list[dict]:
     catalog that ships inside the ai-2 package, so the SHA-256 of every entry
     is covered by the signature on the package itself; a pack is only as
     trustworthy as where its hash came from."""
-    data = yaml.safe_load(importlib.resources.files("ai2").joinpath("data/packs.yml").read_text())
+    text = importlib.resources.files("ai2").joinpath("data/packs.yml").read_text()
+    # The chat reads the catalog for every question no installed Knowledge
+    # Pack matched. The loader written in C gives the same result in about a
+    # tenth of the time. A PyYAML built without it has only the plain one.
+    data = yaml.load(text, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
     return list((data or {}).get("packs") or [])
 
 

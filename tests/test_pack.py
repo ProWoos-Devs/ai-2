@@ -857,3 +857,22 @@ def test_the_catalog_sync_ends_by_making_the_signatures(home, monkeypatch):
     (source / "community.yml").write_text(yaml.safe_dump({"version": 2, "packs": []}))
     monkeypatch.setattr(sync.sys, "argv", ["sync-pack-catalog.py", str(source / "community.yml")])
     assert sync.main() == 1 and len(ran) == 1
+
+
+def test_the_catalog_is_read_with_the_fast_loader_when_there_is_one(monkeypatch):
+    """The chat reads the catalog for every question no installed Knowledge
+    Pack matched, and the plain loader took about as long as the whole scan
+    of the signatures. The result is the same either way, and a PyYAML
+    without the C loader still reads it."""
+    import importlib.resources
+    text = importlib.resources.files("ai2").joinpath("data/packs.yml").read_text()
+    plain = yaml.safe_load(text)["packs"]
+    assert pack.load_catalog() == plain and len(plain) > 10
+    used = []
+    real = yaml.load
+    monkeypatch.setattr(yaml, "load", lambda stream, Loader: used.append(Loader) or real(stream, Loader=Loader))
+    if hasattr(yaml, "CSafeLoader"):
+        assert pack.load_catalog() == plain and used == [yaml.CSafeLoader]
+    monkeypatch.delattr(yaml, "CSafeLoader", raising=False)
+    used.clear()
+    assert pack.load_catalog() == plain and used == [yaml.SafeLoader]
