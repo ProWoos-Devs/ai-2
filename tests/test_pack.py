@@ -618,3 +618,173 @@ def test_a_system_pack_cannot_be_indexed_into_or_forgotten(home, monkeypatch, ca
     err = capsys.readouterr().err
     assert "cannot be changed" in err and "sudo pacman -R ai2-help" in err
     assert doc.is_system("ai2-help") and doc.list_collections() == ["ai2-help"]
+
+
+def _tool(name):
+    import importlib.util
+    import pathlib
+    path = pathlib.Path(__file__).parent.parent / "tools" / (name + ".py")
+    spec = importlib.util.spec_from_file_location(name.replace("-", "_"), path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _a_pack_file(home, name, texts, model="nomic-embed-text-v1.5"):
+    """A file with the index of a Knowledge Pack in it, and its catalog entry."""
+    make_collection(name, {"b.txt": texts[1:], "a.txt": texts[:1]}, model=model)
+    folder = home / "packs" / name
+    folder.mkdir(parents=True)
+    path = folder / f"{name}-r1.ai2pack"
+    with zipfile.ZipFile(path, "w") as z:
+        z.write(doc.index_path(name), "index.sqlite")
+    doc.remove_collection(name)
+    return {"id": name, "revision": 1, "embedder": model, "parts": len(texts), "size_bytes": path.stat().st_size,
+            "sha256": pack.sha256_file(str(path)), "url": f"https://example.org/packs/{name}/{path.name}"}
+
+
+def test_signatures_are_made_from_the_pack_file_the_catalog_names(home):
+    """One file per entry. It holds the header that pins it, the length of
+    every stored vector, then the vectors as bytes, documents by name. The
+    same input gives the same bytes, a file with no entry goes, and a pack
+    file that is not the one in the catalog stops the run before anything is
+    written."""
+    import array
+    import hashlib
+    import json
+    import math
+    sig = _tool("build-pack-signatures")
+    texts = ["Madrid", "castellano y bandera", "la mili en Madrid"]
+    entry = _a_pack_file(home, "tiny", texts)
+    out = home / "signatures"
+    out.mkdir()
+    (out / "gone.sig").write_bytes(b"x")
+    (out / "notes.txt").write_text("kept")
+    assert sig.build([entry], str(home / "packs"), str(out), dims=8) == 0
+    assert sorted(p.name for p in out.iterdir()) == ["notes.txt", "tiny.sig"]
+    raw = (out / "tiny.sig").read_bytes()
+    cut = raw.index(b"\n") + 1
+    assert json.loads(raw[:cut]) == {"format": 1, "id": "tiny", "revision": 1, "pack_sha256": entry["sha256"],
+                                     "model": "nomic-embed-text-v1.5", "dims": 8, "count": 3,
+                                     "body_sha256": hashlib.sha256(raw[cut:]).hexdigest()}
+    assert len(raw) == cut + 4 * 3 + 8 * 3
+    norms = array.array("f", raw[cut:cut + 12])
+    block = array.array("b", raw[cut + 12:])
+    assert max(abs(x) for x in block) == 127
+    # a.txt comes first whatever order the documents went in, and each stored
+    # vector points the way the part's own vector does
+    for k, text in enumerate(texts):
+        stored, want = block[k * 8:(k + 1) * 8], vec(text)
+        cosine = sum(a * b for a, b in zip(stored, want)) / (norms[k] * math.sqrt(sum(x * x for x in want)))
+        assert cosine > 0.999, text
+        assert abs(norms[k] - math.sqrt(sum(x * x for x in stored))) < 1e-3
+    assert sig.problems([entry], str(out), dims=8) == []
+    assert sig.build([entry], str(home / "packs"), str(out), dims=8) == 0
+    assert (out / "tiny.sig").read_bytes() == raw
+
+    with pytest.raises(sig.Stop, match="SHA-256"):
+        sig.build([dict(entry, sha256="0" * 64)], str(home / "packs"), str(out), dims=8)
+    with pytest.raises(sig.Stop, match="the catalog says nomic-embed-text-v2-moe"):
+        sig.build([dict(entry, embedder=V2)], str(home / "packs"), str(out), dims=8)
+    with pytest.raises(sig.Stop, match="3 parts, the catalog says 4"):
+        sig.build([dict(entry, parts=4)], str(home / "packs"), str(out), dims=8)
+    with pytest.raises(sig.Stop, match="8 numbers, 16 are needed"):
+        sig.build([entry], str(home / "packs"), str(out), dims=16)
+    with pytest.raises(sig.Stop, match="is not there"):
+        sig.build([entry, dict(entry, id="absent")], str(home / "packs"), str(out), dims=8)
+    assert (out / "tiny.sig").read_bytes() == raw and not (out / "absent.sig").exists()
+    # Every file is worked out before any is written. A pack file further down
+    # the catalog that is not the right one leaves the files of the ones
+    # before it as they were, and the ones with no entry are not removed.
+    other = _a_pack_file(home, "other", ["bandera", "Madrid"])
+    (out / "tiny.sig").write_bytes(b"from the release before")
+    (out / "gone.sig").write_bytes(b"x")
+    for bad in (dict(other, sha256="0" * 64), dict(other, parts=5), dict(other, id="absent"),
+                {k: v for k, v in other.items() if k != "parts"}):
+        with pytest.raises(sig.Stop):
+            sig.build([entry, bad], str(home / "packs"), str(out), dims=8)
+        assert (out / "tiny.sig").read_bytes() == b"from the release before"
+        assert sorted(p.name for p in out.iterdir()) == ["gone.sig", "notes.txt", "tiny.sig"]
+    assert sig.build([entry, other], str(home / "packs"), str(out), dims=8) == 0
+    assert (out / "tiny.sig").read_bytes() == raw
+    assert sorted(p.name for p in out.iterdir()) == ["notes.txt", "other.sig", "tiny.sig"]
+
+
+def test_the_signature_check_tells_a_stale_file_without_reading_a_pack(home):
+    """What the package build runs. A new revision in the catalog, another
+    search model, a cut file, a missing one and one too many are each said."""
+    sig = _tool("build-pack-signatures")
+    entry = _a_pack_file(home, "tiny", ["Madrid", "castellano", "bandera"])
+    out = home / "signatures"
+    sig.build([entry], str(home / "packs"), str(out), dims=8)
+    (home / "packs" / "tiny" / "tiny-r1.ai2pack").unlink()
+    assert sig.problems([entry], str(out), dims=8) == []
+    for change, said in (({"sha256": "0" * 64}, "pack_sha256"), ({"revision": 2}, "revision"),
+                         ({"embedder": V2}, "model"), ({"parts": 4}, "count")):
+        found = sig.problems([dict(entry, **change)], str(out), dims=8)
+        assert len(found) == 1 and said in found[0], change
+    assert "dims" in sig.problems([entry], str(out), dims=16)[0]
+    assert sig.problems([entry, dict(entry, id="other")], str(out), dims=8) == ["other: no signature"]
+    assert sig.problems([], str(out), dims=8) == ["tiny.sig: the catalog has no such Knowledge Pack"]
+    whole = (out / "tiny.sig").read_bytes()
+    (out / "tiny.sig").write_bytes(whole[:-1])
+    assert "bytes, not" in sig.problems([entry], str(out), dims=8)[0]
+    (out / "tiny.sig").write_bytes(b"not a signature")
+    assert "no readable first line" in sig.problems([entry], str(out), dims=8)[0]
+    # The first line and the length are right and the vectors are not the
+    # ones the file was written with.
+    cut = whole.index(b"\n") + 1
+    for body in (bytes(len(whole) - cut), whole[cut:-1] + bytes([whole[-1] ^ 1]), whole[cut + 1:] + whole[cut:cut + 1]):
+        (out / "tiny.sig").write_bytes(whole[:cut] + body)
+        found = sig.problems([entry], str(out), dims=8)
+        assert len(found) == 1 and "are not the ones it was written with" in found[0]
+    # a file from before the first line carried body_sha256 is another format
+    import json
+    head = json.loads(whole[:cut])
+    del head["body_sha256"]
+    (out / "tiny.sig").write_bytes(json.dumps(head, separators=(",", ":")).encode() + b"\n" + whole[cut:])
+    assert "another format" in sig.problems([entry], str(out), dims=8)[0]
+    (out / "tiny.sig").write_bytes(whole)
+    assert sig.problems([entry], str(out), dims=8) == []
+    # a catalog entry that is not whole is said, not a traceback
+    found = sig.problems([{k: v for k, v in entry.items() if k != "parts"}], str(out), dims=8)
+    assert found == ["tiny: the catalog entry has no parts"]
+
+
+def test_the_signature_tool_exits_with_what_the_build_goes_by(home, monkeypatch, capsys):
+    """packaging/build-packages.sh refuses a build on the exit code of
+    --check alone. 0 the files match, 1 they do not or could not be made. An
+    option the tool does not know, --help included, exits without a download
+    and without writing."""
+    sig = _tool("build-pack-signatures")
+    entry = _a_pack_file(home, "tiny", ["Madrid", "castellano", "bandera"])
+    out = home / "signatures"
+    (home / "packs.yml").write_text(yaml.safe_dump({"version": 1, "packs": [entry]}))
+    monkeypatch.setattr(sig, "CATALOG", str(home / "packs.yml"))
+    monkeypatch.setattr(sig, "SIG_DIR", str(out))
+    monkeypatch.setattr(sig, "DIMS", 8)
+    monkeypatch.setattr(sig, "fetch", lambda *a: pytest.fail("a download was started"))
+    assert sig.main(["--check"]) == 1 and "tiny: no signature" in capsys.readouterr().out
+    for argv in (["--help"], ["-h"], ["--chek"], ["--check", "--force"], ["--check", str(home / "packs")],
+                 [str(home / "packs"), "more"], ["-x", str(home / "packs")]):
+        assert sig.main(argv) == (0 if argv[0] in ("--help", "-h") else 2), argv
+        assert not out.exists(), argv
+    assert "usage" in capsys.readouterr().out
+    assert sig.main([str(home / "packs")]) == 0 and sig.main(["--check"]) == 0
+    whole = (out / "tiny.sig").read_bytes()
+    (out / "tiny.sig").write_bytes(whole[:-1] + bytes([whole[-1] ^ 1]))
+    capsys.readouterr()
+    assert sig.main(["--check"]) == 1
+    assert "does not match the catalog" in capsys.readouterr().out
+    (out / "tiny.sig").write_bytes(whole)
+    (out / "stray.sig").write_bytes(b"x")
+    assert sig.main(["--check"]) == 1
+    (out / "stray.sig").unlink()
+    # the pack file is gone, so the files cannot be made, and that is exit 1 with nothing changed
+    (home / "packs" / "tiny" / "tiny-r1.ai2pack").unlink()
+    assert sig.main([str(home / "packs")]) == 1 and "nothing was written" in capsys.readouterr().out
+    assert (out / "tiny.sig").read_bytes() == whole and sig.main(["--check"]) == 0
+    # a catalog entry that is not whole
+    (home / "packs.yml").write_text(yaml.safe_dump({"version": 1, "packs": [{"id": "tiny", "revision": 1}]}))
+    assert sig.main(["--check"]) == 1 and "the catalog entry has no" in capsys.readouterr().out
+    assert sig.main([str(home / "packs")]) == 1 and (out / "tiny.sig").read_bytes() == whole
