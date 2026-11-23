@@ -8,7 +8,8 @@ bandwidth and that clients exist for on anything with a network stack. No AI-2
 code is needed on the asking side.
 
 What is served. By default only Knowledge Packs, because a pack is published
-material; a person's own indexed documents are exposed only with --all. The
+material. The local account can search personal collections from the chat;
+sharing those collections with the network requires --all. The
 menu offers, per collection, a search item and a list of its documents; a
 document comes back as plain text with its parts joined.
 
@@ -25,6 +26,9 @@ Knowledge Packs.
 from __future__ import annotations
 
 import collections
+from contextlib import closing
+import os
+import struct
 import secrets
 import select
 import socket
@@ -309,6 +313,7 @@ class Chat:
         for i, topic in enumerate(last.get("topics") or [], 1):
             out += line("1", f"{tr('Read the complete topic')} [{i}]", f"{TOPIC_SELECTOR}/{topic}", "127.0.0.1", port)
         out += line("1", tr("Search Knowledge Packs"), KNOWLEDGE_SELECTOR, "127.0.0.1", port)
+        out += line("1", tr("Ask this collection"), "/collections", "127.0.0.1", port)
         if self.store and self.store.keys():
             out += line("1", tr("Earlier conversations"), CHATS_SELECTOR, "127.0.0.1", port)
         if self.store and key and key in self.store.keys():
@@ -481,7 +486,10 @@ class Library:
         return str((manifest or {}).get("title") or name)
 
     def store(self, name: str):
-        if not doc.valid_collection(name) or name not in {n for n, _ in self.collections()}:
+        from . import pack
+        if not doc.valid_collection(name) or name not in doc.list_collections():
+            return None
+        if not self.everything and pack.manifest_of(name) is None:
             return None
         return doc.open_store(doc.read_index_path(name))
 
@@ -491,7 +499,8 @@ class Menus:
     tests can ask for a menu without opening a port."""
 
     def __init__(self, library: Library, embed_query, host: str, port: int, chat: Chat | None = None,
-                 resident=None):
+                 resident=None, collection_view: bool = False):
+        self.collection_view = collection_view
         self.lib = library
         self.embed_query = embed_query
         self.host = host
@@ -560,6 +569,15 @@ class Menus:
         out.append(info(tr("More Knowledge Packs: {url}").format(url=pack.CATALOG_URL)))
         return "".join(out) + "." + CRLF
 
+    def collections_menu(self) -> str:
+        out = [info(tr("Choose a collection to search.")), info()]
+        collections = self.lib.collections()
+        for name, manifest in collections:
+            out.append(line("7", self.lib.title(name, manifest), f"/search/@{name}", "127.0.0.1", self.port))
+        if not collections:
+            out.append(info(tr("Add a collection with: ai-2 doc index --in NAME FILE")))
+        return "".join(out) + "." + CRLF
+
     def listing(self, name: str, local: bool = False) -> str:
         conn = self.lib.store(name)
         if conn is None:
@@ -574,14 +592,16 @@ class Menus:
         return "".join(out) + "." + CRLF
 
     def document(self, name: str, doc_name: str) -> str:
+        from . import pack
         conn = self.lib.store(name)
         if conn is None:
             return error(f"No knowledge called {name!r} here")
-        rows = conn.execute("SELECT chunks.text FROM chunks JOIN docs ON docs.id = chunks.doc_id "
-                            "WHERE docs.name = ? ORDER BY chunks.ord", (doc_name,)).fetchall()
+        with closing(conn):
+            rows = conn.execute("SELECT chunks.text FROM chunks JOIN docs ON docs.id = chunks.doc_id "
+                                "WHERE docs.name = ? ORDER BY chunks.ord", (doc_name,)).fetchall()
         if not rows:
             return error(f"No document called {doc_name!r} in {name}")
-        manifest = dict(self.lib.collections()).get(name)
+        manifest = pack.manifest_of(name)
         header = [doc_name, "=" * len(doc_name), ""]
         return text_page("\n".join(header) + join_parts([r[0] for r in rows])
                          + "\n" + "\n".join(self.provenance(name, manifest, doc_name)))
@@ -624,7 +644,8 @@ class Menus:
         """A page of passages. The order is the search's; the source of each
         result is its own, and the terms of each Knowledge Pack appear once."""
         host = self._link_host(local)
-        manifests = dict(self.lib.collections())
+        from . import pack
+        manifests = {name: pack.manifest_of(name) for name in dict.fromkeys(hit["collection"] for hit in hits)}
         out = [info(tr("Closest passages")), info(query), info()]
         out += [info(text) for text in textwrap.wrap(
             tr("These are the passages closest to your question. A passage may not answer it."), width=WRAP)]
@@ -640,7 +661,10 @@ class Menus:
             out += [info(text) for text in self.provenance(name, manifests.get(name))]
         out.append(info())
         out.append(line("7", tr("Search again"), again, host, self.port))
-        out.append(line("1", tr("Knowledge Packs"), KNOWLEDGE_SELECTOR, host, self.port))
+        if self.collection_view:
+            out.append(line("1", tr("Ask this collection"), "/collections", host, self.port))
+        else:
+            out.append(line("1", tr("Knowledge Packs"), KNOWLEDGE_SELECTOR, host, self.port))
         return "".join(out) + "." + CRLF
 
     def _passage(self, i: int, hit: dict, stores: dict, manifests: dict, host: str,
@@ -677,7 +701,9 @@ class Menus:
             out.append(info("    " + tr("source: {url}").format(url=url)))
             plain.append(tr("source: {url}").format(url=url))
         if linked:
-            out.append(line("0", "    " + tr("Read the complete topic"), f"/doc/{name}/{hit['doc']}", host, self.port))
+            selector_name = "@" + name if self.collection_view else name
+            out.append(line("0", "    " + tr("Read the complete topic"),
+                            f"/doc/{selector_name}/{hit['doc']}", host, self.port))
         out.append(info())
         return out, "\n".join(plain) + "\n"
 
@@ -781,26 +807,39 @@ class Menus:
         conn = self.lib.store(name)
         if conn is None:
             return error(f"No knowledge called {name!r} here")
-        query = query.strip()
-        if not query:
-            return error(tr("Type a question"))
-        model_id = doc.store_model(conn)
-        try:
-            vector = self.embed_query(model_id, query)
-        except Exception as exc:                       # the embedding server, not the client
-            return error(tr("Cannot answer right now ({reason})").format(reason=exc))
-        hits = doc.search(conn, vector, top=MAX_HITS)
-        if not hits:
-            return error(tr("Nothing here matches that"))
-        for hit in hits:
-            hit["collection"] = name
-        return self._results(query, hits, {name: conn}, f"/search/{name}", local, titled=False)
+        with closing(conn):
+            query = query.strip()
+            if not query:
+                return error(tr("Type a question"))
+            model_id = doc.store_model(conn)
+            if not model_id:
+                return error(tr("No passages were returned."))
+            try:
+                vector = self.embed_query(model_id, query)
+            except Exception as exc:                       # the embedding server, not the client
+                return error(tr("Cannot answer right now ({reason})").format(reason=exc))
+            hits = doc.search(conn, vector, top=MAX_HITS)
+            if not hits:
+                return error(tr("Nothing here matches that"))
+            for hit in hits:
+                hit["collection"] = name
+            selector_name = "@" + name if self.collection_view else name
+            return self._results(query, hits, {name: conn}, f"/search/{selector_name}", local, titled=self.collection_view)
 
     def respond(self, request: str, local: bool = False) -> str:
         """The whole protocol except chat, which Handler writes as it comes: a
         selector, optionally a tab and a query."""
         selector, _, query = request.partition("\t")
         selector = selector.strip()
+        if self.collection_view:
+            if selector == "/collections":
+                return self.collections_menu()
+            if selector.startswith("/search/@"):
+                return self.search(selector[len("/search/@"):], query, local)
+            if selector.startswith("/doc/@"):
+                name, _, filename = selector[len("/doc/@"):].partition("/")
+                return self.document(name, filename)
+            return error(tr("Unknown collection"))
         if selector in ("", "/"):
             return self.root(local)
         parts = [p for p in selector.split("/") if p]
@@ -817,6 +856,32 @@ class Menus:
         if len(parts) >= 3 and parts[0] == "topic":
             return self.topic(parts[1], "/".join(parts[2:]))
         return error(f"Nothing here called {selector!r}")
+
+
+def _same_account_client(connection: socket.socket) -> bool:
+    """Private documents on a shared Linux PC belong to one account. Check the
+    client side of this exact loopback TCP connection, including IPv4-mapped
+    clients. The accepted server socket itself always belongs to our account."""
+    def endpoint(address):
+        host, port = address[:2]
+        native_word = struct.unpack("=I", socket.inet_aton(host))[0]
+        return f"{native_word:08X}:{port:04X}"
+
+    peer = endpoint(connection.getpeername())
+    local = endpoint(connection.getsockname())
+    # /proc/net/tcp6 prints ::ffff:a.b.c.d as four native-endian 32-bit words.
+    mapped = "0000000000000000" + f"{socket.htonl(0xffff):08X}"
+    for table, prefix in (("tcp", ""), ("tcp6", mapped)):
+        try:
+            with open(f"/proc/net/{table}") as rows:
+                for row in rows:
+                    fields = row.split()
+                    if (len(fields) > 9 and fields[1:3] == [prefix + peer, prefix + local]
+                            and fields[9] != "0"):
+                        return fields[7] == str(os.getuid())
+        except OSError:
+            continue
+    return False
 
 
 class Handler(socketserver.StreamRequestHandler):
@@ -840,7 +905,13 @@ class Handler(socketserver.StreamRequestHandler):
             body = error(tr("Busy answering another question, try again in a moment"))
         else:
             try:
-                body = self.server.menus.respond(request, local)
+                if selector == "/collections" or selector.startswith(("/search/@", "/doc/@")):
+                    if local and self.server.menus.chat and _same_account_client(self.connection):
+                        body = self.server.collection_menus.respond(request, local=True)
+                    else:
+                        body = error(tr("Collections are available only to the local account."))
+                else:
+                    body = self.server.menus.respond(request, local)
             except Exception as exc:                    # one bad request must not end the server
                 body = error(f"Something went wrong ({exc})")
             finally:
@@ -953,4 +1024,6 @@ def serve(embed_query, host: str = "127.0.0.1", port: int = PORT, everything: bo
         server = Threaded((host, port), Handler)
         server.gate = threading.BoundedSemaphore(workers)
     server.menus = menus
+    server.collection_menus = Menus(Library(everything=True), embed_query, "127.0.0.1",
+                                    port, collection_view=True)
     return server

@@ -225,5 +225,10 @@
   "Search again": "Buscar de nuevo",
   "Search is unavailable right now ({reason})": "La búsqueda no está disponible ahora mismo ({reason})",
   "No Knowledge Pack on this computer covers this. What follows comes from the memory of the AI model, has no source and may be wrong.": "Ningún Paquete de Conocimiento de este ordenador trata esto. Lo que sigue sale de la memoria del modelo de IA, no tiene fuente y puede estar equivocado.",
-  "From the Knowledge Packs on this computer. The AI model wrote none of this, and a passage may not answer your question.": "De los Paquetes de Conocimiento de este ordenador. El modelo de IA no ha escrito nada de esto, y puede que un pasaje no responda a tu pregunta."
+  "From the Knowledge Packs on this computer. The AI model wrote none of this, and a passage may not answer your question.": "De los Paquetes de Conocimiento de este ordenador. El modelo de IA no ha escrito nada de esto, y puede que un pasaje no responda a tu pregunta.",
+  "Ask this collection": "Preguntar a esta colección",
+  "Choose a collection to search.": "Elige la colección en la que quieres buscar.",
+  "Add a collection with: ai-2 doc index --in NAME FILE": "Añade una colección con: ai-2 doc index --in NOMBRE ARCHIVO",
+  "Collections are available only to the local account.": "Las colecciones solo están disponibles para la cuenta local.",
+  "Unknown collection": "Colección desconocida"
 }

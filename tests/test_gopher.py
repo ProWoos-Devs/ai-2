@@ -1177,3 +1177,37 @@ def test_the_chat_says_nothing_about_sources_when_it_could_not_tell(library):
     sent = []
     chat.answer("", "madrid", sent.append, 7070)
     assert "Hola." in "".join(sent) and "may be wrong" not in "".join(sent)
+
+
+def test_ask_this_collection_from_chat_reads_only_the_selected_collection(library, monkeypatch):
+    asked = []
+
+    def embed(model, question):
+        asked.append(model)
+        return vec(question)
+
+    mine = doc.open_store(doc.index_path("my-notes"))
+    doc.set_store_model(mine, "notes-model", 8)
+    mine.close()
+    server = gopher.serve(embed, host="127.0.0.1", port=0,
+                          chat_reply=lambda _: pytest.fail("scoped search started the chat model"))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        assert "1Ask this collection\t/collections" in talk(server, "/chat")
+        menu = talk(server, "/collections")
+        assert "7my-notes\t/search/@my-notes" in menu and "7Everyday Reference\t/search/@everyday" in menu
+        result = talk(server, "/search/@my-notes\tdisk")
+        assert "My private disk notes" in result and "spain.txt" not in result
+        assert "/doc/@my-notes/private.txt" in result and "7Search again\t/search/@my-notes" in result
+        assert "My private disk notes" in talk(server, "/doc/@my-notes/private.txt")
+        assert asked == ["notes-model"]
+        assert "private" not in talk(server, "/search/my-notes\tdisk")
+        assert "No knowledge" in talk(server, "/search/@missing\tdisk")
+        monkeypatch.setattr(gopher, "_same_account_client", lambda _: False)
+        for request in ("/collections", "/search/@my-notes\tdisk", "/doc/@my-notes/private.txt"):
+            denied = talk(server, request)
+            assert denied.startswith("3") and "my-notes" not in denied and "private" not in denied
+        assert asked == ["notes-model"]
+    finally:
+        server.shutdown()
+        server.server_close()
