@@ -644,17 +644,33 @@ class Menus:
         return "".join(out) + "." + CRLF
 
     def _passage(self, i: int, hit: dict, stores: dict, manifests: dict, host: str,
-                 titled: bool, linked: bool = True) -> tuple[list[str], str]:
+                 titled: bool, linked: bool = True, short: bool = False) -> tuple[list[str], str]:
         """One result as menu lines, and as the plain text a saved conversation
-        keeps. `linked` adds the link to the whole topic under it."""
+        keeps. `linked` adds the link to the whole topic under it. `short`
+        shows the topic's short answer (doc.short_answer) in place of the part,
+        when the topic has one and the part lies at or before its end: the
+        question then matched the title, the search terms or the short answer
+        itself. A part further down is one fact, and stays the passage."""
         from . import pack
         name = hit["collection"]
         manifest = manifests.get(name)
-        label = f"{self.lib.title(name, manifest)}: {doc.cite(hit)}" if titled else doc.cite(hit)
-        passage = doc.finish_sentence(stores[name], hit)
+        answer = doc.short_answer(stores[name], hit["doc"]) if short else None
+        if answer is not None and hit["ord"] > answer["last"]:
+            answer = None
+        cited = doc.cite(dict(hit, section=answer["heading"])) if answer else doc.cite(hit)
+        label = f"{self.lib.title(name, manifest)}: {cited}" if titled else cited
         out = [info(text) for text in textwrap.wrap(f"[{i}] {label}", width=WRAP)]
-        out += [info(f"    {wrapped}") for wrapped in textwrap.wrap(passage, width=WRAP)]
-        plain = [f"[{i}] {label}", " ".join(passage.split())]
+        if answer:
+            # whole paragraphs as the topic has them, so no sentence to finish
+            for n, paragraph in enumerate(answer["text"].split(doc.PARAGRAPH)):
+                if n:
+                    out.append(info())
+                out += [info(f"    {wrapped}") for wrapped in textwrap.wrap(paragraph, width=WRAP)]
+            plain = [f"[{i}] {label}", " ".join(answer["text"].split())]
+        else:
+            passage = doc.finish_sentence(stores[name], hit)
+            out += [info(f"    {wrapped}") for wrapped in textwrap.wrap(passage, width=WRAP)]
+            plain = [f"[{i}] {label}", " ".join(passage.split())]
         url = pack.source_url(manifest, hit["doc"])
         if url:
             out.append(info("    " + tr("source: {url}").format(url=url)))
@@ -718,8 +734,16 @@ class Menus:
                 tr("From the Knowledge Packs on this computer. The AI model wrote none of this, "
                    "and a passage may not answer your question."), width=WRAP)] + [info()]
             plain = []
+            # short=True: a topic's short answer in place of the matched part
+            # when the top of the topic matched, which is often its list of
+            # search terms. Measured on the development laptop with questions
+            # written for the test, by one strict reader: of the 20 broad
+            # questions that matched, the text shown answered 8 this way off
+            # and 19 with it on; of the 17 that matched at a single fact, 15
+            # before and after. The search pages (_results) do not use it.
             for i, hit in enumerate(matches, 1):
-                shown, text = self._passage(i, hit, stores, manifests, "127.0.0.1", titled=True, linked=False)
+                shown, text = self._passage(i, hit, stores, manifests, "127.0.0.1", titled=True, linked=False,
+                                            short=True)
                 lines += shown
                 plain.append(text)
             for name in dict.fromkeys(hit["collection"] for hit in matches):

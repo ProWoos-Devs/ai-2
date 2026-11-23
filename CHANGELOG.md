@@ -3,6 +3,8 @@
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Changed
+- **The chat shows a topic's short answer when the question matches the top of the topic.** A topic of a Knowledge Pack may carry a section headed SHORT ANSWER (RESPUESTA CORTA, KURZE ANTWORT). When a chat question matched the topic's title, its search terms or the short answer itself, the chat showed the matched part, often the list of search terms; it now shows the short answer under the topic's name. A question that matches one fact further down still gets that fact. With Mitos y hechos de la historia hispánica and 60 questions written for the test, on a development laptop, the text shown answered 8 of the 20 broad questions that matched before and 19 now, and 15 of the 17 specific ones before and after. A topic without the section, Search Knowledge Packs, `ai-2 doc search` and the terminal chat are unchanged.
 
 ## [0.29.5] - 2026-11-22
 ### Changed

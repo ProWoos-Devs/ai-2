@@ -46,6 +46,8 @@ ai-2 doc search "how long do I boil an egg?"
 
 The pack holds the documents' text and the search index, not your file paths. A pack can only be searched with the embedding model that built it, and AI-2 fetches that model for you if it is missing (on an ISO install of 2026-09-16 or later the English one is already on the machine).
 
+A topic of a Knowledge Pack may carry a short answer for the AI-2 chat, a section headed `SHORT ANSWER` (`RESPUESTA CORTA` in a Spanish topic, `KURZE ANTWORT` in a German one), with the heading in capitals alone on its line, a blank line above and below it, once in the topic, and under it the answer in at most 150 words before the next heading in capitals. When a question in the chat matches the top of such a topic, the chat shows that answer in place of the matched passage, and a topic without the section, which is optional, is shown as before.
+
 ## The three packs that come with AI-2
 
 Which of these are already on your computer depends on how it got AI-2.

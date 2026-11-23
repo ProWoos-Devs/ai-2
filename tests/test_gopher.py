@@ -1053,6 +1053,77 @@ def test_the_chat_shows_the_knowledge_pack_passage_and_never_asks_the_model(big_
         server.shutdown()
 
 
+@pytest.fixture
+def short_library(big_library):
+    """big_library plus a topic written the way a Knowledge Pack with short
+    answers writes one: title, search terms, the short answer, the facts.
+    The parts overlap, as indexed parts do."""
+    conn = doc.open_store(doc.index_path("everyday"))
+    parts = [("Why is my program frozen?\n\nSearch terms: frozen, program, stuck.\n\nSHORT ANSWER\n\nIt is busy, not",
+              vec("frozen program")),
+             ("SHORT ANSWER\n\nIt is busy, not broken. Wait a minute before closing it. [S1]\n\nTHE FACTS\n\n1. Reading",
+              vec("frozen")),
+             ("THE FACTS\n\n1. Reading a slow disk can hold a window still for a while.", vec("disk"))]
+    doc.add_document(conn, "frozen.txt", "frozen.txt", [t for t, _ in parts], [v for _, v in parts], words=40)
+    conn.close()
+    return big_library
+
+
+def test_the_chat_shows_the_short_answer_when_the_title_and_search_terms_matched(short_library):
+    """The closest part of such a topic is its first, which is the title and
+    the list of search terms: true to the question and no answer to it."""
+    asked = []
+    server = chat_server(lambda history: asked.append(history) or iter(["Invented."]))
+    try:
+        first = talk(server, "/chat\tmy program is frozen")
+        assert asked == [] and "Invented" not in first
+        assert "[1] Everyday Reference: frozen.txt, SHORT ANSWER\t" in first
+        assert "i    It is busy, not broken. Wait a minute before closing it. [S1]\t" in first
+        assert "Search terms" not in first and "THE FACTS" not in first and "part 1 of" not in first
+        assert ["1Read the complete topic [1]", "/topic/everyday/frozen.txt"] in [i[:2] for i in items(first, "1")]
+        key = items(first)[0][1].split("/")[-1]
+        saved = server.menus.chat.sessions[key][1]
+        assert saved["from"] == gopher.FROM_KNOWLEDGE
+        assert saved["content"].startswith("[1] Everyday Reference: frozen.txt, SHORT ANSWER\n"
+                                           "It is busy, not broken. Wait a minute before closing it. [S1]\n")
+        again = said(talk(server, f"/chat/{key}"))                                   # the page keeps it
+        assert "frozen.txt, SHORT ANSWER" in again and "Wait a minute before closing it." in again
+        assert "Search terms" not in again
+    finally:
+        server.shutdown()
+
+
+def test_a_short_answer_of_two_paragraphs_keeps_them_apart(short_library):
+    conn = doc.open_store(doc.index_path("everyday"))
+    doc.add_document(conn, "frozen.txt", "frozen.txt",
+                     ["Frozen program\n\nSHORT ANSWER\n\nWait a minute.\n\nThen close it.\n\nTHE FACTS\n\n1. One."],
+                     [vec("frozen program")], words=14)
+    conn.close()
+    shown, text, topics = menus_for().chat_passages("my program is frozen")
+    lines = [l.split("\t")[0] for l in shown.split("\r\n")]
+    at = lines.index("i    Wait a minute.")
+    assert lines[at:at + 3] == ["i    Wait a minute.", "i", "i    Then close it."]
+    assert text == "[1] Everyday Reference: frozen.txt, SHORT ANSWER\nWait a minute. Then close it.\n"
+    assert topics == ["everyday/frozen.txt"]
+
+
+def test_a_fact_matched_after_the_short_answer_is_shown_as_before(short_library):
+    server = chat_server(lambda history: iter(["Invented."]))
+    try:
+        first = talk(server, "/chat\twhy is the disk slow")
+        assert "[1] Everyday Reference: frozen.txt, part 3 of 3\t" in first
+        assert "1. Reading a slow disk can hold a window still for a while." in first
+        assert "SHORT ANSWER" not in first and "It is busy" not in first
+    finally:
+        server.shutdown()
+
+
+def test_the_search_page_still_shows_the_closest_passage(short_library):
+    out = menus_for().respond("/knowledge/search\tmy program is frozen", local=True)
+    assert "frozen.txt, part 1 of 3\t" in out and "Search terms: frozen, program, stuck." in said(out)
+    assert "frozen.txt, SHORT ANSWER" not in out
+
+
 def test_the_chat_says_when_the_answer_has_no_source_and_the_model_does_not_reread_passages(big_library):
     asked = []
     server = chat_server(lambda history: asked.append(history) or iter(["A poem."]))
