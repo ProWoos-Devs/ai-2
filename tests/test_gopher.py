@@ -1071,7 +1071,7 @@ def short_library(big_library):
 
 def test_the_chat_shows_the_short_answer_when_the_title_and_search_terms_matched(short_library):
     """The closest part of such a topic is its first, which is the title and
-    the list of search terms: true to the question and no answer to it."""
+    the list of search terms, true to the question and no answer to it."""
     asked = []
     server = chat_server(lambda history: asked.append(history) or iter(["Invented."]))
     try:
@@ -1105,6 +1105,23 @@ def test_a_short_answer_of_two_paragraphs_keeps_them_apart(short_library):
     assert lines[at:at + 3] == ["i    Wait a minute.", "i", "i    Then close it."]
     assert text == "[1] Everyday Reference: frozen.txt, SHORT ANSWER\nWait a minute. Then close it.\n"
     assert topics == ["everyday/frozen.txt"]
+
+
+def test_a_part_in_the_middle_of_the_short_answer_shows_all_of_it(short_library):
+    """The rule looks at the last part the short answer lies in, not the
+    first. Here it is cut over three parts and the question is closest to the
+    middle one."""
+    conn = doc.open_store(doc.index_path("everyday"))
+    parts = [("Why does it stop?\n\nSearch terms: stuck.\n\nSHORT ANSWER\n\nIt is busy, not", vec("program")),
+             ("It is busy, not broken. Wait a minute before", vec("frozen")),
+             ("Wait a minute before closing it. [S1]\n\nTHE FACTS\n\n1. Reading a slow one.", vec("disk"))]
+    doc.add_document(conn, "frozen.txt", "frozen.txt", [t for t, _ in parts], [v for _, v in parts], words=30)
+    found = doc.short_answer(conn, "frozen.txt")
+    assert (found["first"], found["last"]) == (0, 2)
+    conn.close()
+    shown, text, topics = menus_for().chat_passages("it is frozen")
+    assert text == ("[1] Everyday Reference: frozen.txt, SHORT ANSWER\n"
+                    "It is busy, not broken. Wait a minute before closing it. [S1]\n")
 
 
 def test_a_fact_matched_after_the_short_answer_is_shown_as_before(short_library):

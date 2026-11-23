@@ -648,8 +648,9 @@ class Menus:
         """One result as menu lines, and as the plain text a saved conversation
         keeps. `linked` adds the link to the whole topic under it. `short`
         shows the topic's short answer (doc.short_answer) in place of the part,
-        when the topic has one and the part lies at or before its end: the
-        question then matched the title, the search terms or the short answer
+        when the topic has one and the part lies at or before its end. The
+        question then matched the top of the topic (the title, the search
+        terms, anything else before the short answer) or the short answer
         itself. A part further down is one fact, and stays the passage."""
         from . import pack
         name = hit["collection"]
@@ -734,7 +735,7 @@ class Menus:
                 tr("From the Knowledge Packs on this computer. The AI model wrote none of this, "
                    "and a passage may not answer your question."), width=WRAP)] + [info()]
             plain = []
-            # short=True: a topic's short answer in place of the matched part
+            # short=True shows a topic's short answer in place of the matched part
             # when the top of the topic matched, which is often its list of
             # search terms. Measured on the development laptop with questions
             # written for the test, by one strict reader: of the 20 broad
