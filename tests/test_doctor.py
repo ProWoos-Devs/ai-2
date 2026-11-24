@@ -58,7 +58,8 @@ def test_doctor_looks_at_the_packs_and_the_model_they_need(monkeypatch):
     monkeypatch.setattr(pack, "manifest_of", lambda name: manifest if name == "ai2-help" else None)
     monkeypatch.setattr(doc, "list_collections", lambda: ["ai2-help", "documents"])
     monkeypatch.setattr(doc, "store_model", lambda conn: "nomic-embed-text-v2-moe")
-    monkeypatch.setattr(doc, "open_store", lambda path=None: None)
+    from types import SimpleNamespace
+    monkeypatch.setattr(doc, "open_store_readonly", lambda path: SimpleNamespace(close=lambda: None))
     monkeypatch.setattr(packbrowse, "outdated", lambda: [{"id": "ai2-help", "title": "AI-2 Help"}])
 
     monkeypatch.setattr(doctor, "find_model_file", lambda f: None)
@@ -77,3 +78,70 @@ def test_doctor_says_when_there_are_no_packs(monkeypatch):
     monkeypatch.setattr(pack, "installed_packs", lambda: [])
     only = doctor.check_knowledge()
     assert len(only) == 1 and only[0].status == doctor.INFO and "none installed" in only[0].detail
+
+
+# The schema of a personal index as ai-2 0.29.5 wrote it (ai2/doc.py at
+# v0.29.5), before index_fingerprints, index_checkpoints and checkpoint_parts.
+SCHEMA_0295 = """
+    CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+    CREATE TABLE IF NOT EXISTS docs (
+        id INTEGER PRIMARY KEY, name TEXT UNIQUE, path TEXT, added TEXT,
+        words INTEGER, chunks INTEGER);
+    CREATE TABLE IF NOT EXISTS chunks (
+        id INTEGER PRIMARY KEY, doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
+        ord INTEGER, text TEXT, vec BLOB, page INTEGER, page_end INTEGER);
+    CREATE INDEX IF NOT EXISTS chunks_doc ON chunks(doc_id);
+"""
+
+
+def _index_0295(path, model):
+    import sqlite3
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
+    conn.executescript(SCHEMA_0295)
+    conn.execute("INSERT INTO meta VALUES ('model', ?)", (model,))
+    conn.execute("INSERT INTO docs VALUES (1, 'notes.txt', '/x/notes.txt', '2026-11-20', 3, 1)")
+    conn.execute("INSERT INTO chunks VALUES (1, 1, 0, 'three short words', ?, NULL, NULL)",
+                 (b"\x00" * 16,))
+    conn.commit()
+    conn.close()
+
+
+def test_doctor_reads_an_older_index_without_changing_it(tmp_path, monkeypatch):
+    """`ai-2 doctor` read a personal index's model through a writable open,
+    which added the newer tables to an index made by 0.29.5: running the
+    diagnostic changed the person's file. It must read it as it is."""
+    import hashlib
+    import sqlite3
+    from ai2 import doc, pack, packbrowse
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+    monkeypatch.setenv("AI2_SYSTEM_DOC_DIR", str(tmp_path / "system"))
+    index = tmp_path / "data" / "ai2" / "doc" / "notes" / "index.sqlite"
+    _index_0295(index, "nomic-embed-text-v2-moe")
+    manifest = {"id": "ai2-help", "title": "AI-2 Help", "embedder": {"id": "nomic-embed-text-v1.5"}}
+    monkeypatch.setattr(pack, "installed_packs", lambda: [("ai2-help", manifest)])
+    monkeypatch.setattr(pack, "manifest_of", lambda name: manifest if name == "ai2-help" else None)
+    monkeypatch.setattr(packbrowse, "outdated", lambda: [])
+    monkeypatch.setattr(doctor, "find_model_file", lambda f: "/models/" + f)
+    assert doc.list_collections() == ["notes"]
+
+    def snapshot():
+        return (hashlib.sha256(index.read_bytes()).hexdigest(), index.stat().st_mtime_ns,
+                sorted(p.name for p in index.parent.iterdir()))
+
+    before = snapshot()
+    checks = {c.name: c for c in doctor.check_knowledge()}
+    # the model was read: v2-moe differs from the pack's v1.5, so doctor says so
+    assert "another embedding model" in checks["Your documents"].detail
+    assert snapshot() == before, "doctor changed the index"
+    conn = sqlite3.connect(index)
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    conn.close()
+    assert tables == {"meta", "docs", "chunks"}
+
+    # and the same model as the pack's gives no note, so the value itself was read
+    index.unlink()
+    _index_0295(index, "nomic-embed-text-v1.5")
+    before = snapshot()
+    assert "Your documents" not in {c.name for c in doctor.check_knowledge()}
+    assert snapshot() == before, "doctor changed the index"

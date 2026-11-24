@@ -178,13 +178,21 @@ def remove_collection(name: str) -> None:
     shutil.rmtree(os.path.join(doc_root(), name), ignore_errors=True)
 
 
+def open_store_readonly(path: str) -> sqlite3.Connection:
+    """The store at path as it is, for reading only: SQLite's mode=ro, so
+    no schema is added and no byte of the file changes. For code that only
+    looks, such as `ai-2 doctor`; open_store brings an older store up to
+    the current schema on a writable open."""
+    return sqlite3.connect(pathlib.Path(path).as_uri() + "?mode=ro", uri=True)
+
+
 def open_store(path: str | None = None) -> sqlite3.Connection:
     if path is None:
         migrate_legacy_index()
         path = index_path()
     if os.path.abspath(path).startswith(system_doc_root() + os.sep):
         # a package owns this file: open it read-only and touch no schema
-        return sqlite3.connect(pathlib.Path(path).as_uri() + "?mode=ro", uri=True)
+        return open_store_readonly(path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     conn = sqlite3.connect(path)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -196,7 +204,7 @@ def open_store(path: str | None = None) -> sqlite3.Connection:
         # a store the person made read-only, perhaps from before a table was
         # added: read it as it is (a missing table reads as empty)
         conn.close()
-        return sqlite3.connect(pathlib.Path(path).as_uri() + "?mode=ro", uri=True)
+        return open_store_readonly(path)
     return conn
 
 

@@ -151,8 +151,14 @@ def check_knowledge() -> list[Check]:
     if own and embedders:
         own_models = set()
         for name in own:
+            # read-only: a diagnostic must not change the person's index (a
+            # writable open adds the newer tables to a store made by 0.29.5)
             try:
-                own_models.add(docmod.store_model(docmod.open_store(docmod.read_index_path(name))))
+                conn = docmod.open_store_readonly(docmod.read_index_path(name))
+                try:
+                    own_models.add(docmod.store_model(conn))
+                finally:
+                    conn.close()
             except Exception:                                       # noqa: BLE001
                 continue
         if own_models - embedders:
