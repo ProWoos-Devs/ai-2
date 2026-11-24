@@ -332,15 +332,59 @@ def _is_timeout(exc: BaseException) -> bool:
     return isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, (TimeoutError, socket.timeout))
 
 
+_STOP = None   # {SIGTERM, SIGINT}, filled in on first use (signal is imported lazily)
+
+
+def _stop_signals() -> set:
+    global _STOP
+    if _STOP is None:
+        import signal
+        _STOP = {signal.SIGTERM, signal.SIGINT}
+    return _STOP
+
+
 def _shutdown(proc) -> int:
     """Terminate llama-server and really wait it out; escalate to SIGKILL if
-    it ignores SIGTERM (a model loading from a slow disk can hang a while)."""
+    it ignores SIGTERM (a model loading from a slow disk can hang a while),
+    or at once if another SIGTERM or Ctrl-C comes while it waits.
+
+    The caller has SIGTERM and SIGINT blocked, so they stay pending until
+    this reads them with sigtimedwait: no handler can raise out of the wait
+    or run inside itself. A second SIGTERM used to raise SystemExit here, and
+    the wrapper cleared its server record and exited with llama-server still
+    running on the model's RAM and port (2026-11-23)."""
+    import signal
+    import time
     proc.terminate()
-    try:
-        return proc.wait(timeout=30)
-    except subprocess.TimeoutExpired:
+    deadline = time.monotonic() + 30
+    while proc.poll() is None and time.monotonic() < deadline:
+        if signal.sigtimedwait(_stop_signals(), 0.1) is not None:
+            break                                  # asked again: stop now
+    if proc.poll() is None:
         proc.kill()
-        return proc.wait(timeout=10)
+    return proc.wait(timeout=10)
+
+
+class _StopSignals:
+    """serve()'s handler for SIGTERM and SIGINT, which only the main thread
+    receives. It blocks both before anything else, so later ones wait for
+    _shutdown instead of running this handler again, and then starts the
+    normal shutdown: SystemExit, or KeyboardInterrupt for Ctrl-C. Two that
+    come microseconds apart are one to the kernel and to Python, so that
+    shutdown takes the normal course (llama-server is still reaped)."""
+
+    def __init__(self):
+        self.stopping = False
+
+    def __call__(self, signum, frame):
+        import signal
+        signal.pthread_sigmask(signal.SIG_BLOCK, _stop_signals())
+        if self.stopping:          # one that slipped in before the block
+            return
+        self.stopping = True
+        if signum == signal.SIGINT:
+            raise KeyboardInterrupt
+        sys.exit(143)
 
 
 def _poll_url(host: str, port: int) -> str:
@@ -394,20 +438,30 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
         cmd += ["--api-key", api_key]
     cmd += list(extra_args or [])
     proc = subprocess.Popen(cmd, env=env)
-    if warm is not None:
-        warm.start()
     # `ai-2 stop` sends SIGTERM to THIS wrapper process. Python's default
     # SIGTERM action kills it without running except/finally, which orphaned
     # llama-server with all its RAM (found on the 2011 laptop 2026-08-23).
-    # Turn SIGTERM into SystemExit so the shutdown path below runs.
-    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(143))
-    serverstate.write_server(os.getpid(), model_id, model_path, port, host, name=record)
-    started = time.monotonic()
-    last_busy = started
-    seen_up = False
-    poll_url = _poll_url(host, port)
-    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    # The handler turns the first SIGTERM into SystemExit so the shutdown
+    # path below runs; a later one makes the shutdown kill llama-server.
+    stop = _StopSignals()
+    mask = signal.pthread_sigmask(signal.SIG_BLOCK, [])
+    previous = {s: signal.signal(s, stop) for s in _stop_signals()}
     try:
+        started = time.monotonic()
+        last_busy = started
+        seen_up = False
+        poll_url = _poll_url(host, port)
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        if warm is not None:
+            # the warm-up thread inherits a mask that blocks both, so they
+            # always reach this thread, which is the one that reaps llama-server
+            signal.pthread_sigmask(signal.SIG_BLOCK, _stop_signals())
+            try:
+                warm.start()
+            finally:
+                if not stop.stopping:
+                    signal.pthread_sigmask(signal.SIG_SETMASK, mask)
+        serverstate.write_server(os.getpid(), model_id, model_path, port, host, name=record)
         while True:
             try:
                 rc = proc.wait(timeout=5)
@@ -431,8 +485,17 @@ def serve(runtime_dir: str, model_path: str, threads: int, ctx: int = 2048,
                     last_busy = now       # still loading, do not count as idle
                 # otherwise the failure counts as idle time (fail closed)
             if now - last_busy >= idle_timeout_s:
+                signal.pthread_sigmask(signal.SIG_BLOCK, _stop_signals())
+                stop.stopping = True
                 return _shutdown(proc)
     except (KeyboardInterrupt, SystemExit):
+        signal.pthread_sigmask(signal.SIG_BLOCK, _stop_signals())
+        stop.stopping = True
         return _shutdown(proc)
     finally:
         serverstate.clear_server(record)
+        for _ in _stop_signals():                  # take what came during the shutdown
+            signal.sigtimedwait(_stop_signals(), 0)
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
+        signal.pthread_sigmask(signal.SIG_SETMASK, mask)

@@ -4,6 +4,8 @@ import stat
 import textwrap
 import time
 
+import pytest
+
 from ai2 import runtime, serverstate
 from ai2.tiers import load_tiers, runtime_defaults
 
@@ -151,6 +153,81 @@ def test_sigterm_takes_the_child_down(tmp_path):
     else:
         os.kill(child, signal.SIGKILL)
         raise AssertionError("llama-server survived the wrapper's SIGTERM")
+
+
+SLOW_TO_STOP_SERVER = textwrap.dedent('''\
+    #!/usr/bin/env python3
+    # Stand-in for a llama-server that is slow to stop (a model loading from a
+    # slow disk): it notes the first termination request in a file next to
+    # itself and carries on, so the wrapper is left waiting in its shutdown.
+    import os, signal, time
+    mark = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asked-to-stop")
+    def note(signum, frame):
+        with open(mark, "w") as f:
+            f.write(str(os.getpid()))
+    signal.signal(signal.SIGTERM, note)
+    while True:
+        time.sleep(0.1)
+''')
+
+
+@pytest.mark.parametrize("signame,extra", [("SIGTERM", 1), ("SIGTERM", 20), ("SIGINT", 1)],
+                         ids=["second", "burst", "ctrl-c"])
+def test_second_sigterm_during_shutdown_still_reaps_the_child(tmp_path, signame, extra):
+    """`ai-2 stop` (or the runit service) can send a second SIGTERM while the
+    wrapper is still waiting out llama-server's shutdown. That second signal
+    used to raise SystemExit inside the wait, the wrapper cleared its server
+    record and exited, and llama-server kept running with the model's RAM and
+    port (reproduced 2026-11-23). The wrapper must reap its child either way."""
+    import signal
+    import subprocess
+    import sys
+    import time
+    rt = _runtime_dir(tmp_path, SLOW_TO_STOP_SERVER)
+    mark = tmp_path / "rt" / "asked-to-stop"
+    state = tmp_path / "state"
+    code = (f"import os; os.environ['XDG_STATE_HOME']=r'{state}'\n"
+            f"from ai2 import runtime\n"
+            f"runtime.serve(r'{rt}', 'm.gguf', threads=1, port={18768 + extra + len(signame)}, "
+            f"idle_timeout_s=600, model_id='t')\n")
+    env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    wrapper = subprocess.Popen([sys.executable, "-c", code], env=env)
+    child = None
+    try:
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline and child is None:
+            out = subprocess.run(["pgrep", "-P", str(wrapper.pid), "-f", "llama-server"],
+                                 capture_output=True, text=True).stdout.strip()
+            child = int(out) if out else None
+            time.sleep(0.2)
+        assert child, "fake llama-server never started"
+        time.sleep(0.5)                       # let the child install its handler
+        sig = getattr(signal, signame)
+        wrapper.send_signal(sig)              # first request: the wrapper starts its shutdown
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline and not mark.exists():
+            time.sleep(0.05)
+        assert mark.exists(), "the wrapper never passed the termination request on"
+        assert wrapper.poll() is None, "the wrapper did not wait for its child"
+        for _ in range(extra):                # second request(s), mid-shutdown, back to back
+            wrapper.send_signal(sig)
+        wrapper.wait(timeout=20)
+        # the wrapper reaped its child before it ended, so the pid is gone now
+        try:
+            os.kill(child, 0)
+            survived = True
+        except ProcessLookupError:
+            survived = False
+        assert not survived, "llama-server outlived the wrapper after a second SIGTERM"
+        assert not (state / "ai2" / "server.json").exists()
+    finally:
+        if child:
+            try:
+                os.kill(child, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        if wrapper.poll() is None:
+            wrapper.kill()
 
 
 # --- the model chat/serve actually use ---------------------------------------
