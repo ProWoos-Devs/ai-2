@@ -382,7 +382,9 @@ def test_scan_gives_the_same_scores_without_math_sumprod(tmp_path, monkeypatch):
     with_c = doc.closest_documents({"x": conn}, q, top=3, tally=tally)
     monkeypatch.setattr(doc, "_sumprod", None)          # a Python older than 3.12
     tally2 = [0.0, 0]
-    assert [(r[0], r[1]) for r in doc._scored(conn, q)] == pytest.approx(fast)
+    plain_rows = [(r[0], r[1]) for r in doc._scored(conn, q)]
+    assert [r[1] for r in plain_rows] == [r[1] for r in fast]
+    assert [r[0] for r in plain_rows] == pytest.approx([r[0] for r in fast])
     plain = doc.closest_documents({"x": conn}, q, top=3, tally=tally2)
     assert [(h["doc"], h["ord"]) for h in plain] == [(h["doc"], h["ord"]) for h in with_c]
     assert tally2 == pytest.approx(tally)
