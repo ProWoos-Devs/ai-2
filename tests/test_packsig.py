@@ -198,22 +198,22 @@ def test_the_standing_counts_the_packs_own_parts_among_the_ordinary(sigs):
 
 def test_a_standing_must_clear_the_line_by_the_rounding_margin(sigs):
     """The chat shows a passage whose standing is CHAT_MATCH or higher. A
-    signature keeps one byte a number, which moves a standing by up to 0.003,
+    signature keeps one byte a number, which moved a standing by up to 0.00302,
     so a Knowledge Pack is named only when its standing from the signature is
     the line plus that margin or higher. Exactly there is enough, and a hair
     under is not."""
-    assert packsig.ROUNDING_MARGIN == 0.003
+    assert packsig.ROUNDING_MARGIN == 0.0035
     e = entry("edge", ["a"])
     write_bytes_sig(sigs, e, [[127, 0]])
     # best 1, ordinary (0 + 1) / (99 + 1), standing (1 - 0.01) / (1 - 0.01), which is 1
     asked = {V15: ([1.0, 0.0], 0.0, 99)}
-    assert 0.997 + 0.003 == 1.0                       # these two add up without a rounding error
-    assert packsig.recommend([e], set(), asked, 0.997) is e
-    assert packsig.recommend([e], set(), asked, 0.997 + 1e-12) is None
-    # without the margin the next two would be named, and with twice the margin 0.997 would not
-    assert packsig.recommend([e], set(), asked, 0.9971) is None
+    assert 0.9965 + 0.0035 == 1.0                     # these two add up without a rounding error
+    assert packsig.recommend([e], set(), asked, 0.9965) is e
+    assert packsig.recommend([e], set(), asked, 0.9965 + 1e-12) is None
+    # without the margin the next two would be named, and with twice the margin 0.9965 would not
+    assert packsig.recommend([e], set(), asked, 0.9966) is None
     assert packsig.recommend([e], set(), asked, 1.0) is None
-    assert packsig.recommend([e], set(), asked, 0.9969) is e
+    assert packsig.recommend([e], set(), asked, 0.9964) is e
 
 
 def test_a_pack_under_the_line_is_not(sigs):

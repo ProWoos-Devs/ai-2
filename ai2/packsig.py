@@ -43,9 +43,14 @@ _HEADER_MAX = 4096
 # rounding). Without a margin, 2 of the 172 Knowledge Packs named in the
 # third setup showed no passage once installed. One stood at 0.4501 from its
 # signature and at 0.4496 installed, under a line of 0.45. recommend() asks
-# for this much above the line. With it, 133, 148 and 168 were named in the
-# three setups, and none of them stood under the line once installed.
-ROUNDING_MARGIN = 0.003
+# for this much above the line. The gap depends on the question vector, so
+# on the engine: on 2026-11-24, with llama.cpp b12359 (AI-2's own build, the
+# plain x64 code an old processor runs) the third setup reached 0.0030220,
+# over the 0.003 used until then. With 0.0035, on b10398 (x64 and haswell)
+# and on b12359 alike, 131 to 133, 146 to 148 and 165 to 169 Knowledge Packs
+# were named in the three setups, at most 2 fewer than with 0.003, and none
+# of them stood under the line once installed.
+ROUNDING_MARGIN = 0.0035
 # math.sumprod came with Python 3.12 and halves the time of the scan.
 _sumprod = getattr(math, "sumprod", None)
 

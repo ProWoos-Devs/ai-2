@@ -4,6 +4,8 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 
 ## [Unreleased]
 ### Changed
+- **The AI engine moves to llama.cpp v1.0.0 (b12359, package `ai2-llama-cpp 12359-1`).** The chat's decisions on 538 test questions changed for 10, every one a question sitting at the line, about as many as already differ between the plain build and the one newer processors get. The package carries the chat page of the same release, checked against its published SHA-256, because llama.cpp no longer keeps that page in its source.
+- **The chat names a Knowledge Pack only when its passage would clear the line by 0.0035, not 0.003.** With b12359 the rounded file the chat reads for this was off by up to 0.0030220 on the 538 test questions, a hair over the old margin. With 0.0035, on the old and new engine alike, no Knowledge Pack named stood under the line once installed, and at most 2 fewer were named.
 - **The chat's look into the Knowledge Packs spends less time in AI-2 itself.** It reads the Knowledge Packs' descriptions and the list of search models with the faster YAML reader that was already used for the catalog, and scores the parts of a Knowledge Pack with a dot product computed in C. On a development laptop with four Knowledge Packs and two search models, running the plain build an old processor gets, those three steps went from 182 to 100 milliseconds per question, with the same passages, scores and decisions on 270 test questions. Most of a lookup is still the search model reading the question, which this does not change.
 
 ## [0.30.0] - 2026-11-24
