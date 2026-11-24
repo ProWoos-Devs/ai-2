@@ -296,7 +296,7 @@ def test_stop_server_escalates_to_sigkill(tmp_path, monkeypatch):
     try:
         assert stubborn.stdout.readline().strip() == "ready"   # handler installed
         serverstate.write_server(stubborn.pid, "t", "/x/m.gguf", 8080, "127.0.0.1")
-        assert serverstate.stop_server(timeout_s=1, kill_after_s=5) is True
+        assert serverstate.stop_server(timeout_s=1, kill_after_s=5, grace_s=0.5) is True
         assert stubborn.wait(timeout=5) == -9
         assert serverstate.read_server() is None
     finally:

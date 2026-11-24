@@ -24,7 +24,7 @@ STUBBORN_SERVER = textwrap.dedent('''\
         time.sleep(0.1)
 ''')
 
-# A wrapper as 0.29.5 behaved on a second SIGTERM, at its worst: it writes the
+# A wrapper as 0.29.5 behaved on a second SIGTERM, at its worst. It writes the
 # record, starts the engine and exits on any SIGTERM without stopping it.
 OLD_WRAPPER = textwrap.dedent('''\
     import os, subprocess, sys
@@ -33,6 +33,19 @@ OLD_WRAPPER = textwrap.dedent('''\
     proc = subprocess.Popen([os.path.join(rt, "llama-server")])
     serverstate.write_server(os.getpid(), "t", "m.gguf", 19302, "127.0.0.1")
     proc.wait()
+''')
+
+# A wrapper wedged so deep it ignores SIGTERM, so only the kill by pid that
+# follows the SIGKILL of the wrapper can stop its engine.
+DEAF_WRAPPER = textwrap.dedent('''\
+    import os, signal, subprocess, sys, time
+    from ai2 import serverstate
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    rt = sys.argv[1]
+    proc = subprocess.Popen([os.path.join(rt, "llama-server")])
+    serverstate.write_server(os.getpid(), "t", "m.gguf", 19303, "127.0.0.1")
+    while True:
+        time.sleep(0.1)
 ''')
 
 
@@ -61,18 +74,27 @@ def _start(tmp_path, monkeypatch, args):
     env = dict(os.environ, PYTHONPATH=CODE, XDG_STATE_HOME=str(tmp_path / "state"))
     wrapper = subprocess.Popen([sys.executable, "-c", *args(rt)], env=env)
     ready = rt / "ready"
-    deadline = time.monotonic() + 20
-    while time.monotonic() < deadline and not (ready.exists() and ready.read_text()
-                                               and serverstate.read_server()):
-        time.sleep(0.1)
-    assert ready.exists() and serverstate.read_server(), "the stub engine never started"
-    assert os.getpgid(wrapper.pid) != wrapper.pid
-    return wrapper, int(ready.read_text())
-
-
-def _stop_and_check(wrapper, child):
     try:
-        assert serverstate.stop_server(timeout_s=2, kill_after_s=3) is True
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline and not (ready.exists() and ready.read_text()
+                                                   and serverstate.read_server()):
+            time.sleep(0.1)
+        assert ready.exists() and serverstate.read_server(), "the stub engine never started"
+        assert os.getpgid(wrapper.pid) != wrapper.pid
+        return wrapper, int(ready.read_text())
+    except BaseException:
+        # the stub ignores SIGTERM and loops forever, so never leave it behind
+        engine = int(ready.read_text()) if ready.exists() and ready.read_text() else 0
+        for pid in (wrapper.pid, engine):
+            if pid > 0 and not _gone(pid):
+                os.kill(pid, signal.SIGKILL)
+        wrapper.wait()
+        raise
+
+
+def _stop_and_check(wrapper, child, grace_s=5.0):
+    try:
+        assert serverstate.stop_server(timeout_s=2, kill_after_s=3, grace_s=grace_s) is True
         wrapper.wait(timeout=5)
         deadline = time.monotonic() + 3          # init reaps the orphan, if any
         while time.monotonic() < deadline and not _gone(child):
@@ -103,6 +125,14 @@ def test_stop_reaps_the_engine_an_older_wrapper_leaves_behind(tmp_path, monkeypa
     SIGTERM without stopping the engine."""
     wrapper, child = _start(tmp_path, monkeypatch, lambda rt: [OLD_WRAPPER, str(rt)])
     _stop_and_check(wrapper, child)
+
+
+def test_stop_kills_the_engine_of_a_wrapper_that_ignores_sigterm(tmp_path, monkeypatch):
+    """Neither SIGTERM reaches a wedged wrapper, and SIGKILL of a wrapper that
+    does not lead its group takes the wrapper alone, so the engine is killed
+    by its own pid."""
+    wrapper, child = _start(tmp_path, monkeypatch, lambda rt: [DEAF_WRAPPER, str(rt)])
+    _stop_and_check(wrapper, child, grace_s=0.5)
 
 
 def test_children_ignores_ones_in_a_session_of_their_own():
