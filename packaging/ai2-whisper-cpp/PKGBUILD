@@ -31,7 +31,7 @@
 # rpath), which is where ai2/speech.py looks. Nothing lands in /usr/bin.
 
 pkgname=ai2-whisper-cpp
-_tag=v1.9.4
+_tag=v1.9.6
 pkgver=${_tag#v}
 pkgrel=1
 pkgdesc="whisper.cpp speech-to-text runtime for AI-2 (file transcription, every CPU class, the build for this CPU chosen at start)"
