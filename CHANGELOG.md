@@ -13,6 +13,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ### Fixed
 - **A second stop request no longer leaves the AI model running.** When a model was slow to stop and a second request to stop arrived while AI-2 waited for it, AI-2 gave up waiting, said the model had stopped and left it running, holding its memory and its port until the next restart. AI-2 now stops it at once on the second request and waits until it has ended. This was so since 2026-08-23.
 - **`ai-2 doctor` no longer changes your own indexed documents.** To see which search model your own collections use, doctor opened each one for writing, and on a collection made by an earlier version that added the newer tables to the file. It now opens them for reading only and no longer changes them.
+- **`ai-2 stop` no longer leaves a slow AI model running.** When `ai-2 serve` had been started from a script or another program and the model took more than 30 seconds to stop, `ai-2 stop` said it had stopped and left the model running, holding its memory and its port. The same could happen with a server still running an earlier version after an update. `ai-2 stop` now asks once more, then stops the model itself, and waits until it has ended, at most 45 seconds.
 
 ## [0.29.5] - 2026-11-22
 ### Changed

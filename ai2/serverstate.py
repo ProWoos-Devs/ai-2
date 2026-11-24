@@ -108,28 +108,88 @@ def read_server(name: str = CHAT) -> dict | None:
     return data
 
 
-def stop_server(timeout_s: float = 30.0, kill_after_s: float = 10.0, name: str = CHAT) -> bool:
-    """SIGTERM the recorded server, SIGKILL it if it is still there after
-    timeout_s (the wrapper's own shutdown can wedge behind a model load in
-    uninterruptible I/O), and only then drop the record, so a second `ai-2
-    stop` never says "nothing running" while the RAM is still held. Returns
-    True if one was running."""
+def _stat(pid: int) -> list[str] | None:
+    """The fields of /proc/PID/stat after the command name (state first, then
+    ppid, pgrp, ...), or None when the process is gone."""
+    try:
+        with open(f"/proc/{pid}/stat", encoding="utf-8", errors="replace") as fh:
+            return fh.read().rsplit(")", 1)[1].split()
+    except (OSError, IndexError):
+        return None
+
+
+def _children(pid: int) -> list[tuple[int, str]]:
+    """The direct children of pid that share its process group, each with its
+    start time so a reused pid is never mistaken for it later. That is the
+    engine `ai-2 serve` runs. A child started in a session of its own (the
+    engines the Gopher server starts) is left alone, since it has its own
+    record and `ai-2 stop` stops it by that."""
+    me = _stat(pid)
+    if not me:
+        return []
+    found = []
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        fields = _stat(int(entry))
+        if fields and len(fields) > 19 and fields[1] == str(pid) and fields[2] == me[2]:
+            found.append((int(entry), fields[19]))
+    return found
+
+
+def _same_alive(pid: int, started: str) -> bool:
+    fields = _stat(pid)
+    return bool(fields) and len(fields) > 19 and fields[19] == started and fields[0] != "Z"
+
+
+def stop_server(timeout_s: float = 30.0, kill_after_s: float = 10.0, name: str = CHAT,
+                grace_s: float = 5.0) -> bool:
+    """Stop the recorded server and the engine under it, and only then drop
+    the record, so a second `ai-2 stop` never says "nothing running" while
+    the RAM is still held. Returns True if one was running.
+
+    SIGTERM first, then after timeout_s a second SIGTERM, which makes the
+    wrapper kill and reap a slow engine at once. The wrapper's own wait for
+    the engine is also 30 s, so a SIGKILL at that moment used to land just as
+    it gave up, and when the wrapper did not lead its process group (`ai-2
+    serve` started from a script) the SIGKILL took the wrapper alone and left
+    llama-server running. A wrapper from 0.29.5 or older also exits on a
+    second SIGTERM without killing the engine. So the engine's pid is taken
+    before the first signal, and once the wrapper is gone, or after grace_s
+    more, whatever is left is SIGKILLed, the wrapper (its group when it leads
+    one) and the engine by pid. The worst case is timeout_s + grace_s +
+    kill_after_s, 45 s by default; a process stuck in uninterruptible I/O can
+    outlast even SIGKILL, and the record is dropped after that wait anyway."""
     import time
     data = read_server(name)
     if not data:
         return False
     pid = int(data["pid"])
+    engines = _children(pid)
+
+    def left() -> list[int]:
+        return [c for c, started in engines if _same_alive(c, started)]
+
+    def wait(seconds: float, engines_too: bool = False) -> None:
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline and (_alive(pid) or (engines_too and left())):
+            time.sleep(0.2)
+
     try:
         os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
         clear_server(name)
         return False
-    deadline = time.monotonic() + timeout_s
-    while time.monotonic() < deadline and _alive(pid):
-        time.sleep(0.5)
+    wait(timeout_s)
+    if _alive(pid):
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+        wait(grace_s)
     if _alive(pid):
         # The wrapper leads its own process group when `ai-2 chat` started it
-        # (start_new_session); killing the group takes llama-server with it.
+        # (start_new_session); killing the group takes the engine with it.
         try:
             if os.getpgid(pid) == pid:
                 os.killpg(pid, signal.SIGKILL)
@@ -137,8 +197,11 @@ def stop_server(timeout_s: float = 30.0, kill_after_s: float = 10.0, name: str =
                 os.kill(pid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError):
             pass
-        deadline = time.monotonic() + kill_after_s
-        while time.monotonic() < deadline and _alive(pid):
-            time.sleep(0.2)
+    for child in left():
+        try:
+            os.kill(child, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+    wait(kill_after_s, engines_too=True)
     clear_server(name)
     return True
