@@ -12,6 +12,14 @@ The package carries a copy of the community catalog (https://github.com/ProWoos-
 
 `python3 tools/build-pack-signatures.py --check` reads no pack file and uses no network. It says whether every catalog entry has a signature made from the pack file with that entry's hash. It also says when the vectors in a file are not the ones the file was written with, from the SHA-256 of them in its first line. It exits 0 when the files match and 1 when they do not. An option the tool does not know prints the usage and exits 2 without downloading or writing anything, and `--help` prints what the tool does. `packaging/build-packages.sh` runs it and refuses to build `ai-2` when it fails, and `tests/test_pack.py` holds the same check.
 
+## engine-watch.py, the daily look at llama.cpp and whisper.cpp
+
+`.github/workflows/engine-watch.yml` in the workspace repo runs `python3 tools/engine-watch.py update --run-tests` every day at 06:17 UTC (and from the Actions tab by hand). For each engine it reads the pin in `packaging/ai2-llama-cpp/PKGBUILD` or `packaging/ai2-whisper-cpp/PKGBUILD` and the upstream release GitHub marks as latest, which skips llama.cpp's nightly b-tags. The pin keeps the tag scheme it has: llama.cpp's v1.0.0 is pinned as b12359, the build tag at the same commit, so pacman reads 12359-1 as newer than 10398-1. An epoch would do the same but puts a colon in the package file name, which GitHub release assets (the `[ai2]` repository) do not keep. When the release is newer it pushes branch `engine/llama-cpp` or `engine/whisper-cpp`, one commit from main with `_tag` moved and `pkgrel=1`, runs the unit tests on it and opens or updates one PR. The PR body has the hand gates as a checklist, the release-note lines that name a flag AI-2 passes to the engine, a keyword filter for CPU, x86, removal, rename and GGUF lines, every file that names the old tag, and the release notes.
+
+It never builds, signs or publishes anything. The package build, the ISA gates and RMM-PC stay by hand, as for every engine bump.
+
+What it leaves alone: a release whose PR was closed without merging, and a branch carrying a commit it did not make while that branch has an open PR (it comments there once per release instead) or never had one (the run fails, so the Actions failure email says so). A branch left from a merged or closed PR is started again from main; GitHub keeps that PR's commits. `python3 tools/engine-watch.py check` only prints the pins and the latest releases; `update --dry-run` says what it would do. Both use the GitHub token in `GH_TOKEN` when one is set.
+
 ## spec-ab.sh
 
 A/B of generation speed without and with self-speculative decoding on Qwen3.5 0.8B (the catalog's `spec_type_measured` note came from it).
