@@ -38,7 +38,7 @@
 # started from. Nothing lands in /usr/bin.
 
 pkgname=ai2-llama-cpp
-_tag=b10398
+_tag=b12359
 pkgver=${_tag#b}
 pkgrel=1
 pkgdesc="llama.cpp CPU inference runtime for AI-2 (every CPU class, the build for this CPU chosen at start)"
