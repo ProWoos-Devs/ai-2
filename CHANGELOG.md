@@ -3,6 +3,8 @@
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Changed
+- **The chat's look into the Knowledge Packs spends less time in AI-2 itself.** It reads the Knowledge Packs' descriptions and the list of search models with the faster YAML reader that was already used for the catalog, and scores the parts of a Knowledge Pack with a dot product computed in C. On a development laptop with four Knowledge Packs and two search models, running the plain build an old processor gets, those three steps went from 182 to 100 milliseconds per question, with the same passages, scores and decisions on 270 test questions. Most of a lookup is still the search model reading the question, which this does not change.
 
 ## [0.30.0] - 2026-11-24
 ### Added
