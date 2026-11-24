@@ -43,6 +43,13 @@ from . import doc, safefetch
 from .models import embedding_models
 from .safefetch import is_safe_url
 
+# The loader written in C reads a manifest in about a tenth of the time of the
+# plain one, with the same result. The chat reads the manifest of every
+# installed Knowledge Pack for each question. A PyYAML built without it has
+# only the plain one.
+def _load_yaml(stream):
+    return yaml.load(stream, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
+
 FORMAT = 1
 SUFFIX = ".ai2pack"
 MANIFEST = "manifest.yml"
@@ -83,7 +90,7 @@ def origin_of(collection: str) -> dict | None:
     path = os.path.join(doc.collection_dir(collection), ORIGIN)
     try:
         with open(path, encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
+            data = _load_yaml(fh)
     except (OSError, yaml.YAMLError):
         return None
     return data if isinstance(data, dict) else None
@@ -95,7 +102,7 @@ def system_manifest(collection: str) -> dict | None:
     path = os.path.join(doc.system_doc_root(), collection, MANIFEST)
     try:
         with open(path, encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
+            data = _load_yaml(fh)
     except (OSError, yaml.YAMLError):
         return None
     return data if isinstance(data, dict) else None
@@ -106,7 +113,7 @@ def manifest_of(collection: str) -> dict | None:
     path = os.path.join(doc.collection_dir(collection), MANIFEST)
     try:
         with open(path, encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
+            data = _load_yaml(fh)
     except (OSError, yaml.YAMLError):
         return None
     return data if isinstance(data, dict) else None
@@ -420,9 +427,8 @@ def load_catalog() -> list[dict]:
     trustworthy as where its hash came from."""
     text = importlib.resources.files("ai2").joinpath("data/packs.yml").read_text()
     # The chat reads the catalog for every question no installed Knowledge
-    # Pack matched. The loader written in C gives the same result in about a
-    # tenth of the time. A PyYAML built without it has only the plain one.
-    data = yaml.load(text, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
+    # Pack matched, so the C loader (see _load_yaml).
+    data = _load_yaml(text)
     return list((data or {}).get("packs") or [])
 
 

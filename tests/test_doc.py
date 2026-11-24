@@ -371,6 +371,25 @@ def test_search_across_collections_merges_and_names_them(tmp_path):
     assert doc.pick_embedder_group({"v2": ["small"], "v1": ["big"]}, "none", chunks) == "v1"     # else the most parts
 
 
+def test_scan_gives_the_same_scores_without_math_sumprod(tmp_path, monkeypatch):
+    conn = doc.open_store(str(tmp_path / "a.sqlite"))
+    doc.set_store_model(conn, "m", 8)
+    texts = ["La capital es Madrid.", "Madrid, capital y bandera.", "otra cosa", "el río Ebro"]
+    doc.add_document(conn, "a.txt", "/a.txt", texts, [fake_vec(t) for t in texts], words=12)
+    q = fake_vec("Madrid bandera")
+    tally = [0.0, 0]
+    fast = [(r[0], r[1]) for r in doc._scored(conn, q)]
+    with_c = doc.closest_documents({"x": conn}, q, top=3, tally=tally)
+    monkeypatch.setattr(doc, "_sumprod", None)          # a Python older than 3.12
+    tally2 = [0.0, 0]
+    plain_rows = [(r[0], r[1]) for r in doc._scored(conn, q)]
+    assert [r[1] for r in plain_rows] == [r[1] for r in fast]
+    assert [r[0] for r in plain_rows] == pytest.approx([r[0] for r in fast])
+    plain = doc.closest_documents({"x": conn}, q, top=3, tally=tally2)
+    assert [(h["doc"], h["ord"]) for h in plain] == [(h["doc"], h["ord"]) for h in with_c]
+    assert tally2 == pytest.approx(tally)
+
+
 def test_doc_cli_with_collections(tmp_path, monkeypatch, capsys):
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))

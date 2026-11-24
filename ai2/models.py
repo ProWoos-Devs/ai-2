@@ -106,9 +106,10 @@ def load_catalog(kind: str | None = "chat") -> list[dict]:
     a model that can answer, and an embedding model handed to the chat server
     would be a silent failure. kind="embedding" gives the text embedders `ai-2
     doc` uses, kind=None everything."""
-    data = yaml.safe_load(
-        importlib.resources.files("ai2").joinpath("data/models.yml").read_text()
-    )
+    # The C loader when PyYAML has it: the chat looks up a search model here
+    # for every question.
+    data = yaml.load(importlib.resources.files("ai2").joinpath("data/models.yml").read_text(),
+                     Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
     models = data["models"]
     if kind is not None:
         models = [m for m in models if m.get("kind", "chat") == kind]
