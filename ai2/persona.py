@@ -30,5 +30,7 @@ def system_prompt(model_label: str = "a small language model", local: bool = Tru
 
 def ui_config_args(prompt: str) -> list[str]:
     """llama-server arguments that make `prompt` the web UI's default system
-    message (key names from the web UI's settings-keys.ts, llama.cpp b10398)."""
+    message (the key is SYSTEM_MESSAGE in the web UI's
+    settings-keys.constants.ts; --ui-config and the key checked in the
+    llama.cpp b12359 source)."""
     return ["--ui-config", json.dumps({"systemMessage": prompt})]

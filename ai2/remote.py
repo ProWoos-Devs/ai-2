@@ -143,10 +143,11 @@ def _key_error(code: int) -> str:
 def probe(cfg: dict, timeout: float = PROBE_TIMEOUT_S) -> dict:
     """{'ok', 'models', 'web_ui', 'error'}: can we reach it with this key,
     which models does it list, and is it a llama-server (which has a chat
-    page of its own the browser can open). llama-server answers /v1/models
-    to anyone (its public list: /health, /models and the UI files, checked
-    in the b10398 source) but gates /props behind the key, so a 401 there
-    is the key check for that kind of remote."""
+    page of its own the browser can open). Both requests carry the key.
+    Up to b10398 llama-server answered /v1/models to anyone and gated only
+    /props behind the key; from b12359 its public list is /health,
+    /v1/health and the UI files (checked in the source), so a 401 on
+    either request means the key is wrong or missing."""
     out = {"ok": False, "models": [], "web_ui": False, "error": None}
     try:
         data = _get_json(cfg["url"] + "/v1/models", cfg, timeout)

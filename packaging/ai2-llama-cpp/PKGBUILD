@@ -8,7 +8,8 @@
 # the way upstream's releases and Arch's ggml package are built: every
 # executable and library is compiled for plain x86-64, and the CPU backend
 # comes as one libggml-cpu-<variant>.so per instruction-set level (x64,
-# sse42, sandybridge, ivybridge, piledriver, haswell, ... at b10398). At
+# sse42, sandybridge, ivybridge, piledriver, haswell, ..., 14 at b10398 and
+# at b12359). At
 # start, ggml dlopens every variant, asks each for a score (0 when the CPU
 # lacks a feature it was compiled for; x64 always scores 1) and keeps the
 # best. So a cloned disk or a CPU swap needs no reinstall, and the ISO ships
@@ -18,10 +19,10 @@
 # AVX-class variants is clean for the pure-SSE2 machine, libggml-cpu-sse42.so
 # is clean for the no-AVX machine. What it cannot see: the AVX-class variants
 # are exempt by name, so for them the runtime score is the only guard, and
-# b10398's score checks CPUID only, never OSXSAVE (llama.cpp issue 28328, a
-# KVM guest booted with clearcpuid=xsave picked haswell and SIGILLed; bare
-# metal is not exposed). The second gate, isa-check.sh ctors, disassembles
-# every constructor a variant runs at dlopen (the PR 11780 class: a static
+# the score checks CPUID only, never OSXSAVE (b10398, and still at b12359;
+# llama.cpp issue 28328, a KVM guest booted with clearcpuid=xsave picked
+# haswell and SIGILLed; bare metal is not exposed). The second gate,
+# isa-check.sh ctors, disassembles every constructor a variant runs at dlopen (the PR 11780 class: a static
 # __m128i initializer in an AVX variant ran on a non-AVX machine before the
 # score could say no) and requires it clean for the pure-SSE2 machine.
 #
@@ -55,11 +56,31 @@ conflicts=('ai2-llama-cpp-baseline' 'ai2-llama-cpp-noavx' 'ai2-llama-cpp-avx2')
 # module must match this exact ggml).
 provides=("ai2-llama-cpp-runtime=$pkgver-$pkgrel")
 options=('!lto' '!debug')
+# The chat page llama-server serves (AI-2 Chat (Browser)). Since about b11000
+# the source no longer carries it built: cmake fetches it from a Hugging Face
+# bucket at build time, by a version taken from the commit count, and falls
+# back to "latest" when that misses. In this build tree the clone is shallow,
+# so the count was wrong, "latest" was fetched and its files did not fit, and
+# the build stopped. So the page is the file upstream attaches to the same
+# release, pinned here by its SHA-256 and unpacked where cmake looks first
+# (tools/ui/dist), and the download is switched off. A new _tag needs this
+# checksum renewed; makepkg refuses the old one, which is the point.
 source=("llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#tag=$_tag"
+        "llama-$_tag-ui.tar.gz::https://github.com/ggml-org/llama.cpp/releases/download/$_tag/llama-$_tag-ui.tar.gz"
         'isa-check.sh')
-sha256sums=('SKIP' 'SKIP')
+sha256sums=('SKIP'
+            'e472d0c86a08db419177563b19ab1aac316deb5b18d8dd53c7dc89a79dd78683'
+            'SKIP')
+noextract=("llama-$_tag-ui.tar.gz")
 
 _rtdir=/usr/lib/ai2/runtimes/llama.cpp
+
+prepare() {
+  rm -rf llama.cpp/tools/ui/dist
+  mkdir llama.cpp/tools/ui/dist
+  bsdtar -xf "llama-$_tag-ui.tar.gz" -C llama.cpp/tools/ui/dist --strip-components 1
+  test -f llama.cpp/tools/ui/dist/index.html
+}
 
 build() {
   # The contract for everything that is not a CPU variant: plain x86-64 plus
@@ -84,6 +105,9 @@ build() {
     -DLLAMA_BUILD_EXAMPLES=OFF \
     -DLLAMA_BUILD_TOOLS=ON \
     -DLLAMA_BUILD_SERVER=ON \
+    -DLLAMA_BUILD_UI=OFF \
+    -DLLAMA_USE_PREBUILT_UI=OFF \
+    -DLLAMA_BUILD_NUMBER="$pkgver" \
     -DCMAKE_SKIP_RPATH=ON \
     -DCMAKE_C_FLAGS="$CFLAGS $flags" -DCMAKE_CXX_FLAGS="$CXXFLAGS $flags"
   cmake --build build -j"$(nproc)"
