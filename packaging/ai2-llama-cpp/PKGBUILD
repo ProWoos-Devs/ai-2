@@ -46,7 +46,7 @@ pkgdesc="llama.cpp CPU inference runtime for AI-2 (every CPU class, the build fo
 arch=('x86_64')
 url="https://github.com/ggml-org/llama.cpp"
 license=('MIT')
-makedepends=('cmake' 'git' 'binutils' 'patchelf')
+makedepends=('cmake' 'git' 'binutils' 'patchelf' 'clang')
 depends=('gcc-libs' 'glibc' 'openssl')
 # The three per-CPU packages of 10398-1; libalpm swaps them for this one at
 # the next -Syu (it looks for replacers before the package itself).
@@ -89,14 +89,25 @@ build() {
   # variant's target, on top of these; GGML_NATIVE=OFF is required by
   # GGML_BACKEND_DL and is what keeps the container's CPU out of the build.
   local flags='-march=x86-64 -mtune=generic -mpopcnt'
+  # Clang, not GCC. The x64 variant (the one the oldest machines run) does
+  # its quantized dot products in plain C that the compiler must vectorize
+  # for SSE2, and GCC 16 does that badly. With the same source and vectors
+  # byte-identical, the search model took about 1.48 s per question built
+  # with GCC 16 and 0.30 s with clang 23, and the chat model generated 4.67
+  # and 8.06 tokens/s (laptop, x64 variant forced, 2026-11-24). Upstream's
+  # own GCC 11 build sat between, at 0.80 s.
+  # OpenMP off: with clang it measured the same, and ggml's own thread pool
+  # needs no runtime library (libgomp or libomp).
   cmake -S llama.cpp -B build \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=ON \
     -DGGML_BACKEND_DL=ON \
     -DGGML_CPU_ALL_VARIANTS=ON \
     -DGGML_BACKEND_DIR="$_rtdir" \
     -DGGML_NATIVE=OFF \
-    -DGGML_OPENMP=ON \
+    -DGGML_OPENMP=OFF \
     -DGGML_BLAS=OFF \
     -DGGML_VULKAN=OFF \
     -DGGML_CUDA=OFF \
