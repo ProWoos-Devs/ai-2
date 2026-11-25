@@ -38,7 +38,7 @@ pkgdesc="whisper.cpp speech-to-text runtime for AI-2 (file transcription, every 
 arch=('x86_64')
 url="https://github.com/ggml-org/whisper.cpp"
 license=('MIT')
-makedepends=('cmake' 'git' 'binutils' 'patchelf')
+makedepends=('cmake' 'git' 'binutils' 'patchelf' 'clang')
 depends=('gcc-libs' 'glibc')
 options=('!lto' '!debug')
 source=("whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#tag=$_tag"
@@ -52,14 +52,21 @@ build() {
   # popcnt, as in ai2-llama-cpp. ggml adds each variant's -m flags PRIVATE to
   # that variant's target, on top of these.
   local flags='-march=x86-64 -mtune=generic -mpopcnt'
+  # Clang and no OpenMP, the build setup of ai2-llama-cpp. Here the compiler
+  # matters little: on RMM-PC (base model, two clips, two rounds) clang took
+  # 34.6 and 33.3 s where GCC 16 took 35.3 and 34.4 s, with the same text,
+  # and both passed the same gates (2026-11-25). OpenMP off drops libgomp;
+  # ggml's own thread pool needs no runtime library.
   cmake -S whisper.cpp -B build \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=ON \
     -DGGML_BACKEND_DL=ON \
     -DGGML_CPU_ALL_VARIANTS=ON \
     -DGGML_BACKEND_DIR="$_rtdir" \
     -DGGML_NATIVE=OFF \
-    -DGGML_OPENMP=ON \
+    -DGGML_OPENMP=OFF \
     -DGGML_BLAS=OFF \
     -DGGML_VULKAN=OFF \
     -DGGML_CUDA=OFF \
