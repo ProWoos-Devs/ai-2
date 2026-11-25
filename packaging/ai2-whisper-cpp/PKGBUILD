@@ -6,8 +6,8 @@
 # Built once with GGML_BACKEND_DL + GGML_CPU_ALL_VARIANTS: whisper-cli,
 # whisper-bench, libwhisper and ggml's core are compiled for plain x86-64, and
 # the CPU backend comes as one libggml-cpu-<variant>.so per instruction-set
-# level. whisper-cli and whisper-bench call ggml_backend_load_all() (v1.9.4,
-# examples/cli/cli.cpp and examples/bench/bench.cpp), which dlopens every
+# level. whisper-cli and whisper-bench call ggml_backend_load_all() (v1.9.4
+# and v1.9.6, examples/cli/cli.cpp and examples/bench/bench.cpp), which dlopens every
 # variant found in GGML_BACKEND_DIR or next to the executable, asks each for a
 # score (0 when the CPU lacks a feature it was compiled for, x64 always 1) and
 # keeps the best. So no per-CPU package family: the first review of this PR
@@ -15,8 +15,8 @@
 # the burden ai2-llama-cpp just shed.
 #
 # Deliberately self-contained (XDA review 2026-09-14, item 5): whisper.cpp
-# ships its own ggml (0.23.0 at this tag; the pinned llama.cpp carries 0.19.0,
-# the two pins move at different speeds), no ffmpeg (WHISPER_COMMON_FFMPEG=OFF,
+# ships its own ggml (1.0.0 at this tag, the same version number as llama.cpp
+# b12359, but the two pins move at different speeds), no ffmpeg (WHISPER_COMMON_FFMPEG=OFF,
 # so a world ffmpeg soname bump can never break a signed package; `ai-2
 # transcribe` converts the audio with the ffmpeg command instead), no SDL2 (no
 # live dictation), no server. Only whisper-cli and whisper-bench are built; in
@@ -31,14 +31,14 @@
 # rpath), which is where ai2/speech.py looks. Nothing lands in /usr/bin.
 
 pkgname=ai2-whisper-cpp
-_tag=v1.9.4
+_tag=v1.9.6
 pkgver=${_tag#v}
 pkgrel=1
 pkgdesc="whisper.cpp speech-to-text runtime for AI-2 (file transcription, every CPU class, the build for this CPU chosen at start)"
 arch=('x86_64')
 url="https://github.com/ggml-org/whisper.cpp"
 license=('MIT')
-makedepends=('cmake' 'git' 'binutils' 'patchelf')
+makedepends=('cmake' 'git' 'binutils' 'patchelf' 'clang')
 depends=('gcc-libs' 'glibc')
 options=('!lto' '!debug')
 source=("whisper.cpp::git+https://github.com/ggml-org/whisper.cpp.git#tag=$_tag"
@@ -52,14 +52,21 @@ build() {
   # popcnt, as in ai2-llama-cpp. ggml adds each variant's -m flags PRIVATE to
   # that variant's target, on top of these.
   local flags='-march=x86-64 -mtune=generic -mpopcnt'
+  # Clang and no OpenMP, the build setup of ai2-llama-cpp. Here the compiler
+  # matters little: on RMM-PC (base model, two clips, two rounds) clang took
+  # 34.6 and 33.3 s where GCC 16 took 35.3 and 34.4 s, with the same text,
+  # and both passed the same gates (2026-11-25). OpenMP off drops libgomp;
+  # ggml's own thread pool needs no runtime library.
   cmake -S whisper.cpp -B build \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=ON \
     -DGGML_BACKEND_DL=ON \
     -DGGML_CPU_ALL_VARIANTS=ON \
     -DGGML_BACKEND_DIR="$_rtdir" \
     -DGGML_NATIVE=OFF \
-    -DGGML_OPENMP=ON \
+    -DGGML_OPENMP=OFF \
     -DGGML_BLAS=OFF \
     -DGGML_VULKAN=OFF \
     -DGGML_CUDA=OFF \
