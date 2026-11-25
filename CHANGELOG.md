@@ -3,6 +3,8 @@
 All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `ai-2` pacman package) and the AI-2 ISO (date snapshots, `artix-ai2-runit-YYYYMMDD-x86_64.iso`, each tagged `iso-YYYYMMDD` in git at the commit it was built from). Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+## [0.30.1] - 2026-11-25
 ### Changed
 - **The AI engine moves to llama.cpp v1.0.0 (b12359, package `ai2-llama-cpp 12359-1`).** The chat's decisions on 538 test questions changed for 10, every one a question sitting at the line, about as many as already differ between the plain build and the one newer processors get. The package carries the chat page of the same release, checked against its published SHA-256, because llama.cpp no longer keeps that page in its source.
 - **The AI engine is built with clang instead of GCC, which makes it several times faster on the oldest processors.** A processor without SSE4.2 runs llama.cpp's plain build, whose arithmetic GCC 16 turns into slow code. On a 2011 laptop with an AMD A4-3305M, against the engine it had before, a search question took 0.86 s instead of 3.1 s, reading four passages for a Knowledge Pack index took 61 s instead of 220 s, the chat model wrote 3.3 tokens per second instead of 1.9, and the AI Score went from 29 to 39. The search vectors there were identical byte for byte to a GCC build of the same engine, and the multilingual search model peaked at 496 MiB instead of 770 MiB. Processors with SSE4.2 or AVX run builds written for their own instructions and see about the same speed as before, with the same chat decisions on all 538 questions. The engine no longer uses OpenMP, which measured the same and needs no extra library.
