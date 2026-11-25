@@ -103,7 +103,7 @@ def ffmpeg_cmd(src: str, dst: str) -> list[str]:
 
 def whisper_cmd(runtime_dir: str, model_path: str, wav: str, lang: str, threads: int,
                 out_base: str) -> list[str]:
-    """whisper-cli flags at v1.9.4 (examples/cli/cli.cpp): -m model, -f file,
+    """whisper-cli flags at v1.9.4 and v1.9.6 (examples/cli/cli.cpp): -m model, -f file,
     -l language ('auto' detects), -t threads, -np no extra prints, -nt no
     timestamps, -otxt -of BASE writes BASE.txt."""
     return [os.path.join(runtime_dir, "whisper-cli"), "-m", model_path, "-f", wav, "-l", lang,

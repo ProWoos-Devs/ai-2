@@ -6,8 +6,8 @@
 # Built once with GGML_BACKEND_DL + GGML_CPU_ALL_VARIANTS: whisper-cli,
 # whisper-bench, libwhisper and ggml's core are compiled for plain x86-64, and
 # the CPU backend comes as one libggml-cpu-<variant>.so per instruction-set
-# level. whisper-cli and whisper-bench call ggml_backend_load_all() (v1.9.4,
-# examples/cli/cli.cpp and examples/bench/bench.cpp), which dlopens every
+# level. whisper-cli and whisper-bench call ggml_backend_load_all() (v1.9.4
+# and v1.9.6, examples/cli/cli.cpp and examples/bench/bench.cpp), which dlopens every
 # variant found in GGML_BACKEND_DIR or next to the executable, asks each for a
 # score (0 when the CPU lacks a feature it was compiled for, x64 always 1) and
 # keeps the best. So no per-CPU package family: the first review of this PR
@@ -15,8 +15,8 @@
 # the burden ai2-llama-cpp just shed.
 #
 # Deliberately self-contained (XDA review 2026-09-14, item 5): whisper.cpp
-# ships its own ggml (0.23.0 at this tag; the pinned llama.cpp carries 0.19.0,
-# the two pins move at different speeds), no ffmpeg (WHISPER_COMMON_FFMPEG=OFF,
+# ships its own ggml (1.0.0 at this tag, the same version number as llama.cpp
+# b12359, but the two pins move at different speeds), no ffmpeg (WHISPER_COMMON_FFMPEG=OFF,
 # so a world ffmpeg soname bump can never break a signed package; `ai-2
 # transcribe` converts the audio with the ffmpeg command instead), no SDL2 (no
 # live dictation), no server. Only whisper-cli and whisper-bench are built; in
