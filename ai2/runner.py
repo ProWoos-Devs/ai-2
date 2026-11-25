@@ -95,9 +95,13 @@ def _server_ready(url: str, timeout: float = 2.0) -> bool:
 
 def _server_model_file(url: str, timeout: float = 5.0) -> str | None:
     """The file name of the model this endpoint has loaded, or None if it cannot
-    say. llama-server gives the path in /v1/models without an API key, and
-    answers at once even in the middle of a long batch, when /slots times out
-    (measured on b10398, 2026-11-02)."""
+    say. llama-server gives the path in /v1/models, and answers at once even
+    in the middle of a long batch, when /slots times out (measured on b10398,
+    2026-11-02). No key is sent: up to b10398 a server started with an API
+    key still answered /v1/models without it, from b12359 it answers 401 and
+    this returns None. Either way such a server refuses AI-2's own requests,
+    which carry no key either (embeddings and /slots answered 401 on both,
+    2026-11-25), so the only change is where it fails."""
     import json
     import urllib.request
     try:
