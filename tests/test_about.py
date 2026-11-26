@@ -46,7 +46,7 @@ def test_the_seven_lines_in_order():
         ("Based on", "Artix Linux (runit)"),
         ("AI Score", "29/100"),
         # a headline of the distro, so it sits with the version and the score (Rafael, 2026-09-18)
-        ("Knowledge Packs", "2 installed (AI-2 Help, Everyday Reference); ask them: Search Knowledge"),
+        ("Knowledge Packs", "2 installed (AI-2 Help, Everyday Reference); ask them: Search Knowledge Packs"),
         # where packs are downloaded and shared, pointed at from everywhere (Rafael, 2026-09-19)
         ("Pack catalog", "https://github.com/ProWoos-Devs/ai2-knowledge"),
         ("Website", "https://prowoos.com/software-development/linux/ai-2/"),
@@ -116,8 +116,8 @@ def test_a_window_gets_its_own_terminal_process():
     """Without --disable-server the second xfce4-terminal is only a client:
     the window is opened by the instance already running, and its child
     inherits that instance's stdin. The setup window is such an instance, so
-    the Search Knowledge window it opened read EOF at once and closed before
+    the Search Knowledge Packs window it opened read EOF at once and closed before
     anything could be read (found in a QEMU install, 2026-09-21)."""
-    cmd = about.terminal_window("Search Knowledge", "100x38", ["ai-2", "doc", "search"],
+    cmd = about.terminal_window("Search Knowledge Packs", "100x38", ["ai-2", "doc", "search"],
                                 which=lambda n: "/usr/bin/" + n if n == "xfce4-terminal" else None)
     assert "--disable-server" in cmd and cmd.index("--disable-server") < cmd.index("-x")

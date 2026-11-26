@@ -28,7 +28,8 @@ das Dokument, aus dem jede Antwort stammt. Nichts an diesen Antworten ist
 von der KI geschrieben, also ist nichts erfunden. Auf einem älteren Computer
 ist das außerdem viel schneller als der Chat.
 
-  Anwendungen > AI-2 > Wissen durchsuchen      Frage eingeben, Antwort lesen
+  Anwendungen > AI-2 > Wissenspakete durchsuchen
+                                       Frage eingeben, Antwort lesen
   ai-2 doc search "wie finde ich eine große Datei?"   dasselbe im Terminal
 
 Gib nach den Ergebnissen die Nummer eines Treffers ein, um das ganze
@@ -44,8 +45,8 @@ Um Pakete hinzuzufügen, öffne Anwendungen > AI-2 > Wissenspakete. Dort
 stehen die vorhandenen Pakete, mit dem, was in jedem steckt und wer es
 gemacht hat, und du tippst die Nummern derer ein, die du willst. Nichts
 aktualisiert ein Paket hinter deinem Rücken: Gibt es von einem deiner Pakete
-eine neuere Version, sagen es Wissen durchsuchen und dieses Fenster, und ein
-u dort aktualisiert es. Die Liste der Pakete kommt mit AI-2 selbst, also
+eine neuere Version, sagen es Wissenspakete durchsuchen und dieses Fenster,
+und ein u dort aktualisiert es. Die Liste der Pakete kommt mit AI-2 selbst, also
 bringt ein Update von AI-2 neue und geänderte Pakete in Sicht.
 
   ai-2 knowledge browse      dasselbe Fenster, im Terminal

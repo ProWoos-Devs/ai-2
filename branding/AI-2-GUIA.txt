@@ -28,7 +28,8 @@ qué documento sale cada respuesta. Nada de esas respuestas lo escribe la IA,
 así que nada es inventado. En un ordenador antiguo es además mucho más
 rápido que el chat.
 
-  Aplicaciones > AI-2 > Buscar conocimiento    escribe una pregunta
+  Aplicaciones > AI-2 > Buscar en los Paquetes de Conocimiento
+                                     escribe una pregunta y lee la respuesta
   ai-2 doc search "¿cómo encuentro un archivo grande?"     (en un terminal)
 
 Después de los resultados, escribe el número de uno de ellos para leer el
@@ -41,13 +42,13 @@ AI-2 trae tres Paquetes de Conocimiento (en inglés):
   Everyday Reference  196 países: capitales, monedas, idiomas, códigos
 
 Para añadir más, abre Aplicaciones > AI-2 > Paquetes de Conocimiento. Ahí
-se listan los
-paquetes que hay, con lo que contiene cada uno y quién lo hizo, y escribes
-los números de los que quieres. Nada actualiza un paquete a tus espaldas:
-cuando existe una versión más nueva de uno que tienes, Buscar conocimiento y
-esa ventana lo dicen, y escribir u ahí lo actualiza. La lista de paquetes
-viene con el propio AI-2, así que actualizar AI-2 es lo que trae a la vista
-los paquetes nuevos y los que han cambiado.
+se listan los paquetes que hay, con lo que contiene cada uno y quién lo
+hizo, y escribes los números de los que quieres. Nada actualiza un paquete
+a tus espaldas: cuando existe una versión más nueva de uno que tienes,
+Buscar en los Paquetes de Conocimiento y esa ventana lo dicen, y escribir u
+ahí lo actualiza. La lista de paquetes viene con el propio AI-2, así que
+actualizar AI-2 es lo que trae a la vista los paquetes nuevos y los que han
+cambiado.
 
   ai-2 knowledge browse      la misma ventana, en un terminal
   ai-2 knowledge list        los paquetes de este ordenador

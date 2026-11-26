@@ -204,7 +204,7 @@ def test_failed_download_leaves_the_score_pending(env, monkeypatch):
 def test_the_packs_screen_stops_but_asks_nothing(env, monkeypatch, capsys):
     """Offering a first question in the middle of the setup was confusing
     (Rafael, 2026-09-21). The screen still stops, so the steps do not scroll
-    it away, and Search Knowledge is where the answers live."""
+    it away, and Search Knowledge Packs is where the answers live."""
     import sys
     from ai2 import about
     monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
@@ -217,7 +217,7 @@ def test_the_packs_screen_stops_but_asks_nothing(env, monkeypatch, capsys):
     w = wz.Wizard(ask=lambda q, d: d, say=said.append, run=lambda cmd: ran.append(cmd) or 0)
     w._knowledge_packs_intro()
     screen = "\n".join(said)
-    assert "Knowledge Packs" in screen and "AI-2 > Search Knowledge" in screen
+    assert "Knowledge Packs" in screen and "AI-2 > Search Knowledge Packs" in screen
     assert prompts == ["\nPress Enter to go on with the setup: "]
     assert ran == [], "nothing is run from the setup"
     for gone in ("try them now", "first question"):

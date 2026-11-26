@@ -1169,7 +1169,7 @@ def test_the_search_page_still_shows_the_closest_passage(short_library):
 
 def test_ask_this_collection_shows_the_short_answer_or_the_fact_further_down(short_library):
     """Ask this collection is the chat's way into one collection, so a match
-    at the top of a topic gets its short answer there too. Search Knowledge
+    at the top of a topic gets its short answer there too. Search Knowledge Packs
     Packs keeps the closest passages (the test above)."""
     server = gopher.serve(lambda model, question: vec(question), host="127.0.0.1", port=0,
                           chat_reply=lambda _: pytest.fail("a collection search started the chat model"))

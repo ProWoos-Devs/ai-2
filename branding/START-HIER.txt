@@ -56,11 +56,11 @@ gefällt. Der Live-Benutzer ist "ai-2" (Passwort "ai-2") und kann sudo
 benutzen.
 
 Du kannst die Knowledge Packs jetzt ausprobieren, bevor du irgendetwas
-installierst. Öffne Applications > AI-2 > Search Knowledge und gib eine Frage
-ein (die mitgelieferten Pakete sind auf Englisch, zum Beispiel "how do I find
-a big file?"). Er antwortet in Sekunden aus Dokumenten auf diesem Stick, nennt
-zu jeder Antwort das Dokument und braucht kein Internet. Mit der Nummer eines
-Treffers liest du das ganze Dokument. Das funktioniert auf einem alten
+installierst. Öffne Applications > AI-2 > Search Knowledge Packs und gib eine
+Frage ein (die mitgelieferten Pakete sind auf Englisch, zum Beispiel "how do I
+find a big file?"). Er antwortet in Sekunden aus Dokumenten auf diesem Stick,
+nennt zu jeder Antwort das Dokument und braucht kein Internet. Mit der Nummer
+eines Treffers liest du das ganze Dokument. Das funktioniert auf einem alten
 Computer genauso wie auf einem neuen.
 
 Wenn der Desktop nie erschien oder der Bildschirm schwarz blieb, starte neu
@@ -139,11 +139,11 @@ schließt, starte es jederzeit neu mit:
 Das Erste, was du ausprobieren kannst, braucht keinerlei Einrichtung. Dieser
 Computer bringt drei Knowledge Packs (Wissenspakete) mit: die Hilfe von AI-2
 selbst, zwanzig alltägliche Linux-Aufgaben und 196 Länder. Öffne
-Anwendungen > AI-2 > Wissen durchsuchen (oder  ai-2 doc search  im Terminal),
-gib eine Frage ein, und er antwortet in Sekunden aus diesen Dokumenten,
-nennt zu jeder Antwort das Dokument und braucht kein Internet. Mit der Nummer
-eines Treffers liest du das ganze Dokument. Nichts davon ist von der KI
-geschrieben, also ist nichts erfunden. Weitere Pakete gibt es in
+Anwendungen > AI-2 > Wissenspakete durchsuchen (oder  ai-2 doc search  im
+Terminal), gib eine Frage ein, und er antwortet in Sekunden aus diesen
+Dokumenten, nennt zu jeder Antwort das Dokument und braucht kein Internet. Mit
+der Nummer eines Treffers liest du das ganze Dokument. Nichts davon ist von
+der KI geschrieben, also ist nichts erfunden. Weitere Pakete gibt es in
 Anwendungen > AI-2 > Knowledge Packs, oder du baust eines aus eigenen PDFs.
 
 Der Community-Katalog listet alle Pakete mit ihrem Download, und dort teilst

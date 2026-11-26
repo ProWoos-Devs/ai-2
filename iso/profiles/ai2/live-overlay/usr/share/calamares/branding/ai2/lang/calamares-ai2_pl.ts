@@ -30,10 +30,10 @@ i podaje dokument, z którego pochodzi każda odpowiedź. Żadna SI nie pisze
 tych odpowiedzi, dlatego stary komputer odpowiada tak samo dobrze jak nowy.</translation>
     </message>
     <message>
-        <source>Applications &gt; AI-2 &gt; Search Knowledge   works right after install.
+        <source>Applications &gt; AI-2 &gt; Search Knowledge Packs   works right after install.
 Add more in  Applications > AI-2 > Knowledge Packs , or make one from your own PDFs.
 The community catalog, to get packs and share yours:  github.com/ProWoos-Devs/ai2-knowledge</source>
-        <translation>Aplikacje &gt; AI-2 &gt; Szukaj wiedzy   działa od razu po instalacji.
+        <translation>Aplikacje &gt; AI-2 &gt; Przeszukaj Pakiety Wiedzy   działa od razu po instalacji.
 Więcej znajdziesz w  Aplikacje > AI-2 > Pakiety Wiedzy , albo stwórz własny ze swoich plików PDF.
 Katalog społeczności, by pobierać pakiety i dzielić się swoimi:  github.com/ProWoos-Devs/ai2-knowledge</translation>
     </message>

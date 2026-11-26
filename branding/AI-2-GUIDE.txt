@@ -27,8 +27,8 @@ from in seconds, with no internet, and it tells you which document every
 answer came from. Nothing in those answers is written by the AI, so nothing
 is made up. On an older computer it is also much faster than the chat.
 
-  Applications > AI-2 > Search Knowledge       type a question, read the answer
-  ai-2 doc search "how do I find a big file?"  the same, in a terminal
+  Applications > AI-2 > Search Knowledge Packs  type a question, read it
+  ai-2 doc search "how do I find a big file?"   the same, in a terminal
 
 After the results, type the number of one of them to read the whole document
 it came from. Press q to come back to your questions.
@@ -42,8 +42,8 @@ Three Knowledge Packs come with AI-2:
 To add more, open Applications > AI-2 > Knowledge Packs. It lists them
 there are, with what is in each and who made it, and you type the numbers of
 the ones you want. Nothing updates a pack behind your back: when a newer
-version of one you have exists, Search Knowledge and that window say so, and
-typing u there updates it. The list of packs comes with AI-2 itself, so
+version of one you have exists, Search Knowledge Packs and that window say
+so, and typing u there updates it. The list of packs comes with AI-2 itself, so
 updating AI-2 is what brings new and changed packs into view.
 
   ai-2 knowledge browse      the same window, in a terminal

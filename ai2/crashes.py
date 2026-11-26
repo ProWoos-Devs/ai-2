@@ -130,7 +130,7 @@ def hint(entry: dict) -> str:
                 "if it finds nothing wrong, send  ai-2 report")
     if entry["engine"]:
         return "run  ai-2 doctor ; if it finds nothing wrong, send  ai-2 report"
-    return "if it keeps happening, run  ai-2 doctor  or ask Search Knowledge about it"
+    return "if it keeps happening, run  ai-2 doctor  or ask Search Knowledge Packs about it"
 
 
 def describe(entry: dict) -> str:
@@ -250,7 +250,7 @@ def listing(say=print) -> int:
     try:
         from .pack import installed_packs
         if installed_packs():
-            say("The Knowledge Packs may know the program: Applications > AI-2 > Search Knowledge, "
+            say("The Knowledge Packs may know the program: Applications > AI-2 > Search Knowledge Packs, "
                 "or  ai-2 doc search \"<program name> stopped\"")
     except Exception:  # noqa: BLE001 - the listing must not fail over an optional hint
         pass

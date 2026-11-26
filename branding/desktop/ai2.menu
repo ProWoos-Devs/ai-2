@@ -44,7 +44,7 @@
             <Category>X-AI2</Category>
         </Include>
         <!-- Order (Rafael, 2026-11-26): the guide, the three chats (Gopher,
-             Terminal, Browser), Knowledge Packs, Search Knowledge, and About
+             Terminal, Browser), Knowledge Packs, Search Knowledge Packs, and About
              AI-2 last. Every entry is listed, because anything left to Merge
              sorts by its translated name and the order would change with the
              language (Rafael, 2026-11-02). -->

@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Search Knowledge
-Name[es]=Buscar conocimiento
-Name[de]=Wissen durchsuchen
-Name[pl]=Szukaj wiedzy
+Name=Search Knowledge Packs
+Name[es]=Buscar en los Paquetes de Conocimiento
+Name[de]=Wissenspakete durchsuchen
+Name[pl]=Przeszukaj Pakiety Wiedzy
 GenericName=Search your documents and Knowledge Packs
 GenericName[es]=Buscar en tus documentos y Paquetes de Conocimiento
 GenericName[de]=Deine Dokumente und Wissenspakete durchsuchen

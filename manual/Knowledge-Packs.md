@@ -24,7 +24,7 @@ ai-2 doc search "how do I find a big file?"     the passages themselves, with th
 ai-2 doc ask "how do I find a big file?"        the AI answers from those passages
 ```
 
-In the menu it is **Applications > AI-2 > Search Knowledge**, which opens a window that asks for a question and keeps asking. It shows passages from the documents on this computer, so nothing in the answer is written by the AI.
+In the menu it is **Applications > AI-2 > Search Knowledge Packs**, which opens a window that asks for a question and keeps asking. It shows passages from the documents on this computer, so nothing in the answer is written by the AI.
 
 In the AI-2 chat, the **Search Knowledge Packs** button under the message box does the same from the AI-2 Gopher app (AI-2 0.28.0 with AI-2 Gopher 1.6.0 or later). It opens a menu with one search across all the Knowledge Packs on this computer, including ones installed from a file, and a search and a list of topics for each one. The results are headed **Closest passages**, because the nearest text is returned even when no Knowledge Pack covers the question. Each result names its source, **Read the complete topic** opens the whole document, and the Back arrow returns to the conversation as you left it. Nothing there is written by the AI, and each search stands alone. A search across Knowledge Packs built with different embedding models swaps the embedding engine for each one, which is much slower.
 

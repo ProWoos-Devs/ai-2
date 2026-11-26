@@ -99,10 +99,10 @@ def test_generated_lists_are_current():
 
 
 def test_release_issue_mentions_the_translators():
-    body = translations.issue_body("pl", {"branding/desktop/x.desktop": ["Name=Search Knowledge"]})
+    body = translations.issue_body("pl", {"branding/desktop/x.desktop": ["Name=Search Knowledge Packs"]})
     for person in translations.translators()["pl"]["translators"]:
         assert f"@{person['github']}" in body
-    assert "Name=Search Knowledge" in body and "TRANSLATING.md" in body
+    assert "Name=Search Knowledge Packs" in body and "TRANSLATING.md" in body
 
 
 def test_nothing_is_stale_against_the_committed_strings():

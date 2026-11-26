@@ -274,7 +274,7 @@ class Wizard:
                             "  things out; for real work, a bigger model below."))
                 self.say(tr("  For answers you can rely on, this computer has Knowledge Packs: they answer\n"
                             "  from documents, word for word, and name the source. No model writes them, so\n"
-                            "  the size of the model does not matter.  Applications > AI-2 > Search Knowledge"))
+                            "  the size of the model does not matter.  Applications > AI-2 > Search Knowledge Packs"))
             self.report["model"] = ready["id"]
         bench = benchmark_model(catalog)
         bench_path = find_benchmark_model()
@@ -370,8 +370,9 @@ class Wizard:
         # On the low-end tiers (on-demand runtime = RAM is tight) the terminal
         # chat is the recommendation: same AI, the least memory taken from next
         # to the model.
-        self.say(tr("  Knowledge Packs:     ai-2 doc search        (or 'Search Knowledge' in the menu: answers from the\n"
-                    "                                              documents on this computer, in seconds, with their source)"))
+        self.say(tr("  Knowledge Packs:     ai-2 doc search        (or 'Search Knowledge Packs' in the menu: answers\n"
+                    "                                              from the documents on this computer, in seconds,\n"
+                    "                                              with their source)"))
         tiers = load_tiers()
         config = resolve_config(assign(hw, tiers), tiers)
         if (config.get("runtime") or {}).get("service") == "on-demand":
@@ -433,8 +434,8 @@ class Wizard:
                         "\nIt takes seconds and needs no internet. No AI writes the answers, so an old\n"
                         "computer gives the same ones as a new computer.\n"
                         "\nInstalled on this computer: {titles}.\n"
-                        "\n    To ask them        Applications > AI-2 > Search Knowledge    or   ai-2 doc search\n"
-                        "    To get more        Applications > AI-2 > Knowledge Packs     or   ai-2 knowledge browse\n"
+                        "\n    To ask them        Applications > AI-2 > Search Knowledge Packs  or   ai-2 doc search\n"
+                        "    To get more        Applications > AI-2 > Knowledge Packs         or   ai-2 knowledge browse\n"
                         "    To share yours     https://github.com/ProWoos-Devs/ai2-knowledge    (the community catalog)\n"
                         "\nThe steps that follow set up the other part of AI-2, the chat AI, which depends on\n"
                         "the hardware.")
@@ -443,7 +444,7 @@ class Wizard:
         else:
             self.say(tr("\nKnowledge Packs let this computer answer from documents, in seconds, offline, naming\n"
                         "the source of every answer. None are installed here yet:  Applications > AI-2 >\n"
-                        "Search Knowledge  offers them, and so does  ai-2 knowledge available ."))
+                        "Search Knowledge Packs  offers them, and so does  ai-2 knowledge available ."))
 
     def _pause_on_the_packs(self) -> None:
         """Stop on the Knowledge Packs screen before the steps scroll it away.
@@ -451,7 +452,7 @@ class Wizard:
         to the top edge of the window, off it on a 768-pixel screen (seen in
         the first test image, 2026-09-19). It used to offer a first question
         here; that was confusing in the middle of a setup (Rafael, 2026-09-21),
-        and Applications > AI-2 > Search Knowledge is where the answers live.
+        and Applications > AI-2 > Search Knowledge Packs is where the answers live.
         Only for a person at a terminal: never in --yes, never under a script."""
         import sys
         if self.yes or not sys.stdin.isatty():

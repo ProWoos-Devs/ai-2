@@ -30,10 +30,10 @@ Internet, und nennt das Dokument zu jeder Antwort. Keine KI schreibt diese
 Antworten, deshalb antwortet ein alter PC so gut wie ein neuer.</translation>
     </message>
     <message>
-        <source>Applications &gt; AI-2 &gt; Search Knowledge   works right after install.
+        <source>Applications &gt; AI-2 &gt; Search Knowledge Packs   works right after install.
 Add more in  Applications > AI-2 > Knowledge Packs , or make one from your own PDFs.
 The community catalog, to get packs and share yours:  github.com/ProWoos-Devs/ai2-knowledge</source>
-        <translation>Anwendungen &gt; AI-2 &gt; Wissen durchsuchen   funktioniert gleich nach der Installation.
+        <translation>Anwendungen &gt; AI-2 &gt; Wissenspakete durchsuchen   funktioniert gleich nach der Installation.
 Weitere gibt es in  Anwendungen > AI-2 > Wissenspakete , oder bau eines aus eigenen PDFs.
 Der Community-Katalog, um Pakete zu holen und eigene zu teilen:  github.com/ProWoos-Devs/ai2-knowledge</translation>
     </message>

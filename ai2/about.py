@@ -75,7 +75,7 @@ def packs_text(titles: list[str] | None) -> str:
             titles = []
     if not titles:
         return tr("none yet (run: ai-2 knowledge available)")
-    return tr("{n} installed ({titles}); ask them: Search Knowledge").format(n=len(titles), titles=", ".join(titles))
+    return tr("{n} installed ({titles}); ask them: Search Knowledge Packs").format(n=len(titles), titles=", ".join(titles))
 
 
 def about_lines(os_release: dict[str, str] | None = None, init_system: str | None = None,

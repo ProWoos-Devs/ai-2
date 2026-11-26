@@ -58,7 +58,7 @@ sudo ai-2 init --apply                   # or just: ai-2 wizard
 
 A Knowledge Pack is a set of documents this computer searches and answers from in seconds, with no internet,
 naming the document every answer came from. No model writes those answers, so an old laptop gives the same ones
-as a new machine. Three come with the ISO, and **Applications > AI-2 > Search Knowledge** answers from them right
+as a new machine. Three come with the ISO, and **Applications > AI-2 > Search Knowledge Packs** answers from them right
 after the install.
 
 - **Get more**: `ai-2 knowledge browse` (or **Applications > AI-2 > Knowledge Packs**) lists what there is, with
@@ -111,7 +111,7 @@ The packaged llama.cpp runtime is CPU-only, and `ai-2 detect` says so next to an
 
 ```
 ai-2 wizard          # the guided setup, re-runnable any time
-ai-2 doc search      # ask the Knowledge Packs and your own documents (the Search Knowledge menu entry)
+ai-2 doc search      # ask the Knowledge Packs and your own documents (the Search Knowledge Packs menu entry)
 ai-2 knowledge browse # see the Knowledge Packs there are, install or update by number
 ai-2 chat            # start the local AI if needed and open the chat in the AI-2 Gopher app (--terminal on a slow machine)
 ai-2 update          # update AI-2, the engine, the model catalog and the system in one step

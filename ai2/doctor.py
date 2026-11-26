@@ -115,7 +115,7 @@ def check_models(hw: Hardware) -> list[Check]:
 
 def check_knowledge() -> list[Check]:
     """The Knowledge Packs on this computer, the embedding model they are
-    searched with, and whether a newer revision is known. Search Knowledge is
+    searched with, and whether a newer revision is known. Search Knowledge Packs is
     the first thing a person tries, and nothing in doctor looked at it: a
     machine whose packs cannot be searched at all still reported OK.
 

@@ -1,8 +1,8 @@
 """`ai-2 doc` and `ai-2 knowledge`: the documents on this computer and the
-Knowledge Packs, including the Search Knowledge window.
+Knowledge Packs, including the Search Knowledge Packs window.
 
 Split out of cli.py, which had grown to 2500 lines and 30 commands, so that a
-change to Search Knowledge is not read in the same file as `serve` and
+change to Search Knowledge Packs is not read in the same file as `serve` and
 `update-check`. Nothing here behaves differently from before the move.
 
 Helpers that belong to the rest of the tool are reached through the cli module
@@ -930,7 +930,7 @@ def _doc_more_hints() -> None:
 
 
 def _offer_the_packs(docmod, width) -> bool:
-    """The Search Knowledge window has nothing to search. Naming a command in a
+    """The Search Knowledge Packs window has nothing to search. Naming a command in a
     window that closes on the next keypress is not an offer, so this asks, and
     installs. True when something was installed and the search can go on.
 
@@ -982,7 +982,7 @@ def _doc_search(args, docmod) -> int:
     the document's own, so nothing can be made up.
 
     With no question it asks for one and keeps asking, which is what the
-    Search Knowledge menu entry runs. A question on a terminal is the first
+    Search Knowledge Packs menu entry runs. A question on a terminal is the first
     round of that same loop (the setup's first question, and typing
     `ai-2 doc search "..."` in a window), so a number still opens the
     document. A pipe or a script stays one-shot."""
@@ -996,7 +996,7 @@ def _doc_search(args, docmod) -> int:
         _doc_show_hits(hits, width)
         return 0
     rc = _doc_search_loop(args, docmod, width, first=question or None)
-    # The Search Knowledge menu entry runs this in a terminal that closes the
+    # The Search Knowledge Packs menu entry runs this in a terminal that closes the
     # moment the command returns. Every round of the loop waits for input, so
     # the window stays by itself; a round that never happens does not, and the
     # message explaining why (nothing indexed, no model, no server) flashes past

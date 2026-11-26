@@ -78,7 +78,7 @@ def test_summary_describes_counts_and_the_engine_hint(log):
     assert entries[1]["count"] == 2 and "2 times" in crashes.describe(entries[1])
     assert "memory access error" in crashes.describe(entries[1])
     assert "does not fit this CPU" in crashes.hint(entries[0]) and "ai-2 doctor" in crashes.hint(entries[0])
-    assert "Search Knowledge" in crashes.hint(entries[1])
+    assert "Search Knowledge Packs" in crashes.hint(entries[1])
 
 
 def test_doctor_check_levels(log, monkeypatch):

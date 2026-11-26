@@ -54,12 +54,12 @@ Pruébalo, mira lo que hay, y si te gusta, instálalo. El usuario de la sesión
 es "ai-2" (contraseña "ai-2") y puede usar sudo.
 
 Puedes probar los Knowledge Packs ahora, antes de instalar nada. Abre
-Applications > AI-2 > Search Knowledge y escribe una pregunta (los paquetes
-incluidos están en inglés, por ejemplo "how do I find a big file?"). Responde
-en segundos a partir de documentos de esta memoria, dice de qué documento
-sale cada respuesta y no necesita internet. Escribe el número de un resultado
-para leer el documento completo. Funciona igual en un ordenador antiguo que
-en uno nuevo.
+Applications > AI-2 > Search Knowledge Packs y escribe una pregunta (los
+paquetes incluidos están en inglés, por ejemplo "how do I find a big file?").
+Responde en segundos a partir de documentos de esta memoria, dice de qué
+documento sale cada respuesta y no necesita internet. Escribe el número de un
+resultado para leer el documento completo. Funciona igual en un ordenador
+antiguo que en uno nuevo.
 
 Si el escritorio nunca apareció o la pantalla se quedó en negro, reinicia y
 elige "Start AI-2 (safe graphics, if the screen stays black)" en el menú de
@@ -127,15 +127,16 @@ preguntas. Si la cierras, vuelve a ejecutarla cuando quieras con:
 
   ai-2 wizard
 
-Lo primero que puedes probar no necesita ninguna configuración. Este
-ordenador llega con tres Knowledge Packs (paquetes de conocimiento): la ayuda
-del propio AI-2, veinte tareas cotidianas de Linux y 196 países. Abre
-Aplicaciones > AI-2 > Buscar conocimiento (o  ai-2 doc search  en un
-terminal), escribe una pregunta y responde en segundos a partir de esos
-documentos, diciendo de cuál sale cada respuesta, sin internet. Escribe el
-número de un resultado para leer el documento completo. Ahí nada lo escribe
-la IA, así que nada es inventado. Puedes añadir más paquetes en
-Aplicaciones > AI-2 > Knowledge Packs, o crear uno con tus propios PDF.
+Lo primero que puedes probar no necesita ninguna configuración. Este ordenador
+llega con tres Knowledge Packs (paquetes de conocimiento): la ayuda del propio
+AI-2, veinte tareas cotidianas de Linux y 196 países. Abre
+Aplicaciones > AI-2 > Buscar en los Paquetes de Conocimiento (o
+ai-2 doc search  en un terminal), escribe una pregunta y responde en segundos
+a partir de esos documentos, diciendo de cuál sale cada respuesta, sin
+internet. Escribe el número de un resultado para leer el documento completo.
+Ahí nada lo escribe la IA, así que nada es inventado. Puedes añadir más
+paquetes en Aplicaciones > AI-2 > Knowledge Packs, o crear uno con tus propios
+PDF.
 
 El catálogo de la comunidad lista todos los paquetes con su descarga, y es
 donde compartes el que hayas creado. Cualquiera puede añadir uno:

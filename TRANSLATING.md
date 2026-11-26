@@ -21,7 +21,7 @@ There are two parts, and each is a complete pull request on its own. Doing only 
 
 **Part 1, the installer and the menu.** About 30 short texts shown while AI-2 installs, and the names of the AI-2 menu entries. An afternoon of work.
 
-**Part 2, the installed system.** About 150 texts of the setup window, Search Knowledge and the Knowledge Packs window, plus the two guides (START-HERE, about the USB stick and the installation, and the Guide, about the installed computer). These go in together, because the installed system only switches to a language that has all of them. A few days of work.
+**Part 2, the installed system.** About 150 texts of the setup window, Search Knowledge Packs and the Knowledge Packs window, plus the two guides (START-HERE, about the USB stick and the installation, and the Guide, about the installed computer). These go in together, because the installed system only switches to a language that has all of them. A few days of work.
 
 Whatever you have not translated shows in English, so a language never breaks by being incomplete.
 
@@ -37,8 +37,8 @@ A few words are names and follow fixed rules in every language.
 
 - **AI-2** is never translated.
 - **Knowledge Packs** is the name of a feature. Translate it, and write it with capitals like a name, as in Spanish "Paquetes de Conocimiento", German "Wissenspakete" and Polish "Pakiety Wiedzy". Use the same form everywhere.
-- **Search Knowledge** is an ordinary menu label, translated as ordinary words, as in Spanish "Buscar conocimiento", German "Wissen durchsuchen" and Polish "Szukaj wiedzy".
-- For words the system already uses (Settings, Applications, Terminal), use the words your language's Linux desktop uses. When a text names a menu path such as `Applications > AI-2 > Search Knowledge`, translate each part exactly as the menu shows it.
+- **Search Knowledge Packs** is a menu label built on the fixed name of Knowledge Packs, so use your language's name for them, as in Spanish "Buscar en los Paquetes de Conocimiento", German "Wissenspakete durchsuchen" and Polish "Przeszukaj Pakiety Wiedzy".
+- For words the system already uses (Settings, Applications, Terminal), use the words your language's Linux desktop uses. When a text names a menu path such as `Applications > AI-2 > Search Knowledge Packs`, translate each part exactly as the menu shows it.
 
 ---
 
@@ -67,9 +67,9 @@ Rules for each text:
 The AI-2 menu entries are the `.desktop` files in [`branding/desktop/`](https://github.com/ProWoos-Devs/ai-2/tree/main/branding/desktop). Each translated text is a line with your code in brackets, next to the Spanish and German ones:
 
 ```
-Name=Search Knowledge
-Name[es]=Buscar conocimiento
-Name[de]=Wissen durchsuchen
+Name=Search Knowledge Packs
+Name[es]=Buscar en los Paquetes de Conocimiento
+Name[de]=Wissenspakete durchsuchen
 Name[fr]=Rechercher dans les connaissances
 ```
 

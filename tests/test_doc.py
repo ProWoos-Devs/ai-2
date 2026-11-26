@@ -448,7 +448,7 @@ def test_doc_index_into_a_named_collection(tmp_path, monkeypatch, capsys):
 
 
 def test_doc_search_with_no_question_asks_and_keeps_asking(tmp_path, monkeypatch, capsys):
-    """What the Search Knowledge menu entry runs. The first screen has to say
+    """What the Search Knowledge Packs menu entry runs. The first screen has to say
     that this is not AI-2 Chat, because that difference is the point."""
     from ai2 import cli
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
@@ -496,7 +496,7 @@ def test_the_search_loop_lists_every_collection_when_embedders_differ(tmp_path, 
 
 
 def test_search_keeps_knowledge_packs_when_own_documents_use_another_embedder(tmp_path, monkeypatch, capsys):
-    """The headline bug: after `ai-2 doc index FILE` on 4 GB, Search Knowledge
+    """The headline bug: after `ai-2 doc index FILE` on 4 GB, Search Knowledge Packs
     used to drop the shipped v1.5 packs because choose_embedder picks v2-moe."""
     import yaml
     from ai2 import cli
@@ -566,7 +566,7 @@ def test_a_running_server_with_another_model_is_not_reused(monkeypatch, capsys):
 
 
 def test_doc_search_with_a_question_on_a_terminal_keeps_asking(tmp_path, monkeypatch, capsys):
-    """A question typed at a terminal is the first round of Search Knowledge,
+    """A question typed at a terminal is the first round of Search Knowledge Packs,
     not a one-shot that cannot open the document."""
     import sys
     from ai2 import cli

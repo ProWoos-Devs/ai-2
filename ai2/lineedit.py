@@ -4,7 +4,7 @@ Python's input() only understands the arrow keys, Home and End once the
 readline module has been imported. Without it the terminal's own escape codes
 land in the line as text, which is what Rafael saw in the terminal chat: "when
 I use the arrow keys, instead of moving the cursor it types things like [[C"
-(2026-09-19). The same was true of Search Knowledge and of the setup's first
+(2026-09-19). The same was true of Search Knowledge Packs and of the setup's first
 question. Importing readline fixes all of them, and brings the up arrow's
 recall of earlier lines with it, which suits a chat and a search."""
 
