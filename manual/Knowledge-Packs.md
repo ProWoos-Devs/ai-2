@@ -32,6 +32,12 @@ From the release after 0.29.5, when you ask the chat a question and no Knowledge
 
 ## Making one for yourself
 
+Open **Applications > AI-2 > Knowledge Packs > Create a Knowledge Pack**. Give it a title, choose the language of the documents, then drop in text files or PDFs and paste any notes. For a scanned PDF, run text recognition first. **Create** indexes the documents on this computer. If the search model is missing, the window shows the download size first. Once the model is on disk you can create and search offline. Indexing in Spanish and other languages that use the multilingual model needs more memory than indexing in English.
+
+Try a question in the new collection. You can reopen it under **My private collections** or in the chat's **Ask this collection**. A collection you create stays in your own account on this computer. **Save a Knowledge Pack file** makes a portable copy with the documents' searchable text. On another AI-2 computer, open **Knowledge Packs > Install a Knowledge Pack from a file** and choose the copy on your USB stick. That computer also needs the matching search model.
+
+### From the terminal
+
 This is the household case: a recent computer does the indexing, the old one does the asking.
 
 ```

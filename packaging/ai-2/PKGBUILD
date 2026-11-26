@@ -15,7 +15,7 @@ url="https://github.com/ProWoos-Devs/ai-2"
 license=('MIT')
 depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pamac' 'sqlite' 'ai-2-gopher>=1.6.2-1' 'firefox-esr'
          'firefox-esr-i18n-es-es' 'firefox-esr-i18n-de' 'firefox-esr-i18n-pl' 'smartmontools'
-         'udisks2' 'gvfs')
+         'udisks2' 'gvfs' 'gtk3' 'python-gobject' 'poppler')
 # pamac brings libpamac, whose pamac-checkupdates is the update check since 0.14.1 (pacman-contrib and
 # fakeroot were only there for checkupdates). sqlite: python only suggests it, ai-2 doc needs sqlite3.
 # ai-2-gopher: the app AI-2 Chat opens, on every AI-2 (Rafael, 2026-11-04). 1.5.0-2 brought Gopher Reader, which policies.json installs, 1.6.0-1 is what Search Knowledge Packs in the chat needs, 1.6.1-1 waits for a search without an animation, which gave the search about half a processor core back on a 2-core computer, and 1.6.2-1 reads a long document without laying all of it out.
@@ -26,7 +26,6 @@ depends=('python' 'python-yaml' 'xdg-utils' 'hicolor-icon-theme' 'dconf' 'pamac'
 # its Trash (Rafael, 2026-11-18). 18 packages, 3.5 MiB to download, 23.7 MiB installed (pacman -Sp on RMM-PC, 2026-11-18).
 checkdepends=('python-pytest')
 optdepends=('pciutils: GPU detection via lspci'
-            'poppler: PDF text for ai-2 doc index (pdftotext)'
             'tesseract: OCR of scans for ai-2 doc index'
             'zramen: compressed swap, installed by ai-2 init --apply on low-RAM tiers'
             'earlyoom: userspace OOM killer, installed by ai-2 init --apply on low-RAM tiers'

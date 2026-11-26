@@ -63,10 +63,7 @@ after the install.
 
 - **Get more**: `ai-2 knowledge browse` (or **Applications > AI-2 > Knowledge Packs**) lists what there is, with
   what is in each and who made it, and installs the ones you pick by number.
-- **Make one**: `ai-2 knowledge export` builds a pack from your own PDFs and notes. To share it, host the file and
-  open a pull request adding your entry to the catalog; the steps are in
-  [CONTRIBUTING.md](https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/CONTRIBUTING.md), and the checks on your
-  pull request download the file, install it and compare it with what your entry claims.
+- **Make one**: open **Applications > AI-2 > Knowledge Packs** and choose **Create a Knowledge Pack**. Add PDFs, text files or notes, then try a question. Save a Knowledge Pack file for another computer. To share one with everybody, the steps are in [CONTRIBUTING.md](https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/CONTRIBUTING.md). The [Knowledge Packs guide](manual/Knowledge-Packs.md) also covers the terminal commands.
 - **Everything lives here**: the community catalog, https://github.com/ProWoos-Devs/ai2-knowledge, where the
   project's own packs sit with everyone else's. Ideas and problems about packs belong in that repository's
   [Issues](https://github.com/ProWoos-Devs/ai2-knowledge/issues); anything about AI-2 itself belongs in

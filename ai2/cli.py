@@ -1528,6 +1528,8 @@ def main(argv: list[str] | None = None) -> int:
                           epilog="The community catalog, where every pack is listed with its download and where "
                                  "you share one you made:  https://github.com/ProWoos-Devs/ai2-knowledge")
     kn_sub = p_kn.add_subparsers(dest="knowledge_cmd", metavar="action")
+    kn_sub.add_parser("manage", help="open the desktop Knowledge Packs window").set_defaults(func=cmd_knowledge)
+    kn_sub.add_parser("create", help="create a private Knowledge Pack in a window").set_defaults(func=cmd_knowledge)
     p_kn_avail = kn_sub.add_parser("available", help="the Knowledge Packs of the community catalog this AI-2 can fetch by name")
     p_kn_avail.add_argument("term", nargs="?", help="only those whose name or title contains this")
     p_kn_avail.set_defaults(func=cmd_knowledge)

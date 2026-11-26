@@ -140,7 +140,7 @@ def test_the_menu_entry_opens_a_window_big_enough_for_the_list(monkeypatch):
     parser.optionxform = str
     parser.read("branding/desktop/ai2-packs.desktop", encoding="utf-8")
     entry = parser["Desktop Entry"]
-    assert entry["Exec"] == "ai-2 knowledge browse --window" and entry["Terminal"] == "false"
+    assert entry["Exec"] == "ai-2 knowledge manage" and entry["Terminal"] == "false"
     assert entry["Name"] == "Knowledge Packs"
     opened = []
     monkeypatch.setattr(about, "open_window", _real_open_window)

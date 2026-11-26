@@ -126,6 +126,15 @@ def cmd_knowledge(args) -> int:
     from . import pack as packmod
     action = getattr(args, "knowledge_cmd", None)
     try:
+        if action in ("create", "manage"):
+            try:
+                from . import packwindow
+                if packwindow.open_window(create=action == "create"):
+                    return 0
+            except (ImportError, ValueError) as exc:
+                print(str(exc), file=sys.stderr)
+            print(tr("Open the Knowledge Pack creator from an AI-2 desktop with GTK installed."), file=sys.stderr)
+            return 1
         if action == "export":
             if not docmod.valid_collection(args.name) or args.name not in docmod.list_collections():
                 print(f"error: no collection named {args.name!r} (ai-2 doc list shows them)", file=sys.stderr)
