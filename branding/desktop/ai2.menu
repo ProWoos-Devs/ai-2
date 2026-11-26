@@ -30,34 +30,32 @@
         <Separator/>
         <Merge type="all"/>
         <Separator/>
+        <Filename>ai2-software-updates.desktop</Filename>
         <Filename>xfce4-about.desktop</Filename>
         <Filename>xfce4-session-logout.desktop</Filename>
     </Layout>
+    <!-- Software Updates sits at the top level, just above About Xfce
+         (Rafael, 2026-11-26): it updates the whole system, not only AI-2.
+         Its entry carries X-Xfce-Toplevel, the category this menu includes. -->
     <Menu>
         <Name>AI-2</Name>
         <Directory>ai2.directory</Directory>
         <Include>
             <Category>X-AI2</Category>
         </Include>
-        <!-- About AI-2 first (Rafael, 2026-09-15), then Search Knowledge
-             (2026-09-17: on the machines AI-2 is built for this is the
-             capability that answers fastest and with sources, so it sits
-             above the chat entries), then Knowledge Packs (2026-09-19: where
-             packs are chosen, installed and updated belongs next to where they
-             are asked), then the rest. Every entry is listed, because anything left
-             to Merge sorts by its translated name: "Actualizaciones de software"
-             came before "AI-2 Chat" in Spanish, and "Über AI-2" last in German.
-             The order is the same in every language (Rafael, 2026-11-02). The chats
-             are Gopher, Terminal, Browser (Rafael, 2026-11-04). -->
+        <!-- Order (Rafael, 2026-11-26): the guide, the three chats (Gopher,
+             Terminal, Browser), Knowledge Packs, Search Knowledge, and About
+             AI-2 last. Every entry is listed, because anything left to Merge
+             sorts by its translated name and the order would change with the
+             language (Rafael, 2026-11-02). -->
         <Layout>
-            <Filename>ai2-about.desktop</Filename>
-            <Filename>ai2-search.desktop</Filename>
-            <Filename>ai2-packs.desktop</Filename>
+            <Filename>ai2-guide.desktop</Filename>
             <Filename>ai2-chat.desktop</Filename>
             <Filename>ai2-chat-terminal.desktop</Filename>
             <Filename>ai2-chat-browser.desktop</Filename>
-            <Filename>ai2-guide.desktop</Filename>
-            <Filename>ai2-software-updates.desktop</Filename>
+            <Filename>ai2-packs.desktop</Filename>
+            <Filename>ai2-search.desktop</Filename>
+            <Filename>ai2-about.desktop</Filename>
             <Merge type="all"/>
         </Layout>
     </Menu>

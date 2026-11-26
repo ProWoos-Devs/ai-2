@@ -204,7 +204,7 @@ espaldas.
 
 Con ventana:
 
-  Aplicaciones > AI-2 > Actualizaciones de software
+  Aplicaciones > Actualizaciones de software
 
 En una terminal:
 

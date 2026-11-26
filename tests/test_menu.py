@@ -10,9 +10,13 @@ import xml.etree.ElementTree as ET
 import pytest
 
 DESKTOP = pathlib.Path("branding/desktop")
-ENTRIES = ["ai2-chat", "ai2-chat-terminal", "ai2-chat-browser", "ai2-guide", "ai2-software-updates", "ai2-about", "ai2-search",
+ENTRIES = ["ai2-chat", "ai2-chat-terminal", "ai2-chat-browser", "ai2-guide", "ai2-about", "ai2-search",
            "ai2-packs"]
 CATEGORY = "X-AI2"
+# Software Updates updates the whole system, so it sits at the top level just
+# above About Xfce (Rafael, 2026-11-26), through the category garcon's own
+# top-level menu includes.
+TOPLEVEL = ["ai2-software-updates"]
 
 
 def _entry(name):
@@ -37,17 +41,23 @@ def test_the_submenu_collects_that_category():
     assert sub.findtext("Include/Category") == CATEGORY
 
 
-def test_about_ai2_opens_the_submenu():
-    """Rafael, 2026-09-15: About AI-2 is the first entry of the AI-2 submenu,
-    no separator. Checked with garcon 4.20 and in the QEMU install."""
+def test_the_guide_opens_the_submenu_and_about_ai2_closes_it():
+    """Rafael, 2026-11-26: AI-2 Guide first, About AI-2 last. Checked with
+    garcon 4.20."""
     sub = ET.parse(DESKTOP / "ai2.menu").getroot().find("Menu")
     layout = [(child.tag, child.get("type") or (child.text or "").strip())
               for child in sub.find("Layout")]
-    # Knowledge Packs, where packs are chosen, installed and updated, sits right under
-    # Search Knowledge, where they are asked (2026-09-19)
-    assert layout[:3] == [("Filename", "ai2-about.desktop"), ("Filename", "ai2-search.desktop"),
-                          ("Filename", "ai2-packs.desktop")]
-    assert layout[-1] == ("Merge", "all"), "without it a new entry would not appear"
+    assert layout[0] == ("Filename", "ai2-guide.desktop")
+    assert layout[-2:] == [("Filename", "ai2-about.desktop"), ("Merge", "all")], \
+        "without the Merge a new entry would not appear"
+
+
+def test_software_updates_sits_above_about_xfce():
+    entry = _entry("ai2-software-updates")
+    assert [c for c in entry["Categories"].split(";") if c] == ["X-Xfce-Toplevel"]
+    layout = _layout(ET.parse(DESKTOP / "ai2.menu").getroot())
+    at = layout.index(("Filename", "xfce4-about.desktop"))
+    assert layout[at - 1] == ("Filename", "ai2-software-updates.desktop")
 
 
 def _layout(element):
@@ -72,13 +82,14 @@ def test_the_copied_layout_matches_the_installed_garcon_menu():
     installed = pathlib.Path("/etc/xdg/menus/xfce-applications.menu")
     if not installed.exists():
         pytest.skip("no xfce-applications.menu here")
-    ours = _layout(ET.parse(DESKTOP / "ai2.menu").getroot())
+    ours = [item for item in _layout(ET.parse(DESKTOP / "ai2.menu").getroot())
+            if item != ("Filename", "ai2-software-updates.desktop")]
     assert ours[2:] == _layout(ET.parse(installed).getroot())
 
 
 def test_every_entry_is_installed_by_the_package():
     pkgbuild = pathlib.Path("packaging/ai-2/PKGBUILD").read_text(encoding="utf-8")
-    for name in ENTRIES:
+    for name in ENTRIES + TOPLEVEL:
         assert f"/usr/share/applications/{name}.desktop" in pkgbuild, name
 
 
@@ -113,8 +124,8 @@ def test_every_visible_entry_has_a_fixed_place_in_the_submenu():
     root = ET.parse(DESKTOP / "ai2.menu").getroot()
     sub = next(m for m in root.findall("Menu") if m.find("Name").text == "AI-2")
     listed = [c.text.strip().removesuffix(".desktop") for c in sub.find("Layout") if c.tag == "Filename"]
-    assert listed == ["ai2-about", "ai2-search", "ai2-packs", "ai2-chat", "ai2-chat-terminal", "ai2-chat-browser",
-                      "ai2-guide", "ai2-software-updates"]
+    assert listed == ["ai2-guide", "ai2-chat", "ai2-chat-terminal", "ai2-chat-browser", "ai2-packs", "ai2-search",
+                      "ai2-about"]
     assert sorted(listed) == sorted(ENTRIES)
 
 

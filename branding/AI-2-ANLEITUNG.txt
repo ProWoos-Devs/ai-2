@@ -202,7 +202,7 @@ deinem Rücken installiert.
 
 Mit Fenster:
 
-  Anwendungen > AI-2 > Software-Aktualisierungen
+  Anwendungen > Software-Aktualisierungen
 
 Im Terminal:
 

@@ -196,7 +196,7 @@ next time you open a terminal. Nothing is ever installed behind your back.
 
 With a window:
 
-  Applications > AI-2 > Software Updates
+  Applications > Software Updates
 
 In a terminal:
 

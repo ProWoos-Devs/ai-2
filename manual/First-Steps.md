@@ -64,7 +64,7 @@ You can remove it in Firefox under Menu > Add-ons and themes > Extensions, and i
 
 ## Staying up to date
 
-AI-2, the AI engine and the model catalog all update the normal Artix/Arch way, from AI-2's signed package repository that is already configured. One command, or Applications > AI-2 > Software Updates:
+AI-2, the AI engine and the model catalog all update the normal Artix/Arch way, from AI-2's signed package repository that is already configured. One command, or Applications > Software Updates:
 
 ```
 ai-2 update

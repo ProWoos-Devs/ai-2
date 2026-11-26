@@ -218,7 +218,7 @@ UPDATING
 
 AI-2 packages come from a signed repository that is already configured.
 You are told when updates are waiting, and nothing installs itself. Update
-the whole system from Applications > AI-2 > Software Updates, or in a terminal:
+the whole system from Applications > Software Updates, or in a terminal:
 
   ai-2 update
 
