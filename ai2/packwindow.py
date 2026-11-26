@@ -35,7 +35,7 @@ def scroll(widget, height):
 class PackWindow(Gtk.Window):
     def __init__(self, create=False):
         super().__init__(title=tr("Knowledge Packs"))
-        self.set_default_size(550, 420)
+        self.set_default_size(620, 560)
         self.set_border_width(14)
         self.connect("delete-event", self.closing)
         self.connect("destroy", lambda *_: Gtk.main_quit())
@@ -204,21 +204,77 @@ class PackWindow(Gtk.Window):
         if line.startswith("Downloading ") or re.match(r"\d+ MB\s", line):
             GLib.idle_add(self.status.set_text, line[:260])
 
+    def heading(self, text):
+        label = Gtk.Label(xalign=0)
+        label.set_markup("<b>" + GLib.markup_escape_text(text) + "</b>")
+        label.set_margin_top(6)
+        return self.add_to_page(label)
+
+    def listing(self, rows):
+        """Rows of (title, details, button or None), each button at its own
+        width on the right, in a framed list like a file manager's."""
+        box = Gtk.ListBox()
+        box.set_selection_mode(Gtk.SelectionMode.NONE)
+        for title, details, action in rows:
+            line = Gtk.Box(spacing=8)
+            line.set_border_width(6)
+            words = Gtk.Label(xalign=0, wrap=True)
+            words.set_markup(GLib.markup_escape_text(title) + "\n<small>" + GLib.markup_escape_text(details)
+                             + "</small>")
+            line.pack_start(words, True, True, 0)
+            if action is not None:
+                action.set_valign(Gtk.Align.CENTER)
+                line.pack_end(action, False, False, 0)
+            box.add(line)
+        frame = Gtk.Frame()
+        frame.add(box)
+        return self.add_to_page(frame)
+
     def home(self):
         self.clear(tr("Knowledge Packs"))
-        self.add_to_page(button(tr("Create a Knowledge Pack"), self.editor))
-        self.add_to_page(button(tr("Browse and update community Knowledge Packs"), self.browse))
-        self.add_to_page(button(tr("Install a Knowledge Pack from a file"), self.install))
+        # Buttons at their own width, in one row (Rafael, 2026-11-26: not across the whole window)
+        actions = Gtk.FlowBox()
+        actions.set_selection_mode(Gtk.SelectionMode.NONE)
+        actions.set_homogeneous(False)
+        actions.set_max_children_per_line(3)
+        for label, action in ((tr("Create a Knowledge Pack"), self.editor),
+                              (tr("Install a Knowledge Pack from a file"), self.install),
+                              (tr("Browse and update community Knowledge Packs"), self.browse)):
+            widget = button(label, action)
+            widget.set_halign(Gtk.Align.START)
+            actions.add(widget)
+        self.add_to_page(actions)
+
+        self.heading(tr("Installed Knowledge Packs"))
+        rows = []
+        for name, manifest in sorted(pack.installed_packs(), key=lambda p: str(p[1].get("title") or p[0]).lower()):
+            details = tr("{id}, version {version}, {documents} documents").format(
+                id=name, version=manifest.get("version", "?"),
+                documents=(manifest.get("index") or {}).get("documents", "?"))
+            if doc.is_system(name):
+                rows.append((str(manifest.get("title") or name), details + "\n" + tr("Comes with AI-2"), None))
+            else:
+                rows.append((str(manifest.get("title") or name), details,
+                             button(tr("Remove"), lambda n=name, m=manifest: self.remove(n, m))))
+        if rows:
+            self.listing(rows)
+        else:
+            self.add_to_page(Gtk.Label(label=tr("No Knowledge Packs are installed."), xalign=0))
+
         collections = packcreator.private_collections()
         if collections:
-            chooser = Gtk.ComboBoxText()
-            for name, details in collections.items():
-                chooser.append(name, f"{details['title']} ({name})")
-            chooser.set_active(0)
-            self.field(tr("My private collections"), chooser)
-            self.add_to_page(button(tr("Open collection"), lambda: self.ready(chooser.get_active_id(),
-                                                                      collections[chooser.get_active_id()])))
+            self.heading(tr("My private collections"))
+            self.listing([(details["title"], name,
+                           button(tr("Open collection"), lambda n=name, d=details: self.ready(n, d)))
+                          for name, details in collections.items()])
         self.page.show_all()
+
+    def remove(self, name, manifest):
+        title = str(manifest.get("title") or name)
+        prompt = tr("Remove “{title}” from this computer?").format(title=title)
+        if self.message(prompt, confirm=True):
+            self.job(tr("Removing…"), lambda: packcreator.run_cli(["knowledge", "remove", "--", name]),
+                     lambda _: (self.home(), self.status.set_text(tr("Knowledge Pack removed."))))
 
     def browse(self):
         cmd = about.terminal_window(tr("Knowledge Packs"), "100x38", ["ai-2", "knowledge", "browse"])
@@ -240,7 +296,7 @@ class PackWindow(Gtk.Window):
             prompt += "\n" + tr("This will replace the installed copy.")
         if self.confirm_model(model, prompt, always=True):
             self.job(tr("Installing…"), lambda: packcreator.run_cli(["knowledge", "install", "--", files[0]],
-                     report=self.progress), lambda _: self.status.set_text(tr("Knowledge Pack installed.")))
+                     report=self.progress), lambda _: (self.home(), self.status.set_text(tr("Knowledge Pack installed."))))
 
     def confirm_model(self, model, prompt, always=False):
         if runtime.find_model_file(model["file"]) is None:

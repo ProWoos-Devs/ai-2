@@ -15,6 +15,8 @@ Packs exist because indexing is the slow part. Turning a book into something sea
 | `ai-2 knowledge remove ID` | Remove an installed pack. |
 | `ai-2 knowledge export NAME` | Turn one of your own document collections into a pack file. |
 
+The same can be done in **Applications > AI-2 > Knowledge Packs**, which lists the Knowledge Packs installed on this computer with **Remove** beside each one. A Knowledge Pack that comes with AI-2 has no Remove button, because a package owns its files.
+
 Then ask, the ordinary way:
 
 ```

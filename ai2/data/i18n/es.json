@@ -296,5 +296,13 @@
   "The Knowledge Pack exceeds the catalog’s 10 MiB limit. See the submission guide.": "El Paquete de Conocimiento supera el límite de 10 MiB del catálogo. Consulta la guía de envío.",
   "This Knowledge Pack ID is already in the catalog. Follow the catalog guide to update it.": "Este identificador ya está en el catálogo. Sigue la guía para actualizar el Paquete de Conocimiento.",
   "Written for children": "Escrito para niños",
-  "Choose at least one age range.": "Elige al menos un rango de edad."
+  "Choose at least one age range.": "Elige al menos un rango de edad.",
+  "Installed Knowledge Packs": "Paquetes de Conocimiento instalados",
+  "{id}, version {version}, {documents} documents": "{id}, versión {version}, {documents} documentos",
+  "Comes with AI-2": "Viene con AI-2",
+  "Remove": "Quitar",
+  "No Knowledge Packs are installed.": "No hay Paquetes de Conocimiento instalados.",
+  "Remove “{title}” from this computer?": "¿Quitar «{title}» de este equipo?",
+  "Removing…": "Quitando…",
+  "Knowledge Pack removed.": "Paquete de Conocimiento quitado."
 }
