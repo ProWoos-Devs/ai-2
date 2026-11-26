@@ -278,5 +278,7 @@
   "No readable text in {file}. For a scanned PDF, run text recognition (OCR) first.": "No se encontró texto en {file}. Si es un PDF escaneado, primero aplica el reconocimiento de texto (OCR).",
   "All files": "Todos los archivos",
   "Replace {path}?": "¿Reemplazar {path}?",
-  "This computer has too little memory to build a Knowledge Pack in this language. Create it on a computer with more memory and copy the Knowledge Pack file here.": "Este equipo tiene poca memoria para crear un Paquete de Conocimiento en este idioma. Créalo en un equipo con más memoria y copia aquí el archivo del Paquete de Conocimiento."
+  "This computer has too little memory to build a Knowledge Pack in this language. Create it on a computer with more memory and copy the Knowledge Pack file here.": "Este equipo tiene poca memoria para crear un Paquete de Conocimiento en este idioma. Créalo en un equipo con más memoria y copia aquí el archivo del Paquete de Conocimiento.",
+  "Document {n} of {count}: {name}": "Documento {n} de {count}: {name}",
+  "{done} of {total} parts, about {minutes} min left for this document": "{done} de {total} partes, quedan unos {minutes} min para este documento"
 }

@@ -76,3 +76,34 @@ def test_window_entry_points(monkeypatch):
     monkeypatch.setattr("ai2.packwindow", mock, raising=False)
     assert cli.main(["knowledge", "create"]) == cli.main(["knowledge", "manage"]) == 0
     assert calls == [True, False]
+
+
+def test_index_progress_reads_the_indexer_lines():
+    state, seen = {}, []
+    lines = ["Downloading Nomic (328 MB) to /x/ ...",
+             "3/9 parts, 4 s, about 1 min left",                 # before any document: nothing to say
+             "guia.txt: 1851 words in 21 parts, indexing with Nomic Embed Text v2 MoE (slow on an old CPU; you can leave it running) ...",
+             "4/21 parts, 40 s, about 3 min left",
+             "20/21 parts, 200 s, about 1 min left",
+             "guia.txt: 21 parts indexed in 210 s",
+             "Notes.txt: 7 words in 1 parts, indexing with Nomic Embed Text v2 MoE (slow on an old CPU; you can leave it running) ..."]
+    for line in lines:
+        info = creator.index_progress(line, state, 2)
+        if info:
+            seen.append((info["document"], info["documents"], info["name"], info["done"], info["total"],
+                         info["minutes"], round(info["fraction"], 3)))
+    assert seen == [(1, 2, "guia.txt", 0, 21, None, 0.0), (1, 2, "guia.txt", 4, 21, 3, 0.095),
+                    (1, 2, "guia.txt", 20, 21, 1, 0.476), (2, 2, "Notes.txt", 0, 1, None, 0.5)]
+
+
+def test_create_passes_progress_on(local, monkeypatch):
+    def index(arguments, *, env, report, started):
+        report("a.txt: 5 words in 2 parts, indexing with X ...")
+        report("1/2 parts, 3 s, about 1 min left")
+        raise OSError("stop here")
+    monkeypatch.setattr(creator, "run_cli", index)
+    got, lines = [], []
+    with pytest.raises(OSError):
+        creator.create("Garden", "es", [], "notes", report=lines.append, progress=got.append)
+    assert [(i["done"], i["total"], i["fraction"]) for i in got] == [(0, 2, 0.0), (1, 2, 0.5)]
+    assert len(lines) == 2

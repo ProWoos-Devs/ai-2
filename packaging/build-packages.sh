@@ -128,13 +128,14 @@ for p in "${pkgs[@]}"; do
   # ai-2 needs its own dependencies for check(), but not the app or the browser,
   # which its tests never start and which may not be in [ai2] yet when both go out together,
   # nor udisks2 and gvfs, which the tests never use and whose cryptsetup needs a newer
-  # openssl than the container has (2026-11-18).
+  # openssl than the container has (2026-11-18), nor python-gobject and poppler, which the tests
+  # never load and which the container's package lists could no longer fetch (2026-11-26).
   if [ "$p" = ai-2 ]; then
     # Only what is missing, as -s does: installing one newer package over old
     # package lists is a partial upgrade (python without its expat, 2026-11-04).
     # pacman -T exits 127 when it lists something, which is not a failure here.
     ( . ./PKGBUILD; pacman -T "${depends[@]}" "${checkdepends[@]}" || true ) \
-      | sed '/^ai-2-gopher/d; /^firefox-esr/d; /^udisks2/d; /^gvfs/d' | xargs -r sudo pacman -S --noconfirm
+      | sed '/^ai-2-gopher/d; /^firefox-esr/d; /^udisks2/d; /^gvfs/d; /^python-gobject/d; /^poppler/d' | xargs -r sudo pacman -S --noconfirm
     deps=(--nodeps)
   fi
   PKGDEST="$OUT" SRCDEST="$SRCDEST" makepkg "${deps[@]}" -f -C --noconfirm

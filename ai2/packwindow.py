@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import subprocess
 import threading
 
@@ -45,10 +46,13 @@ class PackWindow(Gtk.Window):
         self.status = Gtk.Label(xalign=0, selectable=True, wrap=True)
         self.status.set_max_width_chars(70)
         outer.pack_start(self.status, False, False, 0)
+        self.bar = Gtk.ProgressBar()
+        self.bar.set_no_show_all(True)
+        outer.pack_start(self.bar, False, False, 0)
         self.cancel_button = button(tr("Cancel"), self.cancel)
         outer.pack_start(self.cancel_button, False, False, 0)
         self.cancel_button.set_no_show_all(True)
-        self.busy = self.cancelled = self.close_after = False
+        self.busy = self.cancelled = self.close_after = self.pulsing = False
         self.process = None
         if create:
             self.editor()
@@ -131,16 +135,24 @@ class PackWindow(Gtk.Window):
                 self.cancel()
         return self.busy
 
-    def job(self, status, work, finished, cancellable=False):
+    def job(self, status, work, finished, cancellable=False, bar=False):
         self.busy, self.cancelled, self.process = True, False, None
         self.page.set_sensitive(False)
         self.status.set_text(status)
         self.cancel_button.set_visible(cancellable)
+        self.bar.set_visible(bar)
+        self.pulsing = bar
+        if bar:
+            # nothing to measure yet (the model loads, the documents are read): show it is alive
+            self.bar.set_fraction(0)
+            GLib.timeout_add(150, self.pulse)
 
         def complete(result, error):
             self.process, self.busy = None, False
             self.page.set_sensitive(True)
             self.cancel_button.hide()
+            self.pulsing = False
+            self.bar.hide()
             if self.close_after:
                 self.destroy()
             elif error:
@@ -165,6 +177,32 @@ class PackWindow(Gtk.Window):
 
     def progress(self, line):
         GLib.idle_add(self.status.set_text, line[:260])
+
+    def pulse(self):
+        if self.pulsing:
+            self.bar.pulse()
+        return self.pulsing
+
+    def index_progress(self, info):
+        """From the worker thread: how far the import is, on the bar and in words."""
+        text = tr("Document {n} of {count}: {name}").format(n=info["document"], count=info["documents"],
+                                                            name=info["name"])
+        if info["minutes"] is not None:
+            text += "\n" + tr("{done} of {total} parts, about {minutes} min left for this document").format(
+                done=info["done"], total=info["total"], minutes=info["minutes"])
+
+        def show():
+            if self.busy:
+                self.pulsing = False
+                self.bar.set_fraction(info["fraction"])
+                self.status.set_text(text)
+            return False
+        GLib.idle_add(show)
+
+    def download_progress(self, line):
+        """Only the search model's download is worth a raw line; the import has its own words."""
+        if line.startswith("Downloading ") or re.match(r"\d+ MB\s", line):
+            GLib.idle_add(self.status.set_text, line[:260])
 
     def home(self):
         self.clear(tr("Knowledge Packs"))
@@ -272,8 +310,9 @@ class PackWindow(Gtk.Window):
                 return
             if self.confirm_model(model, tr("Create this private collection?")):
                 self.job(tr("Creating your private collection…"), lambda: packcreator.create(
-                    name, language, chosen, text, self.progress, self.started), lambda result: self.ready(*result),
-                    cancellable=True)
+                    name, language, chosen, text, self.download_progress, self.started,
+                    progress=self.index_progress), lambda result: self.ready(*result),
+                    cancellable=True, bar=True)
         self.add_to_page(button(tr("Create"), build))
         self.add_to_page(button(tr("Back"), self.home))
         self.page.show_all()

@@ -44,6 +44,30 @@ def run_cli(arguments, *, env=None, report=None, started=None):
     return "\n".join(output)
 
 
+_DOC_START = re.compile(r"^(.+): \d+ words in (\d+) parts, ")
+_DOC_PARTS = re.compile(r"^(\d+)/(\d+) parts, \d+ s, about (\d+) min left")
+
+
+def index_progress(line, state, count):
+    """What a line of `ai-2 doc index` says about how far the import is, as
+    {document, documents, name, done, total, minutes, fraction}, or None for a
+    line that says nothing about it. `state` is a dict this keeps between
+    lines; `count` is how many documents were handed to the indexer. The
+    minutes are the indexer's own estimate for the document it is on."""
+    start = _DOC_START.match(line)
+    if start:
+        state.update(document=state.get("document", 0) + 1, name=start.group(1),
+                     done=0, total=int(start.group(2)), minutes=None)
+    else:
+        parts = _DOC_PARTS.match(line)
+        if not parts or not state.get("document"):
+            return None
+        state.update(done=int(parts.group(1)), total=int(parts.group(2)), minutes=int(parts.group(3)))
+    count = max(count, state["document"])
+    within = state["done"] / state["total"] if state["total"] else 0
+    return dict(state, documents=count, fraction=min(1.0, (state["document"] - 1 + within) / count))
+
+
 def valid_language(language):
     return bool(re.fullmatch(r"[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*", language))
 
@@ -67,7 +91,7 @@ def private_collections():
     return result
 
 
-def create(title, language, paths, notes, report=None, started=None):
+def create(title, language, paths, notes, report=None, started=None, progress=None):
     title = title.strip()
     paths = [Path(p).absolute() for p in paths]
     if not title or not (paths or notes.strip()):
@@ -97,8 +121,16 @@ def create(title, language, paths, notes, report=None, started=None):
         model_path = runtime.find_model_file(model["file"])
         env = dict(os.environ, XDG_DATA_HOME=tmp, AI2_SYSTEM_DOC_DIR=str(staging / "system"),
                    AI2_MODEL_DIR=os.path.dirname(model_path) if model_path else runtime.model_dir())
+        state, count = {}, len(paths)
+
+        def relay(line):
+            info = index_progress(line, state, count) if progress else None
+            if info:
+                progress(info)
+            if report:
+                report(line)
         run_cli(["doc", "index", "--in", "draft", "--embedder", model["id"], "--", *paths],
-                env=env, report=report, started=started)
+                env=env, report=relay, started=started)
         collection = staging / "ai2/doc/draft"
         collection.chmod(0o700)
         details = {"title": title, "languages": [language]}

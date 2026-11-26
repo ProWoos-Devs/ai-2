@@ -278,5 +278,7 @@
   "No readable text in {file}. For a scanned PDF, run text recognition (OCR) first.": "Kein lesbarer Text in {file}. Führe für ein eingescanntes PDF zuerst eine Texterkennung (OCR) durch.",
   "All files": "Alle Dateien",
   "Replace {path}?": "{path} ersetzen?",
-  "This computer has too little memory to build a Knowledge Pack in this language. Create it on a computer with more memory and copy the Knowledge Pack file here.": "Dieser Computer hat zu wenig Speicher, um ein Wissenspaket in dieser Sprache zu erstellen. Erstelle es auf einem Computer mit mehr Speicher und kopiere die Wissenspaket-Datei hierher."
+  "This computer has too little memory to build a Knowledge Pack in this language. Create it on a computer with more memory and copy the Knowledge Pack file here.": "Dieser Computer hat zu wenig Speicher, um ein Wissenspaket in dieser Sprache zu erstellen. Erstelle es auf einem Computer mit mehr Speicher und kopiere die Wissenspaket-Datei hierher.",
+  "Document {n} of {count}: {name}": "Dokument {n} von {count}: {name}",
+  "{done} of {total} parts, about {minutes} min left for this document": "{done} von {total} Teilen, noch etwa {minutes} Min. für dieses Dokument"
 }
