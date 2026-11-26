@@ -16,9 +16,20 @@ import importlib.resources
 import yaml
 
 # Below this generation speed, local chat is too slow to be pleasant; steer the
-# user to remote inference for anything larger. ~2 tok/s is the "usable but
-# slow" line proven on RMM-PC, so the floor sits just under it.
+# user to remote inference for anything larger.
 USABLE_TG_TPS = 1.5
+
+# A model larger than the one the benchmark ran on must be estimated at this
+# speed or more to be recommended (new in 0.30.1). With the clang engine RMM-PC
+# (A4-3305M) measures 3.2 to 3.3 tok/s on the 0.5B, so the 1.5 line alone picked
+# Gemma 3 1B there, which measured 1.62 tok/s with a short answer taking 40 to
+# 44 s instead of 18 to 19 s (2026-11-25). At 2.0 the 0.8B would sit on the line
+# there (estimate 1.99 to 2.06) and the pick would change from one benchmark run
+# to the next. The benchmark model and smaller ones keep the 1.5 line, so a slow
+# machine is not pushed down to the 270M. Known cost: the estimate is low for
+# Qwen3 1.7B on rafaminu-pc (E1-7010, 1.56 estimated, 2.64 measured 2026-11-26),
+# which is recommended Gemma 3 1B (2.77 measured) instead.
+LARGER_MODEL_TG_TPS = 2.2
 
 # RAM we keep free for the OS/desktop rather than the model, in MiB.
 RAM_HEADROOM_MIB = 1200
@@ -137,16 +148,22 @@ def recommend(ram_mib: int, measured_tps: float, measured_params_b: float,
                 "reason": f"no catalog model fits {budget} MiB usable RAM; use remote inference"}
 
     scored = [(m, estimate_tps(measured_tps, measured_params_b, m["params_b"])) for m in fits]
-    usable = [(m, tps) for m, tps in scored if tps >= USABLE_TG_TPS]
+
+    def fast_enough(m: dict, tps: float) -> bool:
+        line = LARGER_MODEL_TG_TPS if m["params_b"] > measured_params_b else USABLE_TG_TPS
+        return tps >= line
+
+    usable = [(m, tps) for m, tps in scored if fast_enough(m, tps)]
 
     if usable:
         best, _ = max(usable, key=lambda mt: mt[0]["params_b"])
         # If a larger model would fit in RAM but is too slow, suggest remote for it.
         larger_but_slow = any(
-            m["params_b"] > best["params_b"] for m, tps in scored if tps < USABLE_TG_TPS
+            m["params_b"] > best["params_b"] for m, tps in scored if not fast_enough(m, tps)
         )
+        line = LARGER_MODEL_TG_TPS if best["params_b"] > measured_params_b else USABLE_TG_TPS
         return {"local": best, "remote_suggested": larger_but_slow,
-                "reason": f"largest model that fits RAM and runs >= {USABLE_TG_TPS} tok/s"}
+                "reason": f"largest model that fits RAM and runs >= {line} tok/s"}
 
     # Nothing clears the speed floor: recommend the smallest (fastest) that fits,
     # and lean on remote.

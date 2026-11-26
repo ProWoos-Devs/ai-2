@@ -21,6 +21,29 @@ def test_rmm_pc_gets_small_model_and_remote():
     assert rec["remote_suggested"] is True         # 1.5B fits RAM but is too slow
 
 
+def test_rmm_pc_on_the_clang_engine_keeps_the_small_model():
+    # RMM-PC with the clang engine: 3.18 to 3.3 tok/s on the 0.5B (2026-11-25).
+    # Gemma 3 1B measured 1.62 tok/s there, too slow; the 0.8B must not flip in
+    # and out with run-to-run noise.
+    for tps in (3.18, 3.21, 3.25, 3.3, 3.4):
+        assert recommend(3381, tps, 0.5)["local"]["id"] == "qwen2.5-0.5b"
+
+
+def test_slow_machine_is_not_pushed_down_to_the_270m():
+    # The higher line is only for models larger than the benchmark model.
+    for tps in (1.5, 1.93, 2.1):
+        assert recommend(3381, tps, 0.5)["local"]["id"] == "qwen2.5-0.5b"
+    assert recommend(3381, 1.3, 0.5)["local"]["id"] == "gemma3-270m"
+
+
+def test_rafaminu_pc_gets_the_1b():
+    # E1-7010, 6889 MiB, 5.12 to 5.32 tok/s on the 0.5B (2026-11-26): the 1.7B is
+    # estimated at 1.56, under the line for a larger model, the 1B at 2.6.
+    for tps in (5.12, 5.3, 5.32):
+        rec = recommend(6889, tps, 0.5)
+        assert rec["local"]["id"] == "gemma3-1b" and rec["remote_suggested"] is True
+
+
 def test_fast_machine_gets_larger_model():
     # 32 GB, 40 tok/s measured on a 0.5B (a strong CPU/GPU): should pick the 7B.
     rec = recommend(32000, 40.0, 0.5)
