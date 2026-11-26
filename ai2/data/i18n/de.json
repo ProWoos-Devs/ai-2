@@ -280,5 +280,21 @@
   "Replace {path}?": "{path} ersetzen?",
   "This computer has too little memory to build a Knowledge Pack in this language. Create it on a computer with more memory and copy the Knowledge Pack file here.": "Dieser Computer hat zu wenig Speicher, um ein Wissenspaket in dieser Sprache zu erstellen. Erstelle es auf einem Computer mit mehr Speicher und kopiere die Wissenspaket-Datei hierher.",
   "Document {n} of {count}: {name}": "Dokument {n} von {count}: {name}",
-  "{done} of {total} parts, about {minutes} min left for this document": "{done} von {total} Teilen, noch etwa {minutes} Min. für dieses Dokument"
+  "{done} of {total} parts, about {minutes} min left for this document": "{done} von {total} Teilen, noch etwa {minutes} Min. für dieses Dokument",
+  "A submission folder already exists here. Choose another location.": "Hier gibt es bereits einen Einreichungsordner. Wähle einen anderen Ort.",
+  "Author or contact": "Autor oder Kontakt",
+  "Catalog category": "Katalogkategorie",
+  "Checking the submission…": "Einreichung wird geprüft…",
+  "Choose where to save the submission": "Speicherort für die Einreichung wählen",
+  "Community submission guide": "Anleitung zur Einreichung",
+  "Enter the author, source credits, license and category.": "Gib Autor, Quellenangaben, Lizenz und Kategorie an.",
+  "Files ready in {path}. Use the guide to submit them.": "Die Dateien liegen in {path}. Die Anleitung erklärt die Einreichung.",
+  "License for sharing these documents": "Lizenz für die Weitergabe dieser Dokumente",
+  "Prepare for community sharing": "Für die Community vorbereiten",
+  "Prepare submission files": "Dateien zur Einreichung vorbereiten",
+  "Source and attribution": "Quellen und Urheberangaben",
+  "The Knowledge Pack exceeds the catalog’s 10 MiB limit. See the submission guide.": "Das Wissenspaket überschreitet die Kataloggrenze von 10 MiB. Lies die Anleitung zur Einreichung.",
+  "This Knowledge Pack ID is already in the catalog. Follow the catalog guide to update it.": "Diese Wissenspaket-Kennung steht bereits im Katalog. Folge der Anleitung zur Aktualisierung.",
+  "Written for children": "Für Kinder geschrieben",
+  "Choose at least one age range.": "Wähle mindestens eine Altersgruppe."
 }

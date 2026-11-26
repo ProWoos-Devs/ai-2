@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import closing
 import errno
+import importlib.resources
 import json
 import os
 from pathlib import Path
@@ -13,11 +14,16 @@ import sys
 import tempfile
 import unicodedata
 
-from . import doc, pack, runtime
+import yaml
+
+from . import __version__, doc, pack, runtime
 from .i18n import tr
 from .models import embedding_models
 
 DETAILS = "creator.json"
+LICENSES = ("CC-BY-4.0", "CC-BY-SA-4.0", "CC0-1.0", "public-domain", "MIT",
+            "CC-BY-SA-3.0", "CC-BY-SA-2.5", "CC-BY-3.0", "Apache-2.0",
+            "GFDL-1.3-or-later", "PSF-2.0", "OGL-3.0")
 
 
 def run_cli(arguments, *, env=None, report=None, started=None):
@@ -168,3 +174,57 @@ def save_pack(name, details, destination):
 
 def try_question(name, question):
     return run_cli(["doc", "search", "--in", name, "--", question])
+
+
+def prepare_community(name, details, parent, contact, license_id, credit, category, ages=()):
+    contact, credit = contact.strip(), credit.strip()
+    if not contact or not credit or license_id not in LICENSES or category not in pack.load_categories()["categories"]:
+        raise ValueError(tr("Enter the author, source credits, license and category."))
+    if pack.catalog_entry(name):
+        raise ValueError(tr("This Knowledge Pack ID is already in the catalog. Follow the catalog guide to update it."))
+    final = Path(parent) / (name + "-submission")
+    if final.exists():
+        raise ValueError(tr("A submission folder already exists here. Choose another location."))
+    with tempfile.TemporaryDirectory(dir=parent) as tmp:
+        bundle = Path(tmp) / "submission"
+        relative = Path("packs") / name / f"{name}-r1.ai2pack"
+        out = bundle / relative
+        out.parent.mkdir(parents=True)
+        manifest = pack.export_pack(name, str(out), dict(details, license=license_id, attribution=credit))
+        if out.stat().st_size > 10 * 1024 * 1024:
+            raise ValueError(tr("The Knowledge Pack exceeds the catalog’s 10 MiB limit. See the submission guide."))
+        entry = {k: manifest[k] for k in ("id", "title", "version", "revision", "languages", "license", "attribution")}
+        entry.update(embedder=manifest["embedder"]["id"], contact=contact, categories=[category],
+                     url="https://raw.githubusercontent.com/ProWoos-Devs/ai2-knowledge/main/" + relative.as_posix(),
+                     size_bytes=out.stat().st_size, sha256=pack.sha256_file(out),
+                     documents=manifest["index"]["documents"], parts=manifest["index"]["parts"],
+                     built_with="ai-2 " + __version__)
+        if ages:
+            entry.update(audience="children", ages=list(ages))
+        (bundle / "catalog-entry.yml").write_text(yaml.safe_dump([entry], allow_unicode=True, sort_keys=False),
+                                                 encoding="utf-8")
+        with tempfile.TemporaryDirectory() as scratch:
+            _check_submission(Path(scratch), bundle, entry)
+        bundle.rename(final)
+    return final
+
+
+def _check_submission(check, bundle, entry):
+    # Run the catalog's own offline checks against this candidate, including a real
+    # install in a throwaway home. This pinned MIT tool is copied verbatim from
+    # ProWoos-Devs/ai2-knowledge@0cf0c1375b245c4be40d6036fbe2d7a98c21c33d.
+    data = importlib.resources.files("ai2").joinpath("data")
+    (check / "tools").mkdir()
+    (check / "catalog").mkdir()
+    (check / "packs").symlink_to((bundle / "packs").resolve(), target_is_directory=True)
+    validator = check / "tools/validate-catalog.py"
+    validator.write_bytes(data.joinpath("validate-catalog.py").read_bytes())
+    (check / "catalog/categories.yml").write_bytes(data.joinpath("pack-categories.yml").read_bytes())
+    catalog_file = check / "catalog/community.yml"
+    catalog_file.write_text(yaml.safe_dump({"version": 1, "packs": [entry]}), encoding="utf-8")
+    env = dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parent.parent),
+               AI2_SYSTEM_DOC_DIR=str(check / "system"))
+    result = subprocess.run([sys.executable, validator, "--install", catalog_file],
+                            capture_output=True, text=True, env=env)
+    if result.returncode:
+        raise ValueError(result.stdout.strip() or result.stderr.strip())

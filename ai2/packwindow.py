@@ -344,9 +344,53 @@ class PackWindow(Gtk.Window):
             self.job(tr("Saving…"), lambda: packcreator.save_pack(name, details, path),
                      lambda _: self.status.set_text(tr("Saved to {path}").format(path=path)))
         self.add_to_page(button(tr("Save a Knowledge Pack file"), save))
+        self.add_to_page(button(tr("Prepare for community sharing"), lambda: self.community(name, details)))
         self.add_to_page(button(tr("Back"), self.home))
         self.page.show_all()
         question.grab_focus()
+
+    def community(self, name, details):
+        self.clear(tr("Prepare for community sharing"))
+        contact = self.field(tr("Author or contact"), Gtk.Entry())
+        credit = self.field(tr("Source and attribution"), Gtk.Entry())
+        license_field = Gtk.ComboBoxText()
+        for license_id in packcreator.LICENSES:
+            license_field.append(license_id, license_id)
+        self.field(tr("License for sharing these documents"), license_field)
+        category = Gtk.ComboBoxText()
+        for code, label in pack.load_categories()["categories"].items():
+            category.append(code, f"{code}  {label}")
+        self.field(tr("Catalog category"), category)
+        children = self.add_to_page(Gtk.CheckButton(label=tr("Written for children")))
+        age_box = self.add_to_page(Gtk.Box(orientation=Gtk.Orientation.VERTICAL))
+        age_box.set_no_show_all(True)
+        ages = {}
+        for code, label in pack.load_categories()["ages"].items():
+            ages[code] = Gtk.CheckButton(label=label)
+            age_box.add(ages[code])
+            ages[code].show()
+        children.connect("toggled", lambda box: age_box.set_visible(box.get_active()))
+        self.add_to_page(Gtk.LinkButton.new_with_label(pack.CATALOG_URL + "/blob/main/CONTRIBUTING.md",
+                                               tr("Community submission guide")))
+
+        def prepare():
+            values = (contact.get_text(), license_field.get_active_id(), credit.get_text(), category.get_active_id())
+            if not all(value and value.strip() for value in values):
+                self.message(tr("Enter the author, source credits, license and category."))
+                return
+            selected_ages = [code for code, box in ages.items() if box.get_active()] if children.get_active() else []
+            if children.get_active() and not selected_ages:
+                self.message(tr("Choose at least one age range."))
+                return
+            chosen = self.choose(tr("Choose where to save the submission"), Gtk.FileChooserAction.SELECT_FOLDER)
+            if chosen:
+                self.job(tr("Checking the submission…"),
+                         lambda: packcreator.prepare_community(name, details, chosen[0], *values, ages=selected_ages),
+                         lambda folder: self.status.set_text(tr("Files ready in {path}. Use the guide to submit them.")
+                                                            .format(path=folder)))
+        self.add_to_page(button(tr("Prepare submission files"), prepare))
+        self.add_to_page(button(tr("Back"), lambda: self.ready(name, details)))
+        self.page.show_all()
 
 
 def open_window(create=False):

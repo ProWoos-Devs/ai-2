@@ -36,6 +36,8 @@ Open **Applications > AI-2 > Knowledge Packs > Create a Knowledge Pack**. Give i
 
 Try a question in the new collection. You can reopen it under **My private collections** or in the chat's **Ask this collection**. A collection you create stays in your own account on this computer. **Save a Knowledge Pack file** makes a portable copy with the documents' searchable text. On another AI-2 computer, open **Knowledge Packs > Install a Knowledge Pack from a file** and choose the copy on your USB stick. That computer also needs the matching search model.
 
+**Prepare for community sharing** is optional. Supply the author, source credits, redistribution license and category. The window saves the Knowledge Pack file under `packs/` and a `catalog-entry.yml` with the checksum and catalog metadata. It tests the candidate with the bundled catalog validator, including a fresh install. Nothing is uploaded. To submit it, add the Knowledge Pack file and its entry to the catalog following the [community guide](https://github.com/ProWoos-Devs/ai2-knowledge/blob/main/CONTRIBUTING.md).
+
 ### From the terminal
 
 This is the household case: a recent computer does the indexing, the old one does the asking.

@@ -5,6 +5,7 @@ All notable changes to AI-2: the `ai-2` tool (semantic versions, matching the `a
 ## [Unreleased]
 ### Added
 - **Create a Knowledge Pack from the desktop.** **Applications > AI-2 > Knowledge Packs** now opens a window. **Create a Knowledge Pack** takes a title, the language of the documents, PDFs or text files and pasted notes, and indexes them on this computer into a private collection, which appears only once every document is in. While it indexes, a bar and a line under it show which document it is on, the parts done and the minutes left for that document. You can try a question on it, open it again later under **My private collections**, and save it as a Knowledge Pack file for another computer. The same window installs a Knowledge Pack from a file and opens the list of the community catalog in a terminal. `ai-2 knowledge create` and `ai-2 knowledge manage` open it from a terminal. The package now requires `gtk3`, `python-gobject` and `poppler`.
+- **Prepare a Knowledge Pack for the community catalog.** In the window of a private collection, **Prepare for community sharing** asks for the author, the source credits, a license and a category, and writes a folder with the Knowledge Pack file and a `catalog-entry.yml` carrying its size and SHA-256. The folder is written only when the catalog's own checks pass on it, a fresh install in a throwaway folder included. Nothing is uploaded.
 
 ## [0.30.1] - 2026-11-25
 ### Changed

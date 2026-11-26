@@ -1,7 +1,8 @@
-"""Private collections become visible atomically. Export uses real packs."""
+"""Private collections become visible atomically. Export and catalog preparation use real packs."""
 from pathlib import Path
 
 import pytest
+import yaml
 
 from ai2 import doc, pack, packcreator as creator
 
@@ -58,6 +59,28 @@ def test_interrupted_index_and_duplicate_names_do_not_change_collections(local, 
     with pytest.raises(OSError, match="interrupted"):
         creator.create("Garden", "es", [], "notes")
     assert list(Path(doc.doc_root()).iterdir()) == []
+
+
+def test_community_candidate_passes_catalog_install_check_and_leaves_private_copy_alone(local):
+    name, details = creator.create("Huerta", "es", [], "Semillas y plantas")
+    args = (name, details, local, "Test author", "CC-BY-4.0", "Original garden notes", "11")
+    folder = creator.prepare_community(*args, ages=["school-age"])
+    entry, = yaml.safe_load((folder / "catalog-entry.yml").read_text())
+    file = folder / "packs/huerta/huerta-r1.ai2pack"
+    assert entry["sha256"] == pack.sha256_file(file) and entry["size_bytes"] == file.stat().st_size
+    assert entry["audience"] == "children" and entry["ages"] == ["school-age"]
+    assert pack.read_manifest(str(file))["attribution"] == entry["attribution"]
+    assert pack.manifest_of(name) is None
+    with pytest.raises(ValueError, match="already exists"):
+        creator.prepare_community(*args)
+
+
+def test_invalid_catalog_submission_leaves_no_partial_files(local):
+    name, details = creator.create("Huerta", "es", [], "Semillas y plantas")
+    with pytest.raises(ValueError, match="requires the recipient"):
+        creator.prepare_community(name, details, local, "Test author", "Apache-2.0", "Original work", "11")
+    assert not (local / "huerta-submission").exists()
+    assert name in creator.private_collections()
 
 
 def test_language_selection_and_model():

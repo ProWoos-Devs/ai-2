@@ -280,5 +280,21 @@
   "Replace {path}?": "¿Reemplazar {path}?",
   "This computer has too little memory to build a Knowledge Pack in this language. Create it on a computer with more memory and copy the Knowledge Pack file here.": "Este equipo tiene poca memoria para crear un Paquete de Conocimiento en este idioma. Créalo en un equipo con más memoria y copia aquí el archivo del Paquete de Conocimiento.",
   "Document {n} of {count}: {name}": "Documento {n} de {count}: {name}",
-  "{done} of {total} parts, about {minutes} min left for this document": "{done} de {total} partes, quedan unos {minutes} min para este documento"
+  "{done} of {total} parts, about {minutes} min left for this document": "{done} de {total} partes, quedan unos {minutes} min para este documento",
+  "A submission folder already exists here. Choose another location.": "Ya existe una carpeta de envío en esta ubicación. Elige otra.",
+  "Author or contact": "Autor o contacto",
+  "Catalog category": "Categoría del catálogo",
+  "Checking the submission…": "Comprobando los archivos…",
+  "Choose where to save the submission": "Elegir dónde guardar los archivos para el catálogo",
+  "Community submission guide": "Guía para compartir en el catálogo",
+  "Enter the author, source credits, license and category.": "Indica el autor, los créditos de las fuentes, la licencia y la categoría.",
+  "Files ready in {path}. Use the guide to submit them.": "Archivos preparados en {path}. Sigue la guía para enviarlos al catálogo.",
+  "License for sharing these documents": "Licencia para compartir estos documentos",
+  "Prepare for community sharing": "Preparar para compartir con la comunidad",
+  "Prepare submission files": "Preparar archivos para el catálogo",
+  "Source and attribution": "Fuentes y créditos",
+  "The Knowledge Pack exceeds the catalog’s 10 MiB limit. See the submission guide.": "El Paquete de Conocimiento supera el límite de 10 MiB del catálogo. Consulta la guía de envío.",
+  "This Knowledge Pack ID is already in the catalog. Follow the catalog guide to update it.": "Este identificador ya está en el catálogo. Sigue la guía para actualizar el Paquete de Conocimiento.",
+  "Written for children": "Escrito para niños",
+  "Choose at least one age range.": "Elige al menos un rango de edad."
 }
