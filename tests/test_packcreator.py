@@ -130,3 +130,25 @@ def test_create_passes_progress_on(local, monkeypatch):
         creator.create("Garden", "es", [], "notes", report=lines.append, progress=got.append)
     assert [(i["done"], i["total"], i["fraction"]) for i in got] == [(0, 2, 0.0), (1, 2, 0.5)]
     assert len(lines) == 2
+
+
+def test_a_progress_update_arrives_when_it_is_printed_not_with_the_next(tmp_path):
+    """The indexer ends an update with no newline. Read by lines, the window got
+    each one only when the next arrived, a batch late (Rafael on RMM-PC,
+    2026-11-26: the bar sat still at the start)."""
+    import subprocess, sys, time
+    child = ("import sys, time\n"
+             "print('a.txt: 5 words in 8 parts, indexing with X ...', flush=True)\n"
+             "print('\\r  4/8 parts, 3 s, about 1 min left   ', end='', flush=True)\n"
+             "time.sleep(3)\n"
+             "print('\\r  8/8 parts, 6 s, about 1 min left   ', end='', flush=True)\n"
+             "print('\\na.txt: 8 parts indexed in 6 s', flush=True)\n")
+    started, seen = time.monotonic(), []
+    with subprocess.Popen([sys.executable, "-c", child], stdout=subprocess.PIPE) as process:
+        for piece in creator._segments(process.stdout):
+            seen.append((piece.strip(), time.monotonic() - started))
+    texts = [t for t, _ in seen if t]
+    assert texts == ["a.txt: 5 words in 8 parts, indexing with X ...", "4/8 parts, 3 s, about 1 min left",
+                     "8/8 parts, 6 s, about 1 min left", "a.txt: 8 parts indexed in 6 s"]
+    first_update = next(at for t, at in seen if t.startswith("4/8"))
+    assert first_update < 2.5, f"the first update came {first_update:.1f} s in, with the second"

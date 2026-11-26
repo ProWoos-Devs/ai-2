@@ -26,15 +26,36 @@ LICENSES = ("CC-BY-4.0", "CC-BY-SA-4.0", "CC0-1.0", "public-domain", "MIT",
             "GFDL-1.3-or-later", "PSF-2.0", "OGL-3.0")
 
 
+def _segments(stream):
+    """The text of a child's output, a piece at a time, split at a newline or a
+    carriage return. The indexer ends a progress update with no newline and
+    starts the next one with a carriage return, so reading by lines would hand
+    each update over only when the next one arrives, one batch late (about 36 s
+    on a 2011 laptop, 2026-11-26). An update that came whole is passed on at once."""
+    pending = ""
+    while True:
+        chunk = stream.read1(4096) if hasattr(stream, "read1") else stream.read(4096)
+        if not chunk:
+            break
+        pending += chunk.decode("utf-8", "replace") if isinstance(chunk, bytes) else chunk
+        *done, pending = re.split(r"[\r\n]", pending)
+        yield from done
+        if _DOC_PARTS.match(pending.strip()) and pending.endswith("left   "):
+            yield pending
+            pending = ""
+    if pending:
+        yield pending
+
+
 def run_cli(arguments, *, env=None, report=None, started=None):
     """Use the installed CLI and its normal engine. Keep progress out of GTK's thread."""
     command = [sys.executable, "-u", "-m", "ai2.cli", *map(str, arguments)]
     with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT, text=True, errors="replace", env=env) as process:
+                          stderr=subprocess.STDOUT, env=env) as process:
         if started:
             started(process)
         output = []
-        for line in process.stdout:
+        for line in _segments(process.stdout):
             line = line.strip()
             if line:
                 # Keep diagnostics even if following documents print many progress updates.

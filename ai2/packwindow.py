@@ -184,18 +184,25 @@ class PackWindow(Gtk.Window):
         return self.pulsing
 
     def index_progress(self, info):
-        """From the worker thread: how far the import is, on the bar and in words."""
+        """From the worker thread: how far the import is, on the bar and in words.
+        Until the first parts are back the bar keeps pulsing, so the start (the
+        search model loading, the first batch, about 40 s on a 2011 laptop) does
+        not look stuck (Rafael, 2026-11-26)."""
         text = tr("Document {n} of {count}: {name}").format(n=info["document"], count=info["documents"],
                                                             name=info["name"])
+        started = info["done"] > 0 or info["document"] > 1
         if info["minutes"] is not None:
             text += "\n" + tr("{done} of {total} parts, about {minutes} min left for this document").format(
                 done=info["done"], total=info["total"], minutes=info["minutes"])
+        else:
+            text += "\n" + tr("{total} parts, starting…").format(total=info["total"])
 
         def show():
             if self.busy:
-                self.pulsing = False
-                self.bar.set_fraction(info["fraction"])
                 self.status.set_text(text)
+                if started:
+                    self.pulsing = False
+                    self.bar.set_fraction(info["fraction"])
             return False
         GLib.idle_add(show)
 
